@@ -1,0 +1,467 @@
+/* MiCole: shared visual finish. Keep layout and tenant-specific colors intact. */
+:root {
+  --shadow-card: 0 2px 5px #26323803, 0 9px 25px #26323804;
+  --shadow-raised: 0 6px 14px #26323804, 0 18px 38px #3d6ef70c;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-layout {
+  background: #f8faff;
+}
+
+.workspace {
+  background-image: radial-gradient(ellipse at 95% 0%, #3d6ef706, transparent 50%);
+}
+
+.workspace-page {
+  min-width: 0;
+}
+
+.sidebar {
+  box-shadow: 3px 0 16px #26323803;
+}
+
+.topbar {
+  box-shadow: 0 2px 12px #26323803;
+}
+
+.platform-context,
+.school-switcher {
+  background: #f8faff;
+  border-color: #e0e8f7;
+}
+
+.nav-link {
+  transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.nav-link.active {
+  background: #eaf0ff;
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.view-top h1 {
+  color: var(--text);
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.view-top p,
+.section-title p {
+  color: #687b8d;
+  line-height: 1.7;
+}
+
+.eyebrow {
+  color: #61758c;
+  font-weight: 600;
+}
+
+.section-title h2,
+.entity-card h3,
+.family-card-head h2,
+.floating-panel h3,
+.modal-head h2 {
+  color: #2c4052;
+}
+
+.panel,
+.stat-card,
+.entity-card,
+.photo-card,
+.platform-welcome {
+  box-shadow: var(--shadow-card);
+  border-color: #e3eaf5;
+}
+
+.stat-card,
+.entity-card,
+.photo-card {
+  transition: border-color 180ms ease, box-shadow 220ms ease;
+}
+
+.stat-copy > strong,
+.collection-total strong {
+  color: #263f57;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-copy > span,
+.stat-copy > small,
+.entity-card p,
+.entity-meta,
+.icon-line,
+.entity-footer,
+.family-card-head p {
+  color: #64788d;
+}
+
+.stat-icon {
+  box-shadow: inset 0 0 0 1px #26323805;
+}
+
+.tone-purple {
+  color: #3d6ef7;
+}
+
+.tone-blue {
+  color: #2b70ac;
+}
+
+.tone-mint {
+  color: #16744e;
+}
+
+.tone-amber {
+  color: #92670a;
+}
+
+.hero {
+  background: linear-gradient(115deg, #edf3ff, #f8faff 60%, #eef8f3);
+  box-shadow: 0 5px 22px #3d6ef705;
+}
+
+.hero p,
+.hero-label {
+  color: #617b99;
+}
+
+.hero h2 {
+  color: #2b4059;
+}
+
+.platform-welcome {
+  background: linear-gradient(110deg, #fff 60%, #f5f8ff);
+}
+
+.table-caption {
+  background: linear-gradient(90deg, #fff, #fafcff);
+}
+
+th {
+  color: #62758c;
+}
+
+td {
+  color: #5c7187;
+}
+
+td b {
+  color: #334f6a;
+}
+
+.table-caption span,
+.table-identity small,
+.table-detail small,
+.cell-note {
+  color: #6f8297;
+}
+
+.responsive-table tbody tr {
+  transition: background-color 150ms ease;
+}
+
+.search-box,
+.field input,
+.field select,
+.field textarea {
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.field > span,
+.auth-email-form .field > span,
+.onboarding-form .field > span {
+  color: #4b637b;
+}
+
+.field input::placeholder,
+.field textarea::placeholder,
+.search-box input::placeholder {
+  color: #7f90a3;
+  opacity: 1;
+}
+
+.search-box:focus-within,
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px #3d6ef719;
+}
+
+.school-switcher select:focus-visible,
+.child-switcher select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+  border-radius: 3px;
+}
+
+.btn {
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 180ms ease, transform 180ms var(--ease-out);
+}
+
+.btn-primary {
+  box-shadow: 0 3px 8px #3d6ef71f;
+}
+
+.btn-secondary {
+  color: #2c59cf;
+}
+
+.btn:disabled {
+  transform: none;
+}
+
+.empty-state h3 {
+  color: #425c77;
+}
+
+.empty-state p,
+.modal-head p,
+.modal-content > p,
+.floating-panel button small {
+  color: #6b8198;
+}
+
+.empty-icon {
+  color: var(--blue);
+  background: linear-gradient(145deg, #edf3ff, #e4edff);
+}
+
+.modal {
+  border-color: #e0e8f4;
+  box-shadow: 0 8px 24px #2632380f, 0 28px 90px #17345730;
+}
+
+.modal-footer {
+  background: #fbfcff;
+}
+
+.floating-panel {
+  box-shadow: 0 6px 20px #26323808, 0 20px 60px #23468c15;
+}
+
+.floating-panel button.unread {
+  background: #eef3ff;
+}
+
+.toast {
+  box-shadow: 0 5px 20px #26323812, 0 14px 40px #275ad42b;
+}
+
+/* Public pages keep the white/blue balance of the MiCole brand. */
+.landing-header {
+  box-shadow: 0 2px 15px #26323803;
+}
+
+.landing-hero {
+  background-image: radial-gradient(ellipse at 68% 36%, #3d6ef705, transparent 62%);
+}
+
+.landing-links > a,
+.landing-secondary,
+.audience-card a {
+  transition: color 160ms ease;
+}
+
+.audience-card,
+.feature-card,
+.pricing-card {
+  box-shadow: var(--shadow-card);
+  transition: border-color 180ms ease, box-shadow 220ms ease;
+}
+
+.feature-card h3 {
+  color: #334b64;
+}
+
+.feature-card p,
+.landing-hero-copy > p,
+.landing-section-heading p,
+.care-copy > p,
+.pricing-explanation > p,
+.faq-heading p,
+.faq-list p {
+  color: #62778d;
+}
+
+.faq-list details {
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.faq-list details[open] {
+  background: #f8faff;
+  border-color: #d3dff8;
+}
+
+.auth-story {
+  background: radial-gradient(ellipse at 0 100%, #54d2a010, transparent 55%), linear-gradient(140deg, #f1f6ff, #eaf2ff);
+}
+
+.auth-story p,
+.auth-community > span,
+.auth-card > p,
+.auth-hint {
+  color: #5f7995;
+}
+
+.auth-card h2 {
+  color: #2c4052;
+}
+
+.auth-icon {
+  color: var(--blue);
+  box-shadow: 0 6px 20px #3d6ef70a;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:not(:disabled):hover {
+    box-shadow: 0 5px 16px #3d6ef72b;
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:not(:disabled):active {
+    transform: translateY(1px);
+  }
+
+  .stat-card:hover,
+  .entity-card:hover,
+  .photo-card:hover,
+  .feature-card:hover,
+  .audience-card:hover {
+    border-color: #cedcf8;
+    box-shadow: var(--shadow-raised);
+  }
+
+  .audience-teacher:hover {
+    border-color: #b8e5cd;
+  }
+
+  .audience-family:hover {
+    border-color: #f0dda7;
+  }
+
+  .search-box:hover,
+  .field input:not(:disabled):hover,
+  .field select:not(:disabled):hover,
+  .field textarea:not(:disabled):hover {
+    border-color: #bed0ef;
+  }
+
+  .field input:focus:hover,
+  .field select:focus:hover,
+  .field textarea:focus:hover,
+  .search-box:focus-within:hover {
+    border-color: var(--blue);
+  }
+}
+
+/* Finite entrances: no decorative loops or JS dependency. */
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-page {
+    animation: micole-page-in 300ms var(--ease-out) both;
+  }
+
+  .workspace-page .stats-grid > .stat-card {
+    animation: micole-rise-in 400ms var(--ease-out) both;
+  }
+
+  .workspace-page .stats-grid > .stat-card:nth-child(2) {
+    animation-delay: 35ms;
+  }
+
+  .workspace-page .stats-grid > .stat-card:nth-child(3) {
+    animation-delay: 70ms;
+  }
+
+  .workspace-page .stats-grid > .stat-card:nth-child(4) {
+    animation-delay: 105ms;
+  }
+
+  .modal-backdrop {
+    animation: micole-fade-in 160ms ease-out both;
+  }
+
+  .modal {
+    animation: micole-rise-in 260ms var(--ease-out) both;
+  }
+
+  .floating-panel,
+  .toast {
+    animation: micole-rise-in 220ms var(--ease-out) both;
+  }
+
+  .landing-hero-copy,
+  .auth-card {
+    animation: micole-rise-in 500ms var(--ease-out) both;
+  }
+
+  .product-preview-scene {
+    animation: micole-rise-in 650ms var(--ease-out) 100ms both;
+  }
+
+  .landing-hero h1 > span::after {
+    transform-origin: left center;
+    animation: micole-underline-in 600ms var(--ease-out) 200ms both;
+  }
+}
+
+@keyframes micole-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes micole-page-in {
+  from { opacity: 0.45; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes micole-rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes micole-underline-in {
+  from { transform: scaleX(0); }
+  to { transform: none; }
+}
+
+@media (max-width: 760px) {
+  .view-top h1 {
+    letter-spacing: -0.6px;
+  }
+
+  .panel,
+  .entity-card,
+  .stat-card {
+    box-shadow: 0 3px 12px #26323804;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-page,
+  .workspace-page .stat-card,
+  .modal-backdrop,
+  .modal,
+  .floating-panel,
+  .toast,
+  .landing-hero-copy,
+  .product-preview-scene,
+  .landing-hero h1 > span::after,
+  .auth-card {
+    animation: none;
+  }
+
+  .btn,
+  .stat-card,
+  .entity-card,
+  .photo-card,
+  .audience-card,
+  .feature-card,
+  .field input,
+  .field select,
+  .field textarea,
+  .search-box {
+    transition: none;
+  }
+}

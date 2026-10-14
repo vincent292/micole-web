@@ -1,0 +1,10 @@
+project_id = "micole-app"
+[functions.r2-media]
+verify_jwt = false # La función verifica el JWT con auth.getUser; admite signing keys asimétricas.
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/auth/callback", "http://localhost:5175/auth/callback", "http://localhost:5173/invite/**", "http://localhost:5175/invite/**"]
+
+[auth.email]
+enable_confirmations = true

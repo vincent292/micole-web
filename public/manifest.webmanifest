@@ -1,0 +1,13 @@
+{
+  "id": "/app",
+  "name": "MiCole · Tu comunidad educativa",
+  "short_name": "MiCole",
+  "description": "Todo lo importante del colegio, en un solo lugar.",
+  "start_url": "/app/overview",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFF",
+  "theme_color": "#3D6EF7",
+  "lang": "es-BO",
+  "icons": [{"src": "/brand/symbol.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any"}]
+}

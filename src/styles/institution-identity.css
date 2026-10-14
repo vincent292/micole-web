@@ -1,0 +1,127 @@
+.institution-logo-preview {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid #e2e9f7;
+  border-radius: 16px;
+  padding: 16px;
+  background: #f8faff;
+}
+.institution-logo-preview img,
+.institution-card-logo {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+}
+.institution-logo-preview strong,
+.institution-logo-preview small,
+.institution-check strong,
+.institution-check small {
+  display: block;
+}
+.institution-logo-preview strong {
+  font-size: 14px;
+  color: #263238;
+}
+.institution-logo-preview small,
+.institution-field-help,
+.institution-check small {
+  color: #53647b;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 4px 0 0;
+}
+.institution-field-help {
+  margin-top: -10px;
+}
+.institution-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  color: #263238;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.institution-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  accent-color: #3d6ef7;
+}
+.institution-visibility {
+  background: #f0f4ff;
+  border: 1px solid #dde6ff;
+  border-radius: 12px;
+  padding: 14px;
+}
+.institution-visibility-help {
+  margin: 4px 0 0 28px;
+  color: #53647b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.institution-details {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+.institution-details > div {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.institution-details dt {
+  color: #53647b;
+}
+.institution-details dd {
+  margin: 0;
+  color: #263238;
+  overflow-wrap: anywhere;
+}
+.institution-site {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2457d6;
+  margin-bottom: 8px;
+}
+.institution-public-state {
+  color: #53647b;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 8px 0 16px;
+}
+.institution-card .entity-footer {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.institution-card .entity-footer .btn {
+  min-width: 0;
+}
+.institution-card h3,
+.institution-card > p,
+.institution-check > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+@media (max-width: 380px) {
+  .institution-logo-preview {
+    padding: 12px;
+    gap: 10px;
+  }
+  .institution-logo-preview img {
+    width: 48px;
+    height: 48px;
+  }
+  .institution-details > div {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 8px;
+  }
+}

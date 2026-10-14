@@ -1,0 +1,492 @@
+/* Motion is loaded only by the public landing. The application keeps native scrolling. */
+html:has(.landing-motion) {
+  scroll-behavior: smooth;
+  scroll-padding-top: 112px;
+}
+
+.landing-motion {
+  --landing-border: #e3eaf9;
+  --landing-ink: #263238;
+}
+
+.landing-scroll-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 3px;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, #3d6ef7 0%, #3d6ef7 64%, #54d2a0 87%, #ffc857 100%);
+  z-index: 70;
+  pointer-events: none;
+}
+
+.landing-motion .landing-header {
+  background: #ffffffed;
+  border-bottom-color: var(--landing-border);
+  box-shadow: 0 4px 22px #26323804;
+}
+
+.landing-motion .landing-links {
+  gap: 22px;
+}
+
+.landing-motion .landing-links > a {
+  position: relative;
+  padding-block: 10px;
+  color: #526477;
+}
+
+.landing-motion .landing-links > a::after {
+  position: absolute;
+  content: "";
+  left: 0;
+  bottom: 3px;
+  width: 100%;
+  height: 2px;
+  border-radius: 4px;
+  background: #3d6ef7;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+
+.landing-motion .landing-links > a:is(:hover, :focus-visible)::after {
+  transform: scaleX(1);
+}
+
+.landing-motion .landing-hero {
+  position: relative;
+  isolation: isolate;
+  background-image: radial-gradient(ellipse at 82% 35%, #3d6ef70b, transparent 64%);
+}
+
+.landing-motion .landing-hero::before {
+  content: "";
+  position: absolute;
+  inset: 65px 0 80px 52%;
+  background-image: radial-gradient(#3d6ef71a 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse, #000 18%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Replace the older CSS entrance with the coordinated Motion sequence. */
+.landing-motion .landing-hero-copy,
+.landing-motion .product-preview-scene {
+  animation: none;
+}
+
+.landing-motion .landing-hero-copy > .landing-eyebrow {
+  padding: 9px 12px;
+  background: #f2f6ff;
+  border: 1px solid #e3eafa;
+  border-radius: 30px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #2b56c9;
+}
+
+.landing-motion .landing-eyebrow > span {
+  box-shadow: 0 0 0 4px #54d2a01c;
+}
+
+.landing-motion .landing-hero-copy > p {
+  color: #5b6e80;
+}
+
+.landing-motion .landing-hero h1 > span::after {
+  background: linear-gradient(90deg, #ffc857, #ffdb86);
+  height: 7px;
+}
+
+.landing-motion .landing-cta {
+  box-shadow: 0 6px 20px #3d6ef726;
+}
+
+.landing-motion .landing-cta svg,
+.landing-motion .cta-white svg,
+.landing-motion .audience-card a svg,
+.landing-motion .landing-login svg {
+  transition: transform 180ms ease;
+  flex: none;
+}
+
+.landing-motion .hero-reassurance {
+  color: #647688;
+  font-size: 10px;
+}
+
+.landing-motion .hero-reassurance svg {
+  color: #237a58;
+}
+
+.landing-motion .product-preview {
+  border-color: #d6e2fb;
+  box-shadow: 0 24px 70px #204a8f1a, 0 3px 14px #214a8f08;
+  will-change: auto;
+}
+
+.landing-motion .preview-content-stage {
+  flex: 1;
+  min-width: 0;
+  background: #f9fbff;
+}
+
+.landing-motion .preview-main {
+  min-height: 338px;
+  height: 100%;
+}
+
+.landing-motion .preview-body > aside {
+  width: 54px;
+  gap: 7px;
+  padding-block: 12px;
+  justify-content: flex-start;
+}
+
+.landing-motion .preview-body > aside > button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  background: transparent;
+  color: #6d83a3;
+  transition: background-color 170ms ease, color 170ms ease;
+}
+
+.landing-motion .preview-body > aside > button.preview-nav-active {
+  background: #edf2ff;
+  color: #3d6ef7;
+}
+
+.landing-motion .preview-body > aside > button:hover {
+  background: #f0f5ff;
+  color: #2b56c9;
+}
+
+.landing-motion .preview-body > aside > button:focus-visible,
+.landing-motion .preview-main:focus-visible {
+  outline: 2px solid #3d6ef7;
+  outline-offset: -3px;
+}
+
+.landing-motion .preview-today {
+  color: #637d9e;
+  font-size: 6.5px;
+  letter-spacing: 1px;
+}
+
+.landing-motion .preview-main h3 {
+  color: #334e71;
+  font-size: 16px;
+  min-height: 20px;
+}
+
+.landing-motion .preview-welcome {
+  min-height: 89px;
+  border-color: #dfe9fb;
+  background: linear-gradient(120deg, #edf4ff, #f1f7ff);
+}
+
+.landing-motion .preview-welcome b {
+  color: #4c6f9f;
+}
+
+.landing-motion .preview-welcome span,
+.landing-motion .preview-entry small {
+  color: #667d9a;
+}
+
+.landing-motion .preview-entry b {
+  color: #47668e;
+}
+
+.landing-motion .preview-entry i {
+  color: #4e6dab;
+  background: #eef3ff;
+}
+
+.landing-motion .preview-mini-stats > div {
+  color: #5876a1;
+}
+
+.landing-motion .preview-mini-stats > div:nth-child(2) {
+  color: #267d5b;
+}
+
+.landing-motion .preview-floating b {
+  color: #415b7b;
+}
+
+.landing-motion .preview-floating small {
+  color: #6e819c;
+}
+
+.landing-motion .preview-caption {
+  font-size: 10px;
+  color: #657c96;
+}
+
+.landing-motion .landing-intro {
+  border-block: 1px solid #edf2fb;
+  background: #f8faff;
+}
+
+.landing-motion .audience-card,
+.landing-motion .feature-card,
+.landing-motion .pricing-card {
+  transition: box-shadow 220ms ease, border-color 180ms ease;
+}
+
+.landing-motion .feature-card {
+  border-color: var(--landing-border);
+}
+
+.landing-motion .feature-card .feature-icon {
+  transition: transform 200ms ease;
+}
+
+.landing-motion .pricing-card {
+  position: relative;
+  overflow: hidden;
+  border-color: #cedcfb;
+  box-shadow: 0 15px 45px #3d6ef70d;
+}
+
+.landing-motion .pricing-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #3d6ef7 0% 65%, #54d2a0 65% 88%, #ffc857 88%);
+}
+
+.landing-motion .landing-final-cta {
+  box-shadow: 0 15px 40px #3d6ef722;
+}
+
+.landing-motion .landing-final-cta::before {
+  content: "";
+  position: absolute;
+  width: 310px;
+  height: 310px;
+  border: 1px solid #ffffff1c;
+  border-radius: 50%;
+  right: -50px;
+  top: -80px;
+  pointer-events: none;
+}
+
+.landing-motion :is(a, button, summary):focus-visible {
+  outline: 2px solid #3d6ef7;
+  outline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .landing-motion :is(.landing-cta, .cta-white, .audience-card a, .landing-login):hover svg {
+    transform: translateX(3px);
+  }
+
+  .landing-motion .audience-card:hover,
+  .landing-motion .feature-card:hover {
+    box-shadow: 0 13px 30px #204a8f10;
+  }
+
+  .landing-motion .feature-card:hover .feature-icon {
+    transform: rotate(-5deg);
+  }
+}
+
+@media (max-width: 1000px) {
+  .landing-motion .landing-links {
+    gap: 13px;
+  }
+
+  .landing-motion .preview-main {
+    padding: 18px 13px;
+    min-height: 328px;
+  }
+
+  .landing-motion .preview-welcome {
+    padding: 14px;
+    gap: 9px;
+  }
+
+  .landing-motion .preview-welcome .logo-symbol {
+    width: 42px;
+    flex: none;
+  }
+}
+
+@media (max-width: 960px) {
+  .landing-motion .landing-menu {
+    display: grid;
+    place-items: center;
+  }
+
+  .landing-motion .landing-links {
+    display: none;
+    position: absolute;
+    top: calc(100% - 1px);
+    left: 20px;
+    right: 20px;
+    background: white;
+    border: 1px solid #dfe8fa;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 14px 40px #204a8f18;
+    margin: 0;
+    z-index: 26;
+  }
+
+  .landing-motion .landing-links.is-open {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .landing-motion .landing-links > a {
+    font-size: 13px;
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .landing-motion .landing-links > a:is(:hover, :focus-visible) {
+    background: #f2f6ff;
+  }
+
+  .landing-motion .landing-links > a::after {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  html:has(.landing-motion) {
+    scroll-padding-top: 90px;
+  }
+
+  .landing-motion .landing-hero::before {
+    inset: 53% -20px 20px;
+  }
+
+  .landing-motion .hero-reassurance {
+    font-size: 9px;
+  }
+
+  .landing-motion .preview-main {
+    min-height: 328px;
+    padding: 20px 16px;
+  }
+
+  .landing-motion .landing-final-cta::before {
+    width: 220px;
+    height: 220px;
+    right: -50px;
+    top: -70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-motion .landing-hero-copy > .landing-eyebrow {
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    padding: 8px 10px;
+  }
+
+  .landing-motion .preview-main {
+    min-height: 331px;
+    padding: 18px 12px;
+  }
+
+  .landing-motion .preview-main h3 {
+    font-size: 13px;
+    line-height: 1.45;
+    min-height: 37px;
+    margin-block: 8px 10px;
+  }
+
+  .landing-motion .preview-body > aside {
+    width: 46px;
+  }
+
+  .landing-motion .preview-welcome {
+    padding: 12px;
+    min-height: 87px;
+  }
+
+  .landing-motion .preview-welcome b {
+    font-size: 10px;
+  }
+
+  .landing-motion .preview-welcome .logo-symbol {
+    width: 35px;
+  }
+
+  .landing-motion .preview-mini-stats {
+    gap: 5px;
+    margin-block: 12px;
+  }
+
+  .landing-motion .preview-mini-stats > div {
+    padding: 9px 5px;
+    gap: 4px;
+    font-size: 6px;
+  }
+
+  .landing-motion .preview-mini-stats svg {
+    width: 13px;
+    height: 13px;
+    flex: none;
+  }
+
+  .landing-motion .preview-entry {
+    gap: 7px;
+    padding: 10px 8px;
+  }
+
+  .landing-motion .preview-entry b {
+    font-size: 8px;
+  }
+
+  .landing-motion .preview-entry small {
+    font-size: 7px;
+    line-height: 1.45;
+  }
+
+  .landing-motion .preview-entry-icon {
+    width: 26px;
+    height: 28px;
+  }
+
+  .landing-motion .preview-caption {
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.landing-motion) {
+    scroll-behavior: auto;
+  }
+
+  .landing-motion *,
+  .landing-motion *::before,
+  .landing-motion *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .landing-scroll-progress {
+    display: none;
+  }
+}
+
+@media print {
+  .landing-scroll-progress,
+  .landing-motion .landing-menu {
+    display: none;
+  }
+}
