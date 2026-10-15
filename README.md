@@ -25,7 +25,7 @@ Las rutas anteriores, como `/students`, redirigen al módulo correspondiente den
 
 ## Estado de esta instalación
 
-Las primeras nueve migraciones están aplicadas al proyecto vinculado. La décima, `202610140005_institution_identity.sql`, está implementada y probada, pendiente de aplicación: la revisión automática de permisos venció en ambos intentos sin ejecutar cambios. Hasta aplicarla, los nuevos campos y el directorio público no estarán activos en la base. La app se cambió a `live`. Se configuraron la URL de desarrollo, los callbacks locales, el corte diario y la reserva de correo del primer superadmin. El ingreso por correo está habilitado; **Google aún necesita habilitarse**. No se enviaron correos de prueba ni se cargaron alumnos ficticios al proyecto.
+Las diez migraciones están aplicadas al proyecto vinculado, incluida `202610140005_institution_identity.sql`. Los campos de identidad institucional y el directorio público están activos en Supabase; las comprobaciones remotas de instituciones pasan dentro de una transacción que termina en `ROLLBACK`. La app está en modo `live`. Se configuraron la URL de desarrollo, los callbacks locales, el corte diario y la reserva de correo del primer superadmin. El ingreso por correo está habilitado; **Google aún necesita habilitarse**. No se enviaron correos de prueba ni se dejaron personas, colegios o alumnos ficticios en el proyecto.
 
 El correo de administrador se reserva en una tabla privada de servidor. Solo se concede superadmin cuando Supabase confirma ese correo. Ningún usuario puede asignarse permisos desde React o aprobar su propio colegio.
 

@@ -4,7 +4,6 @@ dist
 .env.local
 .env.*.local
 .DS_Store
-.env.example
 *.log
 
 test-results/
