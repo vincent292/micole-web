@@ -465,3 +465,67 @@ td b {
     transition: none;
   }
 }
+
+.student-welcome { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.student-welcome > div { flex: 1; min-width: 180px; }
+.student-welcome h2 { margin: 0 0 .4rem; }
+.student-welcome p { margin: 0; color: var(--muted, #60758a); }
+.student-shortcuts { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
+.month-calendar { margin-bottom: 1rem; }
+.month-calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: 1rem; }
+.month-calendar-heading h3 { margin: 0; text-transform: capitalize; }
+.month-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: .35rem; }
+.calendar-weekday { text-align: center; font-size: .8rem; color: #52667b; padding: .5rem 0; font-weight: 600; }
+.calendar-day { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; min-width: 0; min-height: 74px; padding: .65rem; border: 1px solid #e4eaf5; border-radius: 10px; background: #fff; color: #263238; cursor: pointer; text-align: left; font: inherit; }
+.calendar-day:hover { border-color: #3D6EF7; background: #F8FAFF; }
+.calendar-day.today { box-shadow: inset 0 0 0 1px #3D6EF7; }
+.calendar-day.today > b { color: #3D6EF7; }
+.calendar-day.selected { background: #3D6EF7; color: white; border-color: #3D6EF7; }
+.calendar-day.selected > b { color: white; }
+.calendar-day-count { font-size: .7rem; }
+.calendar-day-dots { display: flex; gap: 3px; min-height: 5px; }
+.event-dot { width: 5px; height: 5px; background: #3D6EF7; border-radius: 50%; }
+.event-dot.homework { background: #b67900; }.event-dot.materials { background: #16805b; }.event-dot.birthday { background: #a344ad; }
+.calendar-day.selected .event-dot { background: #fff; }
+.calendar-selection { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .75rem; font-size: .85rem; }
+@media(max-width: 600px) {
+ .month-calendar { padding: .75rem; }
+ .month-calendar-grid { gap: .2rem; }
+ .calendar-day { padding: .35rem; min-height: 60px; border-radius: 6px; }
+ .calendar-day-count { font-size: .6rem; }
+ .calendar-weekday { font-size: .7rem; }
+ .month-calendar-heading h3 { font-size: .95rem; }
+}
+
+.weekday-options, .request-actions, .collection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+.weekday-options label { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; }
+.institution-banner-preview { width: 100%; max-height: 210px; object-fit: cover; border-radius: 12px; margin-bottom: .75rem; }
+.institution-map { width: 100%; min-height: 260px; border: 0; border-radius: 12px; margin-top: .75rem; }
+.school-location { margin: .75rem 0; }
+.text-button { border: 0; background: none; padding: 0; color: #3D6EF7; cursor: pointer; font: inherit; text-align: left; }
+.preserve-lines { white-space: pre-wrap; }
+.block { display: block; margin-top: .25rem; }
+.amount-input { width: 115px; padding: .6rem; border: 1px solid #dce5f2; border-radius: 8px; }
+.collection-actions { margin: 1rem 0 1.5rem; }
+.collection-filter { display: flex; align-items: center; gap: .6rem; padding: .5rem 1rem; }
+.payment-connection { margin-bottom: 1.5rem; }
+.payment-connection fieldset { border: 0; margin: 0; padding: 0; }
+.public-payment-page { min-height: 100vh; background: #F8FAFF; padding: 2rem 1rem; }
+.public-payment-page > .brand-logo { max-width: 180px; }
+.public-payment-card { max-width: 640px; margin: 2rem auto; }
+.public-payment-card .preview-lines { margin: 1rem 0; }
+.public-payment-card .request-actions { margin-top: 1.25rem; }
+.google-button > span { display: inline-flex; align-items: center; justify-content: center; gap: .65rem; }
+
+.table-panel > .section-title { margin: 0; padding: 1.25rem 1.5rem; }
+.table-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; padding: 1.25rem 1.5rem; }
+.table-header > b { font-size: .9rem; color: #263238; }
+.table-header .check-field { margin: 0; font-size: .8rem; }
+.collection-filter { font-size: .8rem; color: #59728b; padding: .5rem 1.5rem 1rem; }
+.collection-filter select, .toolbar > select { min-height: 42px; max-width: 100%; padding: .65rem 2rem .65rem .85rem; border: 1px solid #dce5f2; border-radius: 9px; background: #fff; color: #476480; font: inherit; }
+.collection-filter select:focus-visible, .toolbar > select:focus-visible { outline: 2px solid #3D6EF7; outline-offset: 2px; }
+.receipt-preview, .invoice-preview { overflow-wrap: anywhere; }
+@media(max-width: 600px) {
+ .table-panel > .section-title, .table-header { padding: 1.1rem; }
+ .collection-filter { padding: .5rem 1.1rem 1rem; }
+}

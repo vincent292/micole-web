@@ -7,6 +7,7 @@ const FamilyIntakePage = lazy(() =>
     default: module.FamilyIntakePage,
   })),
 );
+const PaymentLinkPage = lazy(() => import("./features/public/PaymentLinkPage").then(module => ({ default: module.PaymentLinkPage })));
 const WorkspaceApp = lazy(() => import("./WorkspaceApp"));
 const legacyPages = new Set([
   "overview",
@@ -15,7 +16,7 @@ const legacyPages = new Set([
   "teachers",
   "classrooms",
   "family",
-  "payments",
+  "payments", "cash", "invoices", "activities",
   "platform",
   "reports",
   "journal",
@@ -45,6 +46,7 @@ export default function App() {
       );
     return <Landing />;
   }
+  if (location.pathname.startsWith("/pago/")) return <Suspense fallback={<main className="loading-screen">Cargando pago…</main>}><PaymentLinkPage /></Suspense>;
   if (location.pathname.startsWith("/inscripcion/"))
     return (
       <Suspense

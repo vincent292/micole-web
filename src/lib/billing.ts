@@ -1,3 +1,4 @@
+import { chargeAccessMinimum } from "./operations";
 import type { AppData, Charge, PaymentPlan, Student } from "./types";
 export const ACTIVATION_FEE = 50;
 export const LICENSE_FEE = 29;
@@ -129,13 +130,16 @@ export function studentAccess(
     return { allowed: true, reason: "" };
   if (
     data.charges.some(
-      (c) => c.studentId === student.id && chargeStatus(c, date) === "overdue",
+      (c) => c.studentId === student.id && c.status !== "paid" && c.status !== "cancelled" &&
+        (chargeStatus(c, date) === "overdue" || (c.period === date.slice(0,7) && !!c.planId)) &&
+        (!c.academicRequestId || data.academicRequests.find(r => r.id === c.academicRequestId)?.blocksAccess !== false) &&
+        (c.paidAmount || 0) < chargeAccessMinimum(c),
     )
   )
     return {
       allowed: false,
       reason:
-        "Tienes cuotas vencidas. Regulariza tus pagos para volver a tu agenda.",
+        "Completa el mínimo de las cuotas exigibles: 50% en las iniciales y 100% en las últimas dos y cobros adicionales.",
     };
   return { allowed: true, reason: "" };
 }

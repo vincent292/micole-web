@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Copy, Link, LockKeyhole, ReceiptText } from "lucide-react";
 import { CareFields, readCareProfile } from "../components/CareFields";
 import { Button, Field, Modal } from "../components/UI";
+import { bolivianCities, monthCount } from "../lib/operations";
+import { shiftMonth } from "../components/MonthCalendar";
 import { buildSchedule, today } from "../lib/billing";
 import { initials, money, uid } from "../lib/store";
 import { rpc } from "../lib/repository";
@@ -49,6 +51,17 @@ const values = (form: HTMLFormElement) =>
   Object.fromEntries(new FormData(form).entries());
 
 function InstitutionIdentityFields({ institution }: { institution?: School }) {
+  const [contact, setContact] = useState({ directorIdentity: institution?.directorIdentity || "", directorPhone: institution?.directorPhone || "" });
+  const [contactReady, setContactReady] = useState(!liveMode || !institution?.id);
+  const [contactError, setContactError] = useState("");
+  useEffect(() => {
+    let active = true;
+    if (!liveMode || !institution?.id) return;
+    void rpc<typeof contact>("institution_private_contact", { p_school_id: institution.id })
+      .then(value => { if (active) { setContact(value); setContactReady(true); } })
+      .catch(() => { if (active) setContactError("No pudimos cargar los datos privados de Dirección. Cierra y vuelve a abrir el formulario para reintentar."); });
+    return () => { active = false; };
+  }, [institution?.id]);
   const [logoUrl, setLogoUrl] = useState(
     /^https:\/\//i.test(institution?.logoUrl || "") ? institution!.logoUrl! : "",
   );
@@ -103,7 +116,7 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
           <small>
             {previewFailed
               ? "No pudimos cargar la vista previa. Revisa la dirección del logo."
-              : "PNG, JPG o WebP. Hasta 256 KB por archivo."}
+              : "PNG, JPG o WebP hasta 10 MB. Se convierte a WebP y se ajusta hasta 512 × 512 px."}
           </small>
         </div>
       </div>
@@ -118,7 +131,7 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
           disabled={removeLogo}
         />
       </Field>
-      <Field label="O subir logo · hasta 256 KB" name="logoFile">
+      <Field label="O subir logo · se optimiza a WebP" name="logoFile">
         <input
           type="file"
           name="logoFile"
@@ -177,6 +190,22 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
       <Field label="Sitio web (opcional)" name="website">
         <input type="url" name="website" maxLength={2048} defaultValue={institution?.website || ""} placeholder="https://…" />
       </Field>
+      <div className="form-section-label">UBICACIÓN Y PORTADA</div>
+      <Field label="Ubicación en Google Maps" name="mapsUrl">
+        <textarea name="mapsUrl" rows={2} maxLength={4500} defaultValue={institution?.mapsUrl || ""} placeholder="Pega el enlace de Google Maps o Compartir → Insertar un mapa" />
+      </Field>
+      <Field label="Banner de la institución" name="bannerFile"><input type="file" name="bannerFile" accept="image/png,image/jpeg,image/webp" /></Field>
+      <p className="muted">Se convierte a WebP y se ajusta hasta 1400 × 700 px.</p>
+      {institution?.bannerUrl && <img className="institution-banner-preview" src={institution.bannerUrl} alt="Portada actual" />}
+      <label className="check-field"><input type="checkbox" name="removeBanner" /> Quitar banner</label>
+      <div className="form-section-label">DATOS PRIVADOS DE DIRECCIÓN</div>
+      <input type="hidden" name="privateContactReady" value={String(contactReady)} />
+      <fieldset disabled={!contactReady} className="form-grid">
+        <Field label="Carnet de Dirección" name="directorIdentity"><input name="directorIdentity" maxLength={40} required={!institution} value={contact.directorIdentity} onChange={e => setContact({ ...contact, directorIdentity: e.target.value })} /></Field>
+        <Field label="Celular de Dirección" name="directorPhone"><input type="tel" name="directorPhone" maxLength={25} required={!institution} value={contact.directorPhone} onChange={e => setContact({ ...contact, directorPhone: e.target.value })} /></Field>
+      </fieldset>
+      {contactError && <p className="message error" role="alert">{contactError}</p>}
+      <p className="muted">El carnet y celular de Dirección no se publican en la landing ni se entregan a las familias.</p>
       <div className="institution-visibility">
         <label className="institution-check">
           <input type="checkbox" name="showOnLanding" defaultChecked={institution?.showOnLanding !== false} aria-describedby="institution-visibility-help" />
@@ -207,11 +236,13 @@ export function WorkspaceModal({
   onClose: () => void;
   onSuccess: (message: string) => void;
 }) {
+  const [admissionRoomId, setAdmissionRoomId] = useState(id ? store.data.students.find(s => s.id === id)?.classroomId || "" : "");
   const [planStudentId, setPlanStudentId] = useState(student?.id || "");
   const [error, setError] = useState(""),
     [link, setLink] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const data = store.data;
+  const frozenData = useRef(store.data);
+  const data = frozenData.current;
   const editStudent = data.students.find((s) => s.id === id);
   const editTeacher = data.teachers.find((t) => t.id === id);
   const editClassroom = data.classrooms.find((c) => c.id === id);
@@ -256,7 +287,8 @@ export function WorkspaceModal({
     e.preventDefault();
     if (submitting || store.busy) return;
     const form = e.currentTarget;
-    const f = values(form),
+    const formData = new FormData(form);
+    const f = Object.fromEntries(formData.entries()),
       val = (key: string) => String(f[key] || "").trim(),
       num = (key: string) => Number(val(key)) || 0;
     const schoolId = school?.id || "";
@@ -279,8 +311,9 @@ export function WorkspaceModal({
           }
         }
         const institutionIdentity = await readInstitutionIdentity(
-          new FormData(form),
+          formData,
           type === "branding" ? editSchool?.logoUrl : "",
+          type === "branding" ? editSchool?.bannerUrl : "",
         );
         const name = val("name");
         const newId = type === "branding" ? editSchool!.id : uid();
@@ -339,14 +372,18 @@ export function WorkspaceModal({
           status: editStudent?.status || "pending",
         };
         if (id) await store.save("students", item);
-        else await store.enroll(item);
+        else await store.enroll(item, {
+          id: uid(), schoolId, studentId: item.id, startDate: val("startDate"), months: num("months"),
+          monthlyFee: item.monthlyFee, snackFee: item.snackFee || 0, enrollmentFee: item.enrollmentFee || 0,
+          dueDay: num("dueDay"), discount: num("discount"), discountFrom: val("discountFrom"), discountTo: val("discountTo"), prorate: f.prorate === "on", createdAt,
+        });
       }
       if (type === "profile") {
         if (!target) throw new Error("Selecciona un estudiante.");
         await store.completeCare(target, readCareProfile(e.currentTarget));
       }
-      if (type === "teacher")
-        await store.save("teachers", {
+      if (type === "teacher") {
+        const teacher = {
           ...editTeacher,
           id: id || uid(),
           schoolId,
@@ -354,15 +391,23 @@ export function WorkspaceModal({
           email: val("email").toLowerCase(),
           specialty: val("specialty"),
           status: val("status") as "active" | "pending" | "inactive",
-        });
+        };
+        const assigned = formData.getAll("classroomIds").map(String);
+        if (!assigned.length) throw new Error("Selecciona al menos un aula para el docente.");
+        if (liveMode) { await rpc("save_teacher_with_classrooms", { p_teacher: { id: teacher.id, school_id: teacher.schoolId, name: teacher.name, email: teacher.email, specialty: teacher.specialty, status: teacher.status }, p_classroom_ids: assigned }); await store.refresh(); }
+        else { await store.save("teachers", teacher); for (const room of rooms) if (assigned.includes(room.id)) await store.save("classrooms", { ...room, teacherIds: [...new Set([...room.teacherIds, teacher.id])] }); }
+      }
       if (type === "classroom")
         await store.save("classrooms", {
           id: id || uid(),
           schoolId,
           name: val("name"),
           level: val("level"),
-          schedule: val("schedule"),
-          teacherIds: new FormData(e.currentTarget)
+          schedule: `${val("startTime")} – ${val("endTime")}`,
+          startTime: val("startTime"), endTime: val("endTime"),
+          weekdays: formData.getAll("weekdays").map(Number),
+          capacity: num("capacity"), monthlyFee: num("classroomMonthlyFee"), academicYear: num("academicYear"), active: f.classroomActive === "on",
+          teacherIds: formData
             .getAll("teacherIds")
             .map(String),
         });
@@ -544,6 +589,7 @@ export function WorkspaceModal({
           await store.studentStatus(
             editStudent,
             action === "inactive" ? "inactive" : "active",
+            val("withdrawalReason"),
           );
       }
       if (type === "reset") store.reset();
@@ -664,12 +710,13 @@ export function WorkspaceModal({
             defaultValue={type === "branding" ? editSchool?.name : ""}
           />
           <div className="form-grid">
-            <Field
-              label="Ciudad"
-              name="city"
-              required
-              defaultValue={type === "branding" ? editSchool?.city : ""}
-            />
+            <Field label="Ciudad" name="city" required>
+              <select name="city" required defaultValue={type === "branding" ? editSchool?.city || "" : ""}>
+                <option value="" disabled>Seleccionar ciudad</option>
+                {type === "branding" && editSchool?.city && !bolivianCities.includes(editSchool.city) && <option>{editSchool.city}</option>}
+                {bolivianCities.map(city => <option key={city}>{city}</option>)}
+              </select>
+            </Field>
             <Field
               label="Color de marca"
               name="color"
@@ -712,7 +759,7 @@ export function WorkspaceModal({
               <select
                 name="classroomId"
                 required
-                defaultValue={editStudent?.classroomId || ""}
+                value={admissionRoomId} onChange={e => setAdmissionRoomId(e.target.value)}
               >
                 <option value="" disabled>
                   Seleccionar aula
@@ -790,36 +837,11 @@ export function WorkspaceModal({
             defaultValue={editStudent?.allergies}
             placeholder="Escribe ninguna si no tiene"
           />
-          <div className="form-section-label">TARIFAS BASE · EN BOLIVIANOS</div>
-          <div className="form-grid">
-            <Field
-              label="Mensualidad fija"
-              name="monthlyFee"
-              type="number"
-              min={0}
-              step="0.01"
-              required
-              defaultValue={editStudent?.monthlyFee || 420}
-            />
-            <Field
-              label="Merienda mensual"
-              name="snackFee"
-              type="number"
-              min={0}
-              step="0.01"
-              defaultValue={editStudent?.snackFee || 0}
-            />
-            <Field
-              label="Matrícula (0 si no aplica)"
-              name="enrollmentFee"
-              type="number"
-              min={0}
-              step="0.01"
-              defaultValue={editStudent?.enrollmentFee || 0}
-            />
-          </div>
+          <div className="form-section-label">PLAN DE PAGOS DE LA INSCRIPCIÓN</div>
+          {id ? <div className="form-grid"><Field label="Mensualidad fija" name="monthlyFee" type="number" min={0} step="0.01" required defaultValue={editStudent?.monthlyFee || 0} /><Field label="Merienda mensual" name="snackFee" type="number" min={0} step="0.01" defaultValue={editStudent?.snackFee || 0} /><Field label="Matrícula (0 si no aplica)" name="enrollmentFee" type="number" min={0} step="0.01" defaultValue={editStudent?.enrollmentFee || 0} /></div>
+          : <PlanFields key={admissionRoomId} student={{ monthlyFee: rooms.find(r => r.id === admissionRoomId)?.monthlyFee || 0 } as Student} schoolId={school?.id || ""} />}
           <div className="soft-note">
-            La licencia mensual de Bs 29 se añadirá al generar el plan. Puedes
+            La licencia mensual de Bs 29 está incluida en las cuotas del plan. Puedes
             compartir la ficha familiar por WhatsApp después de guardar. Madre y
             padre encontrarán a sus hijos al ingresar con los correos
             registrados.
@@ -868,6 +890,7 @@ export function WorkspaceModal({
           </Field>
         </>
       )}
+      {type === "teacher" && <Field label="Aulas asignadas" name="classroomIds"><div className="checkbox-list">{rooms.map(room => <label key={room.id}><input type="checkbox" name="classroomIds" value={room.id} defaultChecked={!!editTeacher && room.teacherIds.includes(editTeacher.id)} />{room.name}</label>)}</div>{!rooms.length && <p className="message warn">Primero crea un aula desde Aulas y cursos.</p>}</Field>}
       {type === "classroom" && (
         <>
           <Field
@@ -883,14 +906,16 @@ export function WorkspaceModal({
               required
               defaultValue={editClassroom?.level}
             />
-            <Field
-              label="Horario"
-              name="schedule"
-              required
-              defaultValue={editClassroom?.schedule}
-              placeholder="08:00 – 12:00"
-            />
           </div>
+          <div className="form-grid">
+            <Field label="Hora de inicio" name="startTime" required><select name="startTime" required defaultValue={editClassroom?.startTime?.slice(0,5) || "08:00"}>{Array.from({length:96},(_,i) => `${String(Math.floor(i/4)).padStart(2,"0")}:${String(i%4*15).padStart(2,"0")}`).map(time => <option key={time}>{time}</option>)}</select></Field>
+            <Field label="Hora de salida" name="endTime" required><select name="endTime" required defaultValue={editClassroom?.endTime?.slice(0,5) || "12:00"}>{Array.from({length:96},(_,i) => `${String(Math.floor(i/4)).padStart(2,"0")}:${String(i%4*15).padStart(2,"0")}`).map(time => <option key={time}>{time}</option>)}</select></Field>
+            <Field label="Gestión" name="academicYear" required><select name="academicYear" defaultValue={editClassroom?.academicYear || Number(today().slice(0,4))}>{Array.from({length:6},(_,i)=>Number(today().slice(0,4))-1+i).map(year=><option key={year}>{year}</option>)}</select></Field>
+            <Field label="Mensualidad base del aula · Bs" name="classroomMonthlyFee" type="number" min={0} step="0.01" defaultValue={editClassroom?.monthlyFee || 0} />
+            <Field label="Cupos del aula" name="capacity" type="number" min={1} max={500} required defaultValue={editClassroom?.capacity || 30} />
+          </div>
+          <Field label="Días de clase" name="weekdays"><div className="weekday-options">{["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"].map((day,i)=><label key={day}><input type="checkbox" name="weekdays" value={i+1} defaultChecked={(editClassroom?.weekdays || [1,2,3,4,5]).includes(i+1)} />{day}</label>)}</div></Field>
+          <label className="check-field"><input type="checkbox" name="classroomActive" defaultChecked={editClassroom?.active !== false} /> Admitir inscripciones en esta aula</label>
           <Field label="Docentes asignadas" name="teacherIds">
             <div className="checkbox-list">
               {teachers.map((t) => (
@@ -1354,6 +1379,7 @@ export function WorkspaceModal({
       )}
       {type === "status" && (
         <>
+          {editStudent?.status === "active" && <Field label="Motivo de la baja" name="withdrawalReason" required><textarea name="withdrawalReason" required minLength={5} maxLength={1000} rows={3} /></Field>}
           <p>{fullName(editStudent)}</p>
           <Field label="Acción" name="action">
             <select
@@ -1403,7 +1429,7 @@ function PlanFields({
     studentId: student?.id || "",
     startDate: today(),
     months: 10,
-    monthlyFee: student?.monthlyFee || 420,
+    monthlyFee: student?.monthlyFee ?? 0,
     snackFee: student?.snackFee || 0,
     enrollmentFee: student?.enrollmentFee || 0,
     dueDay: 10,
@@ -1414,6 +1440,7 @@ function PlanFields({
     createdAt: today(),
   };
   const [preview, setPreview] = useState(initial);
+  const [rangeEnd, setRangeEnd] = useState(shiftMonth(initial.startDate.slice(0,7), 9));
   let charges: ReturnType<typeof buildSchedule> = [];
   let invalid = "";
   try {
@@ -1429,10 +1456,14 @@ function PlanFields({
         if (!form) return;
         const f = values(form);
         const n = (key: string) => Number(f[key] || 0);
+        const startDate = String(f.startDate || "");
+        const field = (e.target as HTMLInputElement).name;
+        const months = field === "endMonth" ? monthCount(startDate.slice(0,7), String(f.endMonth)) : n("months");
+        if (field === "months" || field === "startDate") setRangeEnd(shiftMonth(startDate.slice(0,7), months-1));
         setPreview({
           ...initial,
-          startDate: String(f.startDate || ""),
-          months: n("months"),
+          startDate,
+          months,
           monthlyFee: n("monthlyFee"),
           snackFee: n("snackFee"),
           enrollmentFee: n("enrollmentFee"),
@@ -1452,15 +1483,8 @@ function PlanFields({
           required
           defaultValue={initial.startDate}
         />
-        <Field
-          label="Meses del plan"
-          name="months"
-          type="number"
-          required
-          min={1}
-          max={36}
-          defaultValue={10}
-        />
+        <Field label="Hasta qué mes" name="endMonth" required><input name="endMonth" type="month" required min={preview.startDate.slice(0,7)} max={shiftMonth(preview.startDate.slice(0,7),35)} value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} /></Field>
+        <Field label="Cuotas mensuales" name="months" required><select name="months" value={preview.months} onChange={() => {}}>{Array.from({length:36},(_,i)=><option key={i+1} value={i+1}>{i+1} {i===0 ? "cuota" : "cuotas"}</option>)}</select></Field>
         <Field
           label="Mensualidad fija · Bs"
           name="monthlyFee"

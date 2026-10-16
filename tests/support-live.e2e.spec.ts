@@ -68,7 +68,7 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
       status: "active",
       brand_color: "#3D6EF7",
     };
-    let json: unknown = [];
+    let json: unknown = name === "finance_register" ? {receipts:[],invoices:[]} : [];
     if (name === "workspace_identity")
       json = {
         id: owner,

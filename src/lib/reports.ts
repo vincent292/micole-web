@@ -9,6 +9,7 @@ export interface ReportCharge {
   date: string;
   dueDate?: string;
   amount: number;
+  paidAmount?: number;
   status: "pending" | "paid" | "overdue" | "cancelled";
   kind: "tuition" | "license" | "activation";
   licenseCount?: number | null;
@@ -43,13 +44,14 @@ export interface ReportFilters {
   studentId: string;
 }
 const cents = (value: number) => Math.round(value * 100);
+const balanceRows = (rows: ReportCharge[]) => rows.map(row => ({amount: Math.max(0, row.amount - (row.paidAmount || 0))}));
 const sum = (rows: { amount: number }[]) => rows.reduce((n, row) => n + cents(row.amount), 0) / 100;
 export function reportTotals(report: Pick<ReportSnapshot, "charges" | "payments">) {
   return {
     issued: sum(report.charges.filter((row) => row.status !== "cancelled")),
     collected: sum(report.payments),
-    outstanding: sum(report.charges.filter((row) => row.status === "pending" || row.status === "overdue")),
-    overdue: sum(report.charges.filter((row) => row.status === "overdue")),
+    outstanding: sum(balanceRows(report.charges.filter((row) => row.status === "pending" || row.status === "overdue"))),
+    overdue: sum(balanceRows(report.charges.filter((row) => row.status === "overdue"))),
   };
 }
 export function reportMonths(report: ReportSnapshot) {
@@ -69,7 +71,7 @@ export function lateDays(dueDate: string, asOf = today()) {
 export function reportDebtors(report: ReportSnapshot) {
   return report.students.map((student) => {
     const charges = report.charges.filter((row) => row.studentId === student.id && (row.status === "pending" || row.status === "overdue"));
-    return { ...student, outstanding: sum(charges), overdue: sum(charges.filter((row) => row.status === "overdue")), charges: charges.length, lateDays: Math.max(0, ...charges.filter((row) => row.status === "overdue").map((row) => lateDays(row.dueDate || row.date))) };
+    return { ...student, outstanding: sum(balanceRows(charges)), overdue: sum(balanceRows(charges.filter((row) => row.status === "overdue"))), charges: charges.length, lateDays: Math.max(0, ...charges.filter((row) => row.status === "overdue").map((row) => lateDays(row.dueDate || row.date))) };
   }).filter((student) => student.overdue > 0).sort((a, b) => b.overdue - a.overdue || a.name.localeCompare(b.name));
 }
 export function validateReportRange(from: string, to: string) {

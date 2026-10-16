@@ -1,0 +1,104 @@
+import {test,expect,type Page,type WebSocketRoute} from '@playwright/test';
+const id=(n:number)=>`ca000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+const [userId,schoolId,roomId,otherRoomId,studentId,otherStudentId,teacherId]=[1,20,30,31,40,41,50].map(id);
+const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+test.use({baseURL:'http://localhost:4174',reducedMotion:'reduce'});
+async function setup(page:Page,role='director'){
+ const calls:{name:string;body:any}[]=[];const state={
+ school:{id:schoolId,name:'Colegio Operaciones',slug:'operaciones',city:'La Paz',status:'active',brand_color:'#3D6EF7',director_name:'Directora',address:'Av. Arce',banner_url:'',maps_url:''},
+ rooms:[{id:roomId,school_id:schoolId,name:'Primero A',level:'Primaria',academic_year:2026,schedule:'08:00 – 12:00',start_time:'08:00:00',end_time:'12:00:00',weekdays:[1,2,3,4,5],capacity:20,monthly_fee:400,active:true},{id:otherRoomId,school_id:schoolId,name:'Primero B',level:'Primaria',academic_year:2026,schedule:'08:00 – 12:00',start_time:'08:00:00',end_time:'12:00:00',weekdays:[1,2,3,4,5],capacity:20,monthly_fee:450,active:true}],
+ students:[{id:studentId,school_id:schoolId,classroom_id:roomId,first_name:'Lucía',last_name:'Prueba',birth_date:'2020-01-01',status:'active',enrolled_at:date,profile_complete:true,monthly_fee:400,mother_name:'Madre',mother_email:'madre@example.invalid',mother_phone:'70000000',father_name:'Padre',father_email:'padre@example.invalid'},{id:otherStudentId,school_id:schoolId,classroom_id:otherRoomId,first_name:'Mateo',last_name:'Prueba',birth_date:'2020-01-01',status:'active',enrolled_at:date,profile_complete:true,monthly_fee:450,mother_name:'Madre',mother_email:'madre@example.invalid',father_name:'Padre',father_email:'padre@example.invalid'}],
+ charges:[{id:id(100),school_id:schoolId,student_id:studentId,concept:'Mensualidad octubre',due_date:date,period:date.slice(0,7),amount:100,paid_amount:0,minimum_access_ratio:.5,status:'pending'},{id:id(101),school_id:schoolId,student_id:studentId,concept:'Mensualidad noviembre',due_date:'2026-11-10',period:'2026-11',amount:100,paid_amount:0,minimum_access_ratio:1,status:'pending'}] as any[],
+ receipts:[]as any[],invoices:[]as any[],requests:[]as any[],events:[]as any[],notices:[]as any[],contact:{directorIdentity:'1234567 LP',directorPhone:'70000000'},
+ };
+ const user={id:userId,email:`${role}@example.invalid`,aud:'authenticated',role:'authenticated',user_metadata:{full_name:'Cuenta Operaciones'},app_metadata:{provider:'email'},created_at:new Date().toISOString()};const seconds=Math.floor(Date.now()/1000);const jwt=`${Buffer.from('{"alg":"HS256"}').toString('base64url')}.${Buffer.from(JSON.stringify({sub:userId,exp:seconds+3600,iat:seconds,aud:'authenticated',role:'authenticated'})).toString('base64url')}.test`;
+ await page.addInitScript(({user,jwt,seconds})=>localStorage.setItem('sb-micole-test-auth-token',JSON.stringify({access_token:jwt,refresh_token:'test',expires_at:seconds+3600,expires_in:3600,token_type:'bearer',user})),{user,jwt,seconds});
+ let socket:WebSocketRoute|undefined,topic='',joinRef='';
+ await page.routeWebSocket('**/realtime/v1/websocket*',ws=>{socket=ws;ws.onMessage(raw=>{
+  const frame=JSON.parse(String(raw));
+  const message=Array.isArray(frame)?{join_ref:frame[0],ref:frame[1],topic:frame[2],event:frame[3],payload:frame[4]}:frame;
+  if(message.event==='phx_join'){topic=message.topic;joinRef=message.join_ref;ws.send(JSON.stringify([message.join_ref,message.ref,topic,'phx_reply',{status:'ok',response:{postgres_changes:[{id:1,event:'*',schema:'public',table:'workspace_signals'}]}}]));}
+  if(message.event==='heartbeat')ws.send(JSON.stringify([message.join_ref,message.ref,message.topic,'phx_reply',{status:'ok',response:{}}]));
+ });});
+ const signal=(changedTable='students')=>socket?.send(JSON.stringify([joinRef,null,topic,'postgres_changes',{ids:[1],data:{schema:'public',table:'workspace_signals',type:'UPDATE',columns:[{name:'school_id',type:'uuid'},{name:'revision',type:'int8'},{name:'changed_at',type:'timestamptz'}],commit_timestamp:new Date().toISOString(),record:{school_id:schoolId,revision:2,changed_table:changedTable,changed_at:new Date().toISOString()},old_record:{school_id:schoolId},errors:null}}]));
+ await page.route('**/auth/v1/**',route=>route.fulfill({json:route.request().url().includes('/settings')?{external:{email:true,google:true}}:user}));
+ await page.route('**/rest/v1/**',async route=>{
+ const req=route.request(),name=new URL(req.url()).pathname.split('/').at(-1)!;let body:any;try{body=req.postDataJSON();}catch{body=null;}calls.push({name,body});let json:unknown=[];
+ if(name==='workspace_identity')json={id:userId,email:user.email,name:'Cuenta Operaciones',roles:[role],memberships:[{schoolId,role}],teacherIds:role==='teacher'?[teacherId]:[],guardianStudentIds:role==='guardian'?[studentId]:[]};
+ else if(name==='schools')json=[state.school];else if(name==='students')json=state.students;else if(name==='classrooms')json=state.rooms;
+ else if(name==='teachers')json=[{id:teacherId,school_id:schoolId,name:'Profesora Prueba',email:'profesora@example.invalid',status:'active',specialty:'Titular'}];
+ else if(name==='teacher_classrooms')json=[{classroom_id:roomId,teacher_id:teacherId}];else if(name==='school_charges')json=state.charges;
+ else if(name==='platform_charges')json=state.students.map((s,i)=>({id:id(120+i),school_id:schoolId,student_id:s.id,concept:'Activación',period:date.slice(0,7),amount:50,status:'paid'}));
+ else if(name==='finance_register')json={receipts:state.receipts,invoices:state.invoices};
+ else if(name==='academic_requests')json=state.requests;else if(name==='calendar_events')json=state.events;else if(name==='announcements')json=state.notices;
+ else if(name==='institution_private_contact')json=state.contact;
+ else if(name==='payment_connection_status')json={provider:'',accountReference:'',environment:'test',credentialsStored:false,integrationReady:false};
+ else if(name==='save_school'){Object.assign(state.school,Object.fromEntries(Object.entries(body.p_school).filter(([key])=>!['director_identity','director_phone'].includes(key))));state.contact={directorIdentity:body.p_school.director_identity,directorPhone:body.p_school.director_phone};json=null;}
+ else if(name==='save_classroom'){Object.assign(state.rooms.find(r=>r.id===body.p_room.id)!,body.p_room);json=null;}
+ else if(name==='enroll_student_with_plan'){state.students.push(body.p_student);json=null;}
+ else if(name==='save_academic_request'){state.requests.push({...body.p_request,status:'pending',created_at:date,review_note:''});json=body.p_request.id;}
+ else if(name==='review_academic_request'){const request=state.requests.find(r=>r.id===body.p_id)!;request.status=body.p_approve?'approved':'rejected';if(body.p_approve){state.events.push({id:request.id,school_id:schoolId,classroom_id:request.classroom_id,title:request.title,description:request.details,event_date:request.event_date,type:'materials'});state.notices.push({id:request.id,school_id:schoolId,classroom_id:request.classroom_id,title:request.title,content:request.details,audience:'families',created_at:date});}json=null;}
+ else if(name==='checkout_school_payment'){
+  if(!state.receipts.some(r=>r.id===body.p_receipt_id)){
+   let total=0;for(const item of body.p_items){const charge=state.charges.find(c=>c.id===item.chargeId)!;charge.paid_amount+=item.amount;if(charge.paid_amount>=charge.amount)charge.status='paid';total+=item.amount;}
+   state.receipts.push({id:body.p_receipt_id,school_id:schoolId,student_id:body.p_student_id,total,payment_method:body.p_method,reference:body.p_reference,verification_source:'manual',recorded_by:userId,created_at:new Date().toISOString()});
+   if(body.p_invoice?.invoiceName)state.invoices.push({id:id(200),school_id:schoolId,student_id:studentId,receipt_id:body.p_receipt_id,legal_name:body.p_invoice.invoiceName,nit_ci:body.p_invoice.invoiceNit,phone:body.p_invoice.invoicePhone,amount:total,status:'pending',invoice_number:'',created_at:new Date().toISOString()});
+  }json=body.p_receipt_id;
+ }
+ else if(name==='mark_invoice_issued'){Object.assign(state.invoices.find(i=>i.id===body.p_id),{status:'issued',invoice_number:body.p_number});json=null;}
+ else if(name==='create_payment_link')json='a'.repeat(64);
+ else if(name==='withdraw_student'){Object.assign(state.students.find(s=>s.id===body.p_student_id)!,{status:'inactive',withdrawal_reason:body.p_reason});json=null;}
+ await route.fulfill({json});
+ });
+ return {state,calls,signal,ready:()=>!!topic};
+}
+
+test('Realtime conserva el enfoque, texto y scroll de una inscripción y actualiza al cerrar',async({page})=>{
+ const {calls,signal,ready}=await setup(page);await page.goto('/app/students');await page.getByRole('button',{name:'Inscribir estudiante',exact:true}).click();const dialog=page.getByRole('dialog');
+ await dialog.locator('input[name=firstName]').fill('Sofía');await dialog.getByLabel('Alergias conocidas').fill('Sin alergias');
+ await expect.poll(ready).toBe(true);const before=calls.filter(c=>c.name==='finance_register').length;const focused=dialog.getByLabel('Alergias conocidas');await focused.focus();const scroll=await dialog.evaluate(el=>el.scrollTop);
+ signal();await focused.pressSequentially(' conocidas',{delay:30});await expect(focused).toBeFocused();await expect(focused).toHaveValue('Sin alergias conocidas');
+ await page.waitForTimeout(700);expect(calls.filter(c=>c.name==='finance_register')).toHaveLength(before);expect(await dialog.evaluate(el=>el.scrollTop)).toBe(scroll);
+ await dialog.getByRole('button',{name:'Cancelar'}).click();await expect.poll(()=>calls.filter(c=>c.name==='finance_register').length).toBeGreaterThan(before);
+});
+test('inscripción envía alumno y rango de cuotas en una sola operación',async({page})=>{
+ const {calls}=await setup(page);await page.goto('/app/students');await page.getByRole('button',{name:'Inscribir estudiante',exact:true}).click();const d=page.getByRole('dialog');
+ await d.locator('input[name=firstName]').fill('Sofía');await d.locator('input[name=lastName]').fill('Nueva');await d.getByLabel('Fecha de nacimiento').fill('2020-01-01');await d.locator('select[name=classroomId]').selectOption(roomId);
+ await d.locator('input[name=identityNumber]').fill('1234567');await d.getByLabel('Nombre completo de la madre').fill('Madre Nueva');await d.getByLabel('Correo de la madre').fill('madre@example.invalid');await d.getByLabel('Nombre completo del padre').fill('Padre Nuevo');await d.getByLabel('Correo del padre').fill('padre@example.invalid');
+ await d.getByLabel('Cuotas mensuales').selectOption('4');await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect(d).toHaveCount(0);
+ const call=calls.find(c=>c.name==='enroll_student_with_plan')!;expect(call.body.p_plan.months).toBe(4);expect(call.body.p_plan.monthly_fee).toBe(400);expect(call.body.p_plan.start_date.slice(0,7)).toBe(date.slice(0,7));expect(call.body.p_plan.student_id).toBe(call.body.p_student.id);
+});
+test('Caja registra un abono y un anticipo con factura por el total recibido',async({page})=>{
+ const {calls,state}=await setup(page);await page.goto('/app/cash');
+ await page.getByLabel('Seleccionar Mensualidad octubre',{exact:true}).check();await page.getByLabel('Seleccionar Mensualidad noviembre',{exact:true}).check();await page.getByLabel('Abono para Mensualidad octubre').fill('50');
+ await page.getByRole('button',{name:/Registrar cobro/}).click();const d=page.getByRole('dialog');await d.getByLabel('Solicita factura',{exact:true}).check();await d.getByLabel('Nombre o razón social').fill('Familia Prueba');await d.getByLabel('NIT o CI').fill('123456789');await d.getByLabel('Celular para la factura').fill('70000000');await d.getByRole('button',{name:'Confirmar y generar recibo'}).click();await expect(d).toHaveCount(0);
+ expect(calls.find(c=>c.name==='checkout_school_payment')?.body.p_items).toEqual([{chargeId:id(100),amount:50},{chargeId:id(101),amount:100}]);expect(state.receipts[0].total).toBe(150);expect(state.charges[0].status).toBe('pending');
+ await page.goto('/app/invoices');await expect(page.getByText('Familia Prueba')).toBeVisible();await page.getByRole('button',{name:'Ver solicitud'}).click();await expect(page.locator('.invoice-preview')).toContainText('Sin validez fiscal');await expect(page.locator('.invoice-preview')).toContainText('Bs 150');
+ await page.getByRole('button',{name:'Registrar emisión'}).click();await page.getByLabel('Número de factura emitida').fill('FAC-2026-1');await page.getByRole('dialog').getByRole('button',{name:'Guardar',exact:true}).click();await page.getByLabel('Estado de facturas').selectOption('issued');await expect(page.getByText('Emitida · FAC-2026-1')).toBeVisible();
+});
+test('materiales quedan por revisar y Dirección los publica en agenda al aprobar',async({page})=>{
+ const {calls}=await setup(page);await page.goto('/app/materials');await page.getByRole('button',{name:'Solicitar materiales',exact:true}).click();let d=page.getByRole('dialog');await d.locator('select[name=classroomId]').selectOption(roomId);await d.locator('input[name=title]').fill('Materiales de la gestión');await d.getByLabel('Lista o descripción').fill('Cuaderno rojo, lápices y colores');await d.getByRole('button',{name:'Enviar a revisión'}).click();await expect(d).toHaveCount(0);await page.getByRole('button',{name:'Aprobar y publicar'}).click();d=page.getByRole('dialog');await d.getByRole('button',{name:'Aprobar y publicar'}).click();await expect(d).toHaveCount(0);expect(calls.some(c=>c.name==='review_academic_request')).toBe(true);await page.goto('/app/calendar');await expect(page.getByRole('heading',{name:'Materiales de la gestión'})).toBeVisible();
+});
+test('filtros por aula y baja con motivo funcionan desde el directorio',async({page})=>{
+ const {state}=await setup(page);await page.goto('/app/classrooms');await page.getByRole('button',{name:'Ver estudiantes'}).first().click();await expect(page).toHaveURL(/students\?classroom=/);await expect(page.locator('tbody')).toContainText('Lucía');await expect(page.locator('tbody')).not.toContainText('Mateo');
+ await page.getByRole('button',{name:'Dar de baja',exact:true}).click();const d=page.getByRole('dialog');await d.getByLabel('Motivo de la baja').fill('Cambio de domicilio');await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect(d).toHaveCount(0);expect(state.students[0].withdrawal_reason).toBe('Cambio de domicilio');
+});
+for(const width of [390,768])test(`Caja, facturas y solicitudes caben a ${width}px`,async({page})=>{await page.setViewportSize({width,height:900});await setup(page);for(const path of ['cash','invoices','materials','activities']){await page.goto(`/app/${path}`);await expect(page.getByRole('heading',{level:1})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),path).toBe(true);}});
+
+
+test('Realtime de comunicados no vuelve a descargar fichas, imágenes ni registros financieros',async({page})=>{
+ const {calls,signal,state,ready}=await setup(page);await page.goto('/app/announcements');await expect.poll(ready).toBe(true);await page.waitForTimeout(650);
+ const heavyBefore=calls.filter(c=>['schools','students','finance_register'].includes(c.name)).length;
+ state.notices.push({id:id(300),school_id:schoolId,classroom_id:roomId,title:'Comunicado en vivo',content:'Mensaje nuevo',audience:'families',created_at:date});
+ signal('announcements');await expect(page.getByRole('heading',{name:'Comunicado en vivo'})).toBeVisible();expect(calls.filter(c=>['schools','students','finance_register'].includes(c.name))).toHaveLength(heavyBefore);
+ await page.clock.install();const allBefore=calls.length;await page.clock.fastForward(61000);expect(calls).toHaveLength(allBefore);
+});
+
+test('horarios se seleccionan y la foto institucional se convierte a WebP junto con su banner',async({page})=>{
+ const {calls,state}=await setup(page);await page.goto('/app/classrooms');await page.getByRole('button',{name:'Editar aula'}).first().click();let d=page.getByRole('dialog');await d.getByLabel('Hora de inicio').selectOption('07:30');await d.getByLabel('Hora de salida').selectOption('13:15');await d.getByLabel('Cupos del aula').fill('25');await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect(d).toHaveCount(0);expect(calls.find(c=>c.name==='save_classroom')?.body.p_room.start_time).toBe('07:30');
+ await page.goto('/app/settings');await page.getByRole('button',{name:'Editar identidad',exact:true}).click();d=page.getByRole('dialog');await expect(d.getByLabel('Carnet de Dirección')).toHaveValue('1234567 LP');await d.getByLabel('Ciudad',{exact:false}).selectOption('Cochabamba');
+ const picture={name:'imagen.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jPZsAAAAASUVORK5CYII=','base64')};
+ await d.locator('input[name=logoFile]').setInputFiles(picture);await d.locator('input[name=bannerFile]').setInputFiles(picture);await d.getByLabel('Ubicación en Google Maps').fill('https://www.google.com/maps/embed?pb=test');await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect(d).toHaveCount(0);
+ const saved=calls.find(c=>c.name==='save_school')!.body.p_school;expect(saved.logo_url).toMatch(/^data:image\/webp;base64,/);expect(saved.banner_url).toMatch(/^data:image\/webp;base64,/);expect(saved.banner_url.length).toBeLessThan(530000);expect(state.school.city).toBe('Cochabamba');
+ await page.route('https://www.google.com/maps/**',route=>route.fulfill({contentType:'text/html',body:'<p>Mapa de prueba</p>'}));await page.getByRole('button',{name:'Ver mapa',exact:true}).click();await expect(page.locator('iframe[title="Ubicación de Colegio Operaciones"]')).toHaveAttribute('src','https://www.google.com/maps/embed?pb=test');
+});

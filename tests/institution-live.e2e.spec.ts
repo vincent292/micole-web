@@ -19,10 +19,11 @@ test("una base pendiente de migrar mantiene el formulario y no descarta datos nu
       await route.fulfill({ status: 400, json: { code: "42703", message: "column schools.nit does not exist" } });
       return;
     }
-    let json: unknown = [];
+    let json: unknown = name === "finance_register" ? {receipts:[],invoices:[]} : [];
     if (name === "workspace_identity") json = { id: userId, email: user.email, name: "Dirección de prueba", canSupport: false, roles: ["director"], memberships: [{ schoolId, role: "director" }], teacherIds: [], guardianStudentIds: [], support: null };
     if (name === "schools") json = [{ id: schoolId, name: "Colegio de prueba", slug: "prueba", city: "La Paz", status: "active", brand_color: "#3D6EF7", director_name: "Dirección de prueba" }];
     if (name === "save_school") { saves++; json = null; }
+    if (name === "institution_private_contact") json={directorIdentity:"",directorPhone:""};
     await route.fulfill({ json });
   });
   await page.goto("/app/settings");

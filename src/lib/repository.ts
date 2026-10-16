@@ -3,6 +3,7 @@ import { initials } from "./format";
 import type { AppData, Collection, Identity } from "./types";
 
 export const emptyData = (): AppData => ({
+  academicRequests: [], activityParticipations: [], schoolReceipts: [], invoiceRequests: [], operationSettings: [],
   familyIntakes: [],
   studentDocuments: [],
   institutionRequests: [],
@@ -25,6 +26,7 @@ export const emptyData = (): AppData => ({
   media: [],
 });
 const tables: Record<Collection, string> = {
+  academicRequests: "academic_requests", activityParticipations: "activity_participations", schoolReceipts: "school_receipts", invoiceRequests: "invoice_requests", operationSettings: "school_operation_settings",
   familyIntakes: "family_intake_forms",
   studentDocuments: "student_documents",
   institutionRequests: "institution_requests",
@@ -64,11 +66,14 @@ export function fromRow(table: Collection, row: Record<string, unknown>) {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row))
     result[reverse[key] || camel(key)] = value ?? undefined;
+  if (table === "operationSettings") result.id = row.school_id;
+  if (table === "activityParticipations") result.id = `${row.request_id}:${row.student_id}`;
   if (table === "schools") result.initials = initials(String(result.name));
   if (table === "dailyEntries") result.date = row.entry_date;
   if (table === "events" || table === "requests")
     result.date = row.event_date || row.request_date;
   for (const field of [
+    "paidAmount", "minimumAccessRatio", "total",
     "monthlyFee",
     "amount",
     "snackFee",
@@ -91,7 +96,7 @@ export function toRow(table: Collection, item: object) {
         "teacherIds",
         "token",
         "localUrl",
-        "activeStudentCount",
+        "activeStudentCount", "directorIdentity", "directorPhone",
       ].includes(key) ||
       value === undefined
     )
@@ -119,6 +124,11 @@ export function toRow(table: Collection, item: object) {
         ? null
         : value;
   }
+  if (table === "schools") {
+    const school = item as AppData["schools"][number];
+    if (school.directorIdentity !== undefined) result.director_identity = school.directorIdentity;
+    if (school.directorPhone !== undefined) result.director_phone = school.directorPhone;
+  }
   return result;
 }
 function client() {
@@ -134,10 +144,22 @@ export async function rpc<T>(name: string, params: object): Promise<T> {
   }
   return data as T;
 }
-export async function loadData(platform = false): Promise<AppData> {
+export async function loadData(platform = false, student = false, collections?: Collection[]): Promise<AppData> {
   const result = emptyData();
+  const wanted = collections ? new Set(collections) : null;
+  if (student) {
+    const portal = await rpc<Pick<AppData, "schools" | "students" | "classrooms" | "events" | "announcements" | "dailyEntries"> & { accessAllowed: boolean; accessMessage: string }>("student_portal", {});
+    for (const key of ["schools", "students", "classrooms", "events", "announcements", "dailyEntries"] as const) {
+      if (!Array.isArray(portal[key])) throw new Error("No pudimos cargar tu espacio de estudiante.");
+      (result[key] as unknown[]) = portal[key];
+    }
+    result.studentPortalAccess = { allowed: portal.accessAllowed === true, message: portal.accessMessage };
+    return result;
+  }
   await Promise.all(
     (Object.keys(tables) as Collection[])
+      .filter(table => !wanted || wanted.has(table))
+      .filter(table => !["schoolReceipts", "invoiceRequests"].includes(table))
       .filter(
         (table) =>
           !platform ||
@@ -165,7 +187,19 @@ export async function loadData(platform = false): Promise<AppData> {
         );
       }),
   );
+  if (!platform && (!wanted || wanted.has("charges"))) {
+    const extraCharges = await rpc<Record<string, unknown>[]>("teacher_activity_charges", {});
+    if (!Array.isArray(extraCharges)) throw new Error("No pudimos cargar los cobros de actividades.");
+    result.charges.push(...extraCharges.map(row => fromRow("charges", row) as unknown as AppData["charges"][number]).filter(charge => !result.charges.some(existing => existing.id === charge.id)));
+  }
+  if (!platform && (!wanted || wanted.has("schoolReceipts") || wanted.has("invoiceRequests"))) {
+    const register = await rpc<{ receipts: Record<string, unknown>[]; invoices: Record<string, unknown>[] }>("finance_register", {});
+    if (!Array.isArray(register.receipts) || !Array.isArray(register.invoices)) throw new Error("No pudimos cargar el registro financiero.");
+    result.schoolReceipts = register.receipts.map(row => fromRow("schoolReceipts", row)) as unknown as AppData["schoolReceipts"];
+    result.invoiceRequests = register.invoices.map(row => fromRow("invoiceRequests", row)) as unknown as AppData["invoiceRequests"];
+  }
   if (platform) {
+    if (wanted && !wanted.has("schools")) return result;
     const counts = await rpc<
       { schoolId: string; activeStudentCount: number }[]
     >("platform_school_counts", {});
@@ -176,6 +210,7 @@ export async function loadData(platform = false): Promise<AppData> {
     );
     return result;
   }
+  if (wanted && !wanted.has("classrooms")) return result;
   const { data: assignments, error } = await client()
     .from("teacher_classrooms")
     .select("classroom_id,teacher_id");

@@ -76,7 +76,7 @@ export function Overview({
   return (
     <>
       {(role === "director" || role === "superadmin") &&
-        (!school || !classrooms.length) && (
+        (!school || !classrooms.length || !data.teachers.some(t => t.schoolId === school.id) || !data.academicRequests.some(r => r.schoolId === school.id && r.kind === "annual_materials" && r.status === "approved")) && (
           <section className="panel setup-guide">
             <SectionTitle
               title={
@@ -93,27 +93,10 @@ export function Overview({
                 </Button>
               ) : (
                 <>
-                  <Button
-                    icon={GraduationCap}
-                    variant="secondary"
-                    onClick={() => open("teacher")}
-                  >
-                    1. Agregar docentes
-                  </Button>
-                  <Button
-                    icon={BookOpen}
-                    variant="secondary"
-                    onClick={() => open("classroom")}
-                  >
-                    2. Crear primera aula
-                  </Button>
-                  <Button
-                    icon={Users}
-                    disabled={!classrooms.length}
-                    onClick={() => open("student")}
-                  >
-                    3. Inscribir estudiantes
-                  </Button>
+                  <Button icon={BookOpen} variant="secondary" onClick={() => open("classroom")}>1. Crear aulas y horarios</Button>
+                  <Button icon={GraduationCap} variant="secondary" disabled={!classrooms.length} onClick={() => open("teacher")}>2. Agregar docentes</Button>
+                  <Button icon={BookOpen} variant="secondary" disabled={!classrooms.length} onClick={() => go("materials")}>3. Publicar materiales anuales</Button>
+                  <Button icon={Users} disabled={!classrooms.length} onClick={() => open("student")}>4. Inscribir estudiantes</Button>
                 </>
               )}
             </div>

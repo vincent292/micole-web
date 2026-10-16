@@ -8,13 +8,18 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run tests/billing.test.ts tests/database.test.ts tests/reports.test.ts tests/reports-database.test.ts tests/institution-identity.test.ts tests/public-institutions.test.ts",
+    "test": "vitest run tests/billing.test.ts tests/database.test.ts tests/reports.test.ts tests/reports-database.test.ts tests/institution-identity.test.ts tests/public-institutions.test.ts tests/student-access-database.test.ts tests/auth-errors.test.ts tests/operations-database.test.ts tests/operations.test.ts",
     "test:e2e": "playwright test",
+    "supabase:smoke:students": "node scripts/smoke-student-access.mjs",
+    "auth:check": "node scripts/check-auth.mjs",
+    "supabase:migrate:students": "node scripts/migrate-student-access.mjs --apply",
     "supabase:setup": "node scripts/setup-supabase.mjs",
     "supabase:verify": "node scripts/verify-supabase.mjs",
     "supabase:smoke": "node scripts/smoke-supabase.mjs",
     "supabase:smoke:reports": "node scripts/smoke-reports.mjs",
-    "supabase:smoke:institutions": "node scripts/smoke-institutions.mjs"
+    "supabase:smoke:institutions": "node scripts/smoke-institutions.mjs",
+    "supabase:smoke:operations": "node scripts/smoke-operations.mjs",
+    "supabase:migrate:operations": "node scripts/migrate-operations.mjs --apply"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

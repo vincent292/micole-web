@@ -18,6 +18,8 @@ npm run dev
 - `/auth/callback`: retorno de Google o del enlace de correo.
 - `/app/overview`: panel privado; demás módulos bajo `/app/`.
 - `/app/reports`: reportes financieros de Dirección y superadministración.
+- `/app/cash`, `/app/invoices`: cobros, recibos y solicitudes de facturación.
+- `/pago/TOKEN`: enlace público temporal de conceptos e importe, preparado para el proveedor QR.
 - `/invite/TOKEN`: aceptación de invitación por el correo verificado.
 - `/inscripcion/TOKEN`: ficha de cuidado sin login, compartida por Dirección con madre o padre.
 
@@ -25,7 +27,7 @@ Las rutas anteriores, como `/students`, redirigen al módulo correspondiente den
 
 ## Estado de esta instalación
 
-Las diez migraciones están aplicadas al proyecto vinculado, incluida `202610140005_institution_identity.sql`. Los campos de identidad institucional y el directorio público están activos en Supabase; las comprobaciones remotas de instituciones pasan dentro de una transacción que termina en `ROLLBACK`. La app está en modo `live`. Se configuraron la URL de desarrollo, los callbacks locales, el corte diario y la reserva de correo del primer superadmin. El ingreso por correo está habilitado; **Google aún necesita habilitarse**. No se enviaron correos de prueba ni se dejaron personas, colegios o alumnos ficticios en el proyecto.
+Las catorce migraciones están aplicadas al proyecto vinculado, incluida `202610150004_realtime_notices.sql`. Los campos de identidad institucional y el directorio público están activos en Supabase; las comprobaciones remotas de instituciones pasan dentro de una transacción que termina en `ROLLBACK`. La app está en modo `live`. Se configuraron la URL de desarrollo, los callbacks locales, el corte diario y la reserva de correo del primer superadmin. El ingreso por correo y **Google están habilitados**; se verificó la redirección inicial a Google. Completar el ingreso con la cuenta elegida sigue siendo una comprobación interactiva. No se enviaron correos de prueba ni se dejaron personas, colegios o alumnos ficticios en el proyecto.
 
 El correo de administrador se reserva en una tabla privada de servidor. Solo se concede superadmin cuando Supabase confirma ese correo. Ningún usuario puede asignarse permisos desde React o aprobar su propio colegio.
 
@@ -65,16 +67,16 @@ npm run supabase:setup
 node scripts/configure-auth.mjs
 ```
 
-Las migraciones son `001_initial`, `002_workspace`, `003_billing_cycle`, `004_micole_operations`, `005_invitation_lifecycle`, `202610140001_platform_support`, `202610140002_family_enrollment` `202610140003_support_registered_parents` `202610140004_financial_reports` y `202610140005_institution_identity`. Están pensadas para un proyecto nuevo. El script de configuración de Auth lee la configuración remota y modifica Site URL, callbacks y confirmación de correo, conservando los otros ajustes. La reserva de administrador y el cron se configuran desde servidor.
+Las migraciones son `001_initial`, `002_workspace`, `003_billing_cycle`, `004_micole_operations`, `005_invitation_lifecycle`, `202610140001_platform_support`, `202610140002_family_enrollment` `202610140003_support_registered_parents` `202610140004_financial_reports` `202610140005_institution_identity`, `202610150001_student_access`, `202610150002_school_operations`, `202610150003_collections_invoices` y `202610150004_realtime_notices`. Están pensadas para un proyecto nuevo. El script de configuración de Auth lee la configuración remota y modifica Site URL, callbacks y confirmación de correo, conservando los otros ajustes. La reserva de administrador y el cron se configuran desde servidor.
 
 ## Primer uso
 
-1. Abre `/login` e ingresa con el correo reservado para el superadmin. Mientras Google esté pendiente, usa el enlace de correo.
+1. Abre `/login` e ingresa con el correo reservado para el superadmin. Puedes usar Google o el enlace de correo con esa misma cuenta verificada.
 2. En superadministración, crea y activa una institución. Invita a su directora desde la tarjeta del colegio.
 3. También puedes recibir solicitudes desde la landing: la responsable entra, completa los datos del colegio y envía la solicitud. Superadmin la aprueba; se crea la institución y se asigna dirección a la cuenta verificada que la solicitó.
-4. Dirección agrega docentes, crea aulas y asigna varias maestras por aula. Comparte las invitaciones de docentes.
+4. Dirección crea primero las aulas con gestión, horario, cupos y precio; después registra docentes y sus aulas. Publica y aprueba la lista anual de materiales antes de inscribir. Comparte las invitaciones de docentes.
 5. Inscribe alumnos con CI y RUDE opcional, nombres completos y correos distintos de madre y padre. Sus cuentas verificadas quedan vinculadas a todos sus hijos. Comparte la ficha de cuidado por WhatsApp desde la fila del estudiante; revisa y aprueba la respuesta, o complétala tú misma.
-6. Superadmin registra la activación de Bs 50; dirección activa al alumno y crea su plan. La familia completa su ficha de salud y emergencia.
+6. La inscripción guarda al alumno y su plan de 1–36 cuotas juntos, con mes inicial/final. Superadmin registra la activación de Bs 50; Dirección activa al alumno. La familia completa su ficha de salud y emergencia.
 
 El panel de superadmin tiene resumen de plataforma, instituciones, solicitudes, cobros MiCole, reportes por institución, soporte, auditoría e integraciones. No carga fichas de alumnos ni registros del cuaderno.
 
@@ -84,7 +86,7 @@ El selector de perfil ofrece únicamente los roles autorizados de la cuenta. En 
 
 ## Funciones operativas
 
-- Instituciones, identidad visual, logo, NIT, dirección, teléfono y sitio web. Crear y editar desde superadmin; Dirección edita su institución. Preview de logo por HTTPS o archivo PNG/JPG/WebP hasta 256 KB, con opción de quitarlo.
+- Instituciones, identidad visual, logo, NIT, dirección, teléfono y sitio web. Crear y editar desde superadmin; Dirección edita su institución. Logo y banner por HTTPS o archivo PNG/JPG/WebP hasta 10 MB, convertidos y reducidos a WebP en el navegador. Incluye Google Maps y contacto privado de Dirección.
 - Landing con Motion: hero escalonado, revelado al scroll, interacciones, barra de lectura y vista ilustrativa navegable con teclado. Animaciones finitas y respeto a movimiento reducido.
 - Instituciones afiliadas: sección vacía hasta que existan instituciones reales; directorio público automático de instituciones activas con visibilidad habilitada, carrusel táctil/teclado, logos e iniciales como alternativa. No se muestran registros de ejemplo como clientes.
 - Solicitud y aprobación de incorporación con cuenta verificada y asignación controlada de dirección.
@@ -97,13 +99,13 @@ El selector de perfil ofrece únicamente los roles autorizados de la cuenta. En 
 - Documentos privados de inscripción: CI, certificado de nacimiento, seguro y otros, en PDF/JPG/PNG/WebP hasta 5 MB. La subida real requiere R2 configurado y la función desplegada. Dirección carga; Dirección y padres autorizados consultan. Docentes y contactos de emergencia no tienen acceso a los archivos.
 - Planes de 1–36 meses: mensualidad, matrícula y merienda opcionales, vencimiento, descuento temporal y prorrateo del primer mes.
 - Ajustar o deshabilitar descuentos sobre cuotas no pagadas, conservando los pagos registrados.
-- Pagos manuales de efectivo o transferencia, con referencia y registro contable idempotente. Familia no puede marcar cuotas como pagadas.
+- Caja registra efectivo, transferencia o QR corroborado manualmente, con recibo y referencia; admite abonos, varias cuotas y anticipos sin apertura/cierre diario. Familia no puede marcar cuotas como pagadas.
 - Facturación SaaS separada: activación y licencias por institución. Corte recurrente sin duplicar cargos.
-- Solicitud de factura con razón social, NIT/CI y celular. No emite factura SIAT.
+- Facturas: solicitudes por recibo con razón social, NIT/CI y celular, exportación CSV y seguimiento de emisión manual. Vista previa sin validez fiscal; no emite factura SIAT.
 - Cuaderno por estudiante o por toda un aula: actividades, alimentación, descanso, observaciones y tareas.
 - Comunicados generales de dirección y por curso de docentes.
 - Agenda, tareas, cumpleaños, materiales, notas y recomendaciones.
-- Inbox por estudiante, compartido por sus responsables, docentes asignados y dirección. Sin Realtime: carga al entrar/enfocar, cada minuto y con el botón de actualizar.
+- Inbox por estudiante, compartido por sus responsables, docentes asignados y Dirección. Realtime utiliza señales por colegio con RLS, sin datos personales, y recarga selectiva; los cambios en segundo plano esperan al cierre del modal para conservar escritura, foco y scroll. No hay sondeo cada minuto.
 - Permisos de ausencia y recogidas con persona, documento y placa; revisión por dirección o docente del aula.
 - Notificaciones por mensajes, comunicados, permisos, pagos e incorporación. Lectura individual persistente, con acceso sujeto a vínculos y deuda.
 - Historial de altas, cambios de estado y cobros; visible para dirección de su colegio y superadmin. No guarda datos médicos, claves ni tokens en los resúmenes.
@@ -217,6 +219,21 @@ Dirección abre Estudiantes → Ficha familiar y WhatsApp → selecciona Madre/P
 
 El enlace abre una ficha en blanco y permite una respuesta. Se expone únicamente el colegio, el nombre del niño, el destinatario como madre/padre y el estado; no los correos, CI, RUDE ni la información médica previamente guardada. El backend acepta solo los campos de cuidado. La respuesta queda «Por revisar» hasta que Dirección la apruebe. Desde «Completar cuidados» Dirección también puede llenar los campos. Crear otro enlace o completar directamente la ficha invalida los enlaces pendientes.
 
-La vinculación de cuentas es independiente del enlace público: requiere el correo registrado y confirmado en Supabase. Se activa la confirmación de email para evitar atribuir hijos a una cuenta que no haya verificado ese correo ([documentación de Supabase](https://supabase.com/docs/guides/auth/general-configuration)). Los registros anteriores se conservan; las nuevas inscripciones exigen nombres y correos de ambos padres. Google y la entrega SMTP externa siguen pendientes de configuración.
+La vinculación de cuentas es independiente del enlace público: requiere el correo registrado y confirmado en Supabase. Se activa la confirmación de email para evitar atribuir hijos a una cuenta que no haya verificado ese correo ([documentación de Supabase](https://supabase.com/docs/guides/auth/general-configuration)). Los registros anteriores se conservan; las nuevas inscripciones exigen nombres y correos de ambos padres. Google está habilitado y su redirección fue comprobada. La entrega SMTP externa sigue pendiente de validación.
 
 En desarrollo un enlace `localhost` solo se abre en el equipo que ejecuta la app. Para compartirlo con los padres fuera de ese equipo, publica la web con HTTPS y configura las URLs de Auth de ese dominio. Los documentos médicos se guardarán en R2 privado; no se suben archivos reales mientras el almacenamiento esté pendiente.
+
+## Acceso de estudiantes y consulta familiar
+
+Dirección puede habilitar o revocar el acceso opcional desde **Estudiantes → Acceso del estudiante**. Requiere un correo propio, distinto al de padres/personal, confirmado mediante Google o enlace de correo. El estudiante consulta tareas, calendario, materiales y comunicados de su curso mediante un portal mínimo de solo lectura; no se le conceden permisos de consulta sobre fichas privadas, salud, pagos, documentos ni conversaciones. Se conserva el bloqueo por deuda, inscripción y ficha pendiente. El propietario puede reproducir una cuenta infantil real mediante soporte con motivo y caducidad.
+
+Los padres consultan actividades, calendario mensual interactivo, comunicados y notas de cada hijo sin editarlos. Las solicitudes familiares y mensajes conservan sus permisos originales. El calendario permite cambiar de mes, seleccionar un día y volver a todas sus actividades.
+
+`npm run auth:check` verifica proveedores y retorno inicial hacia Google sin iniciar sesión. `npm run supabase:smoke:students` verifica los permisos reales con datos temporales y `ROLLBACK`. Más detalles en [docs/AUTH.md](docs/AUTH.md).
+
+
+## Aulas, caja y operación diaria
+
+Consulta [docs/OPERATIONS.md](docs/OPERATIONS.md) para las reglas de inscripción, pagos parciales, materiales con aprobación, cumpleaños, Maps y credenciales bancarias. Las cuotas iniciales permiten acceso al alcanzar el 50 %; las últimas dos exigen el 100 %. El saldo sigue pendiente hasta completarse. Caja no sustituye la integración bancaria: el QR dinámico y su confirmación automática requieren la documentación y el adaptador del proveedor.
+
+`npm run supabase:smoke:operations` comprueba estos flujos contra Supabase en una transacción que termina en `ROLLBACK`. Para actualizar una instalación que ya tenga las once migraciones anteriores: `npm run supabase:migrate:operations`.

@@ -142,6 +142,10 @@ try {
   await asUser(ids.teacher, () =>
     rpc("claim_invitation", { p_token: teacherToken }),
   );
+  const annualMaterials = await asUser(ids.director, () => rpc("save_academic_request", {
+    p_request: JSON.stringify({school_id:ids.school,classroom_id:ids.room,kind:"annual_materials",academic_year:2026,title:"Materiales temporales",details:"Cuaderno y lápices",event_date:"2026-10-15",amount:0})
+  }));
+  await asUser(ids.director, () => rpc("review_academic_request", {p_id:annualMaterials,p_approve:true,p_note:"Aprobado para la prueba"}));
   await asUser(ids.director, () =>
     rpc("enroll_student", {
       p_student: JSON.stringify({
@@ -361,6 +365,20 @@ try {
       )
     ).rows.length === 0,
   );
+  await asUser(ids.director, () =>
+    rpc("record_school_payment", {
+      p_charge_id: charges[0].id,
+      p_method: "cash",
+      p_reference: "SMOKE-RECIBO-TEMPORAL",
+    }),
+  );
+  await asUser(ids.director, () =>
+    rpc("record_school_payment", {
+      p_charge_id: charges[0].id,
+      p_method: "cash",
+      p_reference: "SMOKE-RECIBO-TEMPORAL",
+    }),
+  );
   await asUser(ids.teacher, () =>
     rpc("publish_class_entry", {
       p_school_id: ids.school,
@@ -379,20 +397,6 @@ try {
         ]),
       )
     ).rows.length === 1,
-  );
-  await asUser(ids.director, () =>
-    rpc("record_school_payment", {
-      p_charge_id: charges[0].id,
-      p_method: "cash",
-      p_reference: "SMOKE-RECIBO-TEMPORAL",
-    }),
-  );
-  await asUser(ids.director, () =>
-    rpc("record_school_payment", {
-      p_charge_id: charges[0].id,
-      p_method: "cash",
-      p_reference: "SMOKE-RECIBO-TEMPORAL",
-    }),
   );
   check(
     "pago manual idempotente",

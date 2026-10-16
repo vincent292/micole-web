@@ -66,14 +66,18 @@ import {
 import { FamilyIntakeModal } from "./features/FamilyEnrollment";
 import { DocumentModal } from "./features/StudentDocuments";
 import { Gallery } from "./features/Gallery";
+import { StudentLoginModal, StudentOverview } from "./features/StudentAccess";
+import { Collections, Invoices } from "./features/Collections";
+import { LearningRequests } from "./features/LearningRequests";
 import { Reports } from "./features/Reports";
 const roleNames: Record<Role, string> = {
   superadmin: "Superadministración",
   director: "Dirección",
   teacher: "Docente",
   guardian: "Familia",
+  student: "Estudiante",
 };
-const ALL: Role[] = ["superadmin", "director", "teacher", "guardian"];
+const ALL: Role[] = ["superadmin", "director", "teacher", "guardian", "student"];
 const pageDescriptions: Record<string, string> = {
   schools: "Gestiona instituciones e invita a sus directoras.",
   platform: "Activaciones y licencias de MiCole por institución.",
@@ -86,6 +90,9 @@ const pageDescriptions: Record<string, string> = {
   teachers: "Organiza el equipo docente y sus accesos.",
   classrooms: "Asigna docentes, cursos y horarios.",
   payments: "Consulta mensualidades, vencimientos y pagos.",
+  cash: "Abonos, anticipos, cobros agrupados y recibos.",
+  invoices: "Solicitudes de factura y seguimiento de emisión manual.",
+  activities: "Solicitudes, aprobaciones, participantes y cobros de actividades.",
   family: "Información y ficha de salud de tus hijos.",
   journal: "Actividades y seguimiento de cada día.",
   calendar: "Eventos y tareas de tu comunidad.",
@@ -153,6 +160,9 @@ const nav: {
     roles: ["director", "guardian"],
     group: "TU ESPACIO",
   },
+  { key: "cash", label: "Caja y cobros", icon: Wallet, roles: ["director", "teacher", "guardian"], group: "TU ESPACIO" },
+  { key: "invoices", label: "Facturas", icon: BookOpen, roles: ["director", "guardian"], group: "TU ESPACIO" },
+  { key: "activities", label: "Actividades y salidas", icon: CalendarDays, roles: COMMUNITY_ROLES, group: "COMUNIDAD" },
   {
     key: "platform",
     label: "Facturación MiCole",
@@ -171,21 +181,21 @@ const nav: {
     key: "journal",
     label: "Cuaderno digital",
     icon: NotebookPen,
-    roles: COMMUNITY_ROLES,
+    roles: [...COMMUNITY_ROLES, "student"],
     group: "COMUNIDAD",
   },
   {
     key: "calendar",
     label: "Agenda",
     icon: CalendarDays,
-    roles: COMMUNITY_ROLES,
+    roles: [...COMMUNITY_ROLES, "student"],
     group: "COMUNIDAD",
   },
   {
     key: "announcements",
     label: "Comunicados",
     icon: Megaphone,
-    roles: COMMUNITY_ROLES,
+    roles: [...COMMUNITY_ROLES, "student"],
     group: "COMUNIDAD",
   },
   {
@@ -220,7 +230,7 @@ const nav: {
     key: "materials",
     label: "Materiales",
     icon: ListChecks,
-    roles: COMMUNITY_ROLES,
+    roles: [...COMMUNITY_ROLES, "student"],
     group: "COMUNIDAD",
   },
   {
@@ -259,6 +269,7 @@ export default function WorkspaceApp() {
     auth.identity?.id || null,
     !!auth.identity?.roles.includes("superadmin") && !auth.identity.support,
     auth.identity?.support?.id || "",
+    auth.identity?.roles[0] === "student",
   );
   if (liveMode && auth.loading)
     return (
@@ -333,6 +344,7 @@ function Workspace({
             .filter((t) => t.email === demoAccount.email)
             .map((t) => t.id)
         : ["t1"],
+    studentIds: store.data.students.slice(0, 1).map((s) => s.id),
     guardianStudentIds: store.data.students
       .filter((s) =>
         [s.motherEmail || s.guardianEmail, s.fatherEmail].includes(
@@ -367,6 +379,8 @@ function Workspace({
               c.teacherIds.some((id) => identity.teacherIds.includes(id)),
           ),
         )
+      : role === "student"
+        ? schoolStudents.filter((s) => identity.studentIds?.includes(s.id))
       : role === "guardian"
         ? schoolStudents.filter(
             (s) =>
@@ -382,6 +396,7 @@ function Workspace({
         : schoolStudents;
   const student = students.find((s) => s.id === studentId) || students[0];
   const access = studentAccess(student, store.data);
+  const studentLocked = role === "student" && store.data.studentPortalAccess?.allowed === false;
   const locked = role === "guardian" && !access.allowed;
   const needsProfile =
     role === "guardian" && !!student && !student.profileComplete;
@@ -390,12 +405,12 @@ function Workspace({
     (n) =>
       n.roles.includes(role) &&
       (n.key !== "support" || identity.canSupport) &&
-      (!locked || n.key === "payments") &&
-      (!needsProfile || ["payments", "family"].includes(n.key)),
+      (!locked || ["payments", "cash", "invoices"].includes(n.key)) &&
+      (!needsProfile || ["payments", "cash", "invoices", "family"].includes(n.key)),
   );
   const validPage = locked
-    ? "payments"
-    : needsProfile && page !== "payments"
+    ? (["payments", "cash", "invoices"].includes(page) ? page : "payments")
+    : needsProfile && !["payments", "cash", "invoices"].includes(page)
       ? "family"
       : navItems.some((n) => n.key === page)
         ? page
@@ -410,7 +425,7 @@ function Workspace({
       (role === "superadmin" ||
         role === "director" ||
         a.audience === "all" ||
-        a.audience === (role === "guardian" ? "families" : "staff")),
+        a.audience === (["guardian", "student"].includes(role) ? "families" : "staff")),
   );
   const visibleNotifications = store.data.notifications.filter(
     (n) =>
@@ -424,6 +439,8 @@ function Workspace({
   );
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length;
   const go = (next: string) => {
+    const linkedStudent = new URLSearchParams(next.split("?")[1] || "").get("student");
+    if (linkedStudent) setStudentId(linkedStudent);
     if (next.startsWith("school:")) {
       setSchoolId(next.split(":")[1]);
       navigate(isPlatform ? "/app/support" : "/app/students");
@@ -433,6 +450,11 @@ function Workspace({
     setProfile(false);
   };
   const open = (type: string, item?: { id: string }) => {
+    if (type === "materials") { go("materials"); return; }
+    if (["payment", "qr"].includes(type)) {
+      const charge = store.data.charges.find(c => c.id === item?.id);
+      if (charge) { go(`cash?student=${charge.studentId}&charge=${charge.id}`); return; }
+    }
     setModal({ type, id: item?.id });
   };
   const act = async (task: () => Promise<unknown>, message: string) => {
@@ -661,7 +683,7 @@ function Workspace({
           <div className="top-actions">
             <span className={`mode-badge ${liveMode ? "connected" : ""}`}>
               <span className="live-dot" />
-              {liveMode ? "En línea" : "Datos de prueba"}
+              {liveMode ? (store.realtimeStatus === "connected" ? "Conectado" : store.realtimeStatus === "offline" ? "Reconectando…" : "Conectando…") : "Datos de prueba"}
             </span>
             {liveMode && (
               <button
@@ -922,6 +944,7 @@ function Workspace({
               </Button>
             </div>
           )}
+          {studentLocked && <div className="access-banner" role="status"><LockKeyhole size={24} /><p>{store.data.studentPortalAccess?.message}</p></div>}
           {locked && (
             <div className="access-banner">
               <LockKeyhole size={24} />
@@ -958,7 +981,8 @@ function Workspace({
                   onStart={startSupport}
                 />
               )}
-              {validPage === "overview" && !isPlatform && (
+              {validPage === "overview" && role === "student" && <StudentOverview {...props} /> }
+              {validPage === "overview" && !isPlatform && role !== "student" && (
                 <Overview
                   data={store.data}
                   school={school}
@@ -988,7 +1012,6 @@ function Workspace({
                 "messages",
                 "requests",
                 "grades",
-                "materials",
               ].includes(validPage) && (
                 <Community
                   key={`${validPage}-${school?.id}`}
@@ -996,6 +1019,10 @@ function Workspace({
                   {...props}
                 />
               )}
+              {validPage === "cash" && <Collections key={`${school?.id}-${student?.id}`} {...props} />}
+              {validPage === "invoices" && <Invoices key={`${school?.id}-${student?.id}`} {...props} />}
+              {validPage === "materials" && (role === "student" ? <Community page="materials" {...props} /> : <LearningRequests key={`${school?.id}-${student?.id}-materials`} page="materials" {...props} />)}
+              {validPage === "activities" && <LearningRequests key={`${school?.id}-${student?.id}-activities`} page="activities" {...props} />}
               {validPage === "family" && <Family {...props} />}
               {validPage === "settings" &&
                 (isPlatform ? <PlatformSettings /> : <Settings {...props} />)}
@@ -1025,6 +1052,7 @@ function Workspace({
           </span>
         </footer>
       </div>
+      {modal?.type === "studentLogin" && <StudentLoginModal {...props} id={modal.id} onClose={() => setModal(null)} /> }
       {modal?.type === "intake" && (
         <FamilyIntakeModal
           {...props}
@@ -1039,7 +1067,7 @@ function Workspace({
           onClose={() => setModal(null)}
         />
       )}
-      {modal && !["intake", "documents"].includes(modal.type) && (
+      {modal && !["intake", "documents", "studentLogin"].includes(modal.type) && (
         <WorkspaceModal
           key={`${modal.type}-${modal.id}`}
           type={modal.type}

@@ -37,6 +37,9 @@ test("inscripción, activación, plan y persistencia forman un flujo completo", 
   await dialog.getByLabel("Correo de la madre").fill("ana@example.com");
   await dialog.getByLabel("Nombre completo del padre").fill("Pedro Prueba");
   await dialog.getByLabel("Correo del padre").fill("pedro@example.com");
+  await dialog.getByLabel("Cuotas mensuales").selectOption("2");
+  await dialog.getByLabel("Mensualidad fija").fill("420");
+  await dialog.getByLabel("Merienda mensual").fill("60");
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   await navigate(page, "Estudiantes");
@@ -77,18 +80,6 @@ test("inscripción, activación, plan y persistencia forman un flujo completo", 
     .click();
   await expect(row).toContainText("Activo");
   await navigate(page, "Pagos y mensualidades");
-  await page.getByRole("button", { name: "Crear plan de pagos" }).click();
-  await page
-    .getByRole("dialog")
-    .getByLabel("Estudiante", { exact: false })
-    .selectOption({ label: "Luciana Prueba" });
-  await page.getByRole("dialog").getByLabel("Meses del plan").fill("2");
-  await page.getByRole("dialog").getByLabel("Merienda mensual").fill("60");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Guardar", exact: true })
-    .click();
-  await expect(page.getByRole("dialog")).toBeHidden();
   await expect(
     page.getByRole("row").filter({ hasText: "Luciana Prueba" }),
   ).toHaveCount(2);
@@ -232,21 +223,18 @@ test("tarifas por alumno, descuentos y publicación por aula funcionan desde los
   await dialog.getByLabel("Estudiante", { exact: false }).selectOption("a6");
   await expect(dialog.getByLabel("Mensualidad fija")).toHaveValue("520");
   await dialog.getByLabel("Fecha de inicio").fill("2026-11-01");
-  await dialog.getByLabel("Meses del plan").fill("2");
+  await dialog.getByLabel("Cuotas mensuales").selectOption("2");
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   const november = page
     .getByRole("row")
     .filter({ hasText: "Mensualidad noviembre" });
   await november.getByRole("button", { name: "Registrar pago" }).click();
-  await page
-    .getByRole("dialog")
-    .getByLabel("Referencia o comprobante")
-    .fill("REC-DESCUENTO");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Guardar", exact: true })
-    .click();
+  await page.getByRole("button", { name: /Registrar cobro/ }).click();
+  await page.getByRole("dialog").getByLabel("Referencia o número de recibo").fill("REC-DESCUENTO");
+  await page.getByRole("dialog").getByRole("button", { name: "Confirmar y generar recibo" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await navigate(page, "Pagos y mensualidades");
   await page.getByRole("button", { name: "Ajustar descuento" }).click();
   await page.getByRole("dialog").getByLabel("Descuento por cuota").fill("50");
   await page.getByRole("dialog").getByLabel("Vigente desde").fill("2026-11-01");

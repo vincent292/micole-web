@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { realtimeCollections } from "./realtime";
 import { seed } from "./seed";
 import { uid } from "./format";
 export { uid, money, dateLabel, initials } from "./format";
 import { buildSchedule, today } from "./billing";
 import { emptyData, loadData, rpc, saveRow, toRow } from "./repository";
-import { liveMode } from "./supabase";
+import { shiftMonth as shiftMonthKey } from "../components/MonthCalendar";
+import { liveMode, supabase } from "./supabase";
 import type {
   AppData,
   Collection,
@@ -41,6 +43,7 @@ export function useAppStore(
   userId: string | null,
   platform = false,
   context = "",
+  student = false,
 ) {
   const [data, setData] = useState<AppData>(() =>
     liveMode ? emptyData() : read(),
@@ -48,21 +51,27 @@ export function useAppStore(
   const [loading, setLoading] = useState(liveMode);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState("connecting");
   const current = useRef(data);
   current.current = data;
-  const scope = `${userId || ""}:${platform}:${context}`;
+  const scope = `${userId || ""}:${platform}:${context}:${student}`;
   const [loadedScope, setLoadedScope] = useState("");
+  const loadedScopeRef = useRef("");
   const session = useRef(scope);
   session.current = scope;
   const inflight = useRef(false);
   const refreshSequence = useRef(0);
-  const refresh = useCallback(async () => {
+  const fullRefreshes = useRef(0);
+  const refresh = useCallback(async (collections?: Collection[]) => {
     if (!liveMode || !userId) return;
     const sequence = ++refreshSequence.current;
+    const partial = !student && loadedScopeRef.current === scope && fullRefreshes.current === 0 ? collections : undefined;
+    if (!partial) fullRefreshes.current++;
     try {
-      const next = await loadData(platform);
+      const next = await loadData(platform, student, partial);
       if (session.current === scope && sequence === refreshSequence.current) {
-        setData(next);
+        setData(previous => partial ? { ...previous, ...Object.fromEntries(partial.map(key => [key, next[key]])) } : next);
+        loadedScopeRef.current = scope;
         setLoadedScope(scope);
         setError("");
       }
@@ -72,13 +81,15 @@ export function useAppStore(
           e instanceof Error ? e.message : "No pudimos cargar los datos.",
         );
     } finally {
+      if (!partial) fullRefreshes.current--;
       if (session.current === scope && sequence === refreshSequence.current)
         setLoading(false);
     }
-  }, [userId, platform, context, scope]);
+  }, [userId, platform, context, student, scope]);
   useEffect(() => {
     if (liveMode) {
       setData(emptyData());
+      loadedScopeRef.current = "";
       setLoading(!!userId);
       setError("");
       void refresh();
@@ -96,25 +107,52 @@ export function useAppStore(
     }
   }, [data]);
   useEffect(() => {
-    if (!liveMode || !userId) return;
-    const focus = () => {
-      void refresh();
+    if (!liveMode || !userId || !supabase) return;
+    let pending = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let active = true;
+    const changed = new Set<string>();
+    let fullRefresh = false;
+    const backgroundRefresh = (payload?: unknown) => {
+      const table = (payload as { new?: { changed_table?: string } })?.new?.changed_table;
+      if (table) changed.add(table); else fullRefresh = true;
+      if (!active) return;
+      if (document.querySelector('[aria-modal="true"]')) { pending = true; return; }
+      pending = false;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { if (!active) return; if (document.querySelector('[aria-modal="true"]')) { pending = true; return; } const collections = fullRefresh ? undefined : realtimeCollections(changed); changed.clear(); fullRefresh = false; void refresh(collections); }, 400);
     };
-    window.addEventListener("focus", focus);
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
-    }, 60000);
+    const closed = () => { if (pending) { if (timer) clearTimeout(timer); timer = setTimeout(backgroundRefresh, 0); } };
+    const visible = () => { if (document.visibilityState === "visible") backgroundRefresh(); };
+    window.addEventListener("focus", backgroundRefresh);
+    window.addEventListener("online", backgroundRefresh);
+    window.addEventListener("micole:modal-closed", closed);
+    document.addEventListener("visibilitychange", visible);
+    setRealtimeStatus("connecting");
+    const channel = supabase.channel(`workspace-${scope}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_signals" }, backgroundRefresh)
+      .subscribe(status => {
+        if (!active) return;
+        if (status === "SUBSCRIBED") { setRealtimeStatus("connected"); backgroundRefresh(); }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setRealtimeStatus("offline");
+      });
     return () => {
-      window.removeEventListener("focus", focus);
-      window.clearInterval(timer);
+      active = false;
+      if (timer) clearTimeout(timer);
+      void supabase!.removeChannel(channel);
+      window.removeEventListener("focus", backgroundRefresh);
+      window.removeEventListener("online", backgroundRefresh);
+      window.removeEventListener("micole:modal-closed", closed);
+      document.removeEventListener("visibilitychange", visible);
     };
-  }, [refresh, userId]);
+  }, [refresh, userId, scope]);
   async function run(
     remote: () => Promise<unknown>,
     local: (prev: AppData) => AppData,
   ) {
     if (inflight.current)
       throw new Error("Espera a que termine la operación actual.");
+    if (student) throw new Error("Las cuentas de estudiantes son de solo lectura.");
     inflight.current = true;
     setBusy(true);
     try {
@@ -139,7 +177,7 @@ export function useAppStore(
       }),
     );
   }
-  async function enroll(student: Student) {
+  async function enroll(student: Student, plan?: PaymentPlan) {
     if (
       !student.motherName ||
       !student.motherEmail ||
@@ -163,10 +201,12 @@ export function useAppStore(
     )
       throw new Error("El RUDE o CI ya está registrado en esta institución.");
     await run(
-      () => rpc("enroll_student", { p_student: toRow("students", student) }),
+      () => plan ? rpc("enroll_student_with_plan", { p_student: toRow("students", student), p_plan: toRow("paymentPlans", plan) }) : rpc("enroll_student", { p_student: toRow("students", student) }),
       (prev) => ({
         ...prev,
         students: [...prev.students, student],
+        paymentPlans: plan ? [...prev.paymentPlans, plan] : prev.paymentPlans,
+        charges: plan ? [...prev.charges, ...buildSchedule(plan, uid).map(c => ({...c, paidAmount: 0, minimumAccessRatio: c.period && c.period < shiftMonthKey(plan.startDate.slice(0,7), Math.max(0, plan.months-2)) ? .5 : 1}))] : prev.charges,
         platformCharges: [
           ...prev.platformCharges,
           {
@@ -183,7 +223,7 @@ export function useAppStore(
     );
   }
   async function createPlan(plan: PaymentPlan) {
-    const charges = buildSchedule(plan, uid);
+    const charges = buildSchedule(plan, uid).map(c => ({ ...c, paidAmount: 0, minimumAccessRatio: c.period && c.period < shiftMonthKey(plan.startDate.slice(0,7), Math.max(0, plan.months-2)) ? .5 : 1 }));
     const student = current.current.students.find(
       (s) => s.id === plan.studentId,
     );
@@ -223,7 +263,7 @@ export function useAppStore(
       }),
     );
   }
-  async function studentStatus(student: Student, status: Student["status"]) {
+  async function studentStatus(student: Student, status: Student["status"], reason = "") {
     if (
       status === "active" &&
       current.current.platformCharges.some(
@@ -235,9 +275,8 @@ export function useAppStore(
       );
     await run(
       () =>
-        rpc("set_student_status", {
-          p_student_id: student.id,
-          p_status: status,
+        status === "inactive" ? rpc("withdraw_student", { p_student_id: student.id, p_reason: reason }) : rpc("set_student_status", {
+          p_student_id: student.id, p_status: status,
         }),
       (prev) => ({
         ...prev,
@@ -247,6 +286,7 @@ export function useAppStore(
                 ...s,
                 status,
                 withdrawnAt: status === "inactive" ? today() : undefined,
+                withdrawalReason: status === "inactive" ? reason : s.withdrawalReason,
               }
             : s,
         ),
@@ -254,7 +294,7 @@ export function useAppStore(
           status === "inactive" &&
           c.studentId === student.id &&
           c.dueDate > today() &&
-          c.status !== "paid"
+          c.status !== "paid" && !c.paidAmount
             ? { ...c, status: "cancelled" }
             : c,
         ),
@@ -689,6 +729,7 @@ export function useAppStore(
     loading: loading || (!ready && !!userId && !error),
     error,
     busy,
+    realtimeStatus,
     refresh,
     save,
     enroll,

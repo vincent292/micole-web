@@ -7,7 +7,9 @@ Deno.serve(async (req: Request) => {
   const origin = Deno.env.get('APP_ORIGIN');
   const headers = { 'Access-Control-Allow-Origin': origin || '', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-micole-support', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Vary': 'Origin', 'Content-Type': 'application/json' };
   const reply = (body: object, status = 200) => new Response(JSON.stringify(body), { status, headers });
-  if (!origin || req.headers.get('origin') !== origin) return reply({ error: 'Origen no autorizado.' }, 403);
+  // Android sends an explicit bearer token and no browser Origin. JWT and RLS below remain mandatory.
+  const requestOrigin = req.headers.get('origin');
+  if (!origin || (requestOrigin !== null && requestOrigin !== origin)) return reply({ error: 'Origen no autorizado.' }, 403);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   if (req.method !== 'POST') return reply({ error: 'Método no permitido.' }, 405);
   try {

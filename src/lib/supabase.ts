@@ -1,3 +1,4 @@
+import { authenticationError, authenticationReturnError } from "./authErrors";
 import { createClient } from "@supabase/supabase-js";
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -55,6 +56,7 @@ function configure() {
     };
   }
 }
+export const authReturnIssue = authenticationReturnError(window.location.search, window.location.hash);
 const configuration = configure();
 export const supabase = configuration.client;
 export const supabaseConfigurationError = configuration.error;
@@ -67,9 +69,9 @@ export async function signInGoogle() {
     );
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: authenticationRedirect() },
+    options: { redirectTo: authenticationRedirect(), queryParams: { prompt: "select_account" } },
   });
-  if (error) throw error;
+  if (error) throw new Error(authenticationError(error));
 }
 
 export async function authProviders() {
@@ -95,12 +97,7 @@ export async function signInEmail(email: string) {
       shouldCreateUser: true,
     },
   });
-  if (error)
-    throw new Error(
-      error.code === "over_email_send_rate_limit"
-        ? "Ya se enviaron varios enlaces. Espera unos minutos antes de intentarlo de nuevo."
-        : error.message,
-    );
+  if (error) throw new Error(authenticationError(error));
 }
 
 export function authenticationRedirect() {

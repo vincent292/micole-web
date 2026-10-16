@@ -1,3 +1,8 @@
+import { PaymentConnection } from "./PaymentConnection";
+import { SchoolLocation } from "../components/SchoolLocation";
+import { chargeBalance } from "../lib/operations";
+import { MonthCalendar } from "../components/MonthCalendar";
+import { useLocation } from "react-router-dom";
 import { useState } from "react";
 import {
   BookOpen,
@@ -8,6 +13,7 @@ import {
   Download,
   Heart,
   LockKeyhole,
+  KeyRound,
   Mail,
   ClipboardList,
   FileText,
@@ -81,6 +87,8 @@ function InstitutionDetails({ school }: { school: School }) {
   ].filter(([, value]) => value);
   return (
     <>
+      {school.bannerUrl && <img className="institution-banner-preview" src={school.bannerUrl} alt={`Portada de ${school.name}`} />}
+      <SchoolLocation school={school} />
       {rows.length > 0 && (
         <dl className="institution-details">
           {rows.map(([label, value]) => (
@@ -108,6 +116,8 @@ export function Directory({
   go,
   identity,
 }: PageProps & { page: string }) {
+  const location = useLocation();
+  const [classroomFilter, setClassroomFilter] = useState(new URLSearchParams(location.search).get("classroom") || "");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const data = store.data,
@@ -116,14 +126,14 @@ export function Directory({
   const rooms = data.classrooms.filter(
     (c) =>
       c.schoolId === school?.id &&
-      (role !== "teacher" || students.some((s) => s.classroomId === c.id)),
+      (role !== "teacher" || c.teacherIds.some(id => identity.teacherIds.includes(id))),
   );
   const matches = (value: string) =>
     value.toLocaleLowerCase().includes(search.toLocaleLowerCase());
   const visible = students.filter(
     (s) =>
       matches(`${fullName(s)} ${s.guardianName} ${s.guardianEmail}`) &&
-      (filter === "all" || s.status === filter),
+      (filter === "all" || s.status === filter) && (!classroomFilter || s.classroomId === classroomFilter),
   );
   return (
     <>
@@ -175,6 +185,7 @@ export function Directory({
           onChange={setSearch}
           placeholder="Buscar por nombre…"
         />
+        {page === "students" && <select aria-label="Filtrar estudiantes por aula" value={classroomFilter} onChange={e => setClassroomFilter(e.target.value)}><option value="">Todas las aulas</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name} · {room.academicYear || today().slice(0,4)}</option>)}</select>}
         {page === "students" && (
           <div className="segmented">
             {[
@@ -222,6 +233,7 @@ export function Directory({
                           <b>{fullName(s)}</b>
                           <small>Desde {dateLabel(s.enrolledAt)}</small>
                           {s.rude && <small>RUDE: {s.rude}</small>}
+                          {s.status === "inactive" && s.withdrawalReason && <small>Motivo: {s.withdrawalReason}</small>}
                         </div>
                       </div>
                     </td>
@@ -293,6 +305,7 @@ export function Directory({
                             >
                               <FileText size={16} />
                             </button>
+                            <button className="icon-button" title="Acceso del estudiante" onClick={() => open("studentLogin", s)}><KeyRound size={16} /></button>
                             <button
                               className="mini-btn"
                               disabled={store.busy}
@@ -461,7 +474,8 @@ export function Directory({
                 <span className={`room-icon room-${i % 3}`}>
                   <BookOpen size={26} />
                 </span>
-                <h3>{c.name}</h3>
+                <h3><button className="text-button" onClick={() => go(`students?classroom=${encodeURIComponent(c.id)}`)}>{c.name}</button></h3>
+                <p>{c.active === false ? "Inscripciones cerradas" : `${Math.max(0,(c.capacity || 30)-students.filter(s=>s.classroomId===c.id && s.status!=="inactive").length)} cupos disponibles`} · Gestión {c.academicYear || today().slice(0,4)}</p>
                 <p>{c.level}</p>
                 <div className="icon-line">
                   <Clock size={16} />
@@ -476,6 +490,7 @@ export function Directory({
                   }{" "}
                   estudiantes activos
                 </div>
+                <Button variant="secondary" onClick={() => go(`students?classroom=${encodeURIComponent(c.id)}`)}>Ver estudiantes</Button>
                 <div className="entity-footer">
                   <div className="avatar-stack">
                     {c.teacherIds.map((id) => (
@@ -695,7 +710,7 @@ export function Payments({
                     </td>
                     <td>{"dueDate" in c ? dateLabel(c.dueDate) : c.period}</td>
                     <td>
-                      <b>{money(c.amount)}</b>
+                      <b>{money(c.amount)}</b>{"paidAmount" in c && !!c.paidAmount && c.status !== "paid" && <small className="block">Abonado {money(c.paidAmount)} · Saldo {money(chargeBalance(c))}</small>}
                     </td>
                     <td>
                       <Badge
@@ -801,8 +816,10 @@ export function Community({
   const [body, setBody] = useState("");
   const [threadId, setThreadId] = useState("");
   const [month, setMonth] = useState(today().slice(0, 7));
+  const [selectedDay, setSelectedDay] = useState("");
+  const changeMonth = (value: string) => { if (value) { setMonth(value); setSelectedDay(""); } };
   const current =
-    role === "guardian"
+    ["guardian", "student"].includes(role)
       ? student
       : students.find((s) => s.id === threadId) || students[0];
   const visibleIds = students.map((s) => s.id);
@@ -812,14 +829,15 @@ export function Community({
         (e) =>
           e.schoolId === schoolId &&
           visibleIds.includes(e.studentId) &&
-          (role !== "guardian" || e.studentId === student?.id),
+          (!["guardian", "student"].includes(role) || e.studentId === student?.id) &&
+          (role !== "student" || e.category === "tarea"),
       )
       .sort((a, b) => b.date.localeCompare(a.date));
     return (
       <>
         <SectionTitle
-          title="Nuestro cuaderno digital"
-          subtitle="Actividades, comidas, descanso y esas pequeñas cosas que cuentan."
+          title={role === "student" ? "Mis tareas" : "Nuestro cuaderno digital"}
+          subtitle={role === "student" ? "Consulta las tareas que tu docente comparte contigo." : "Actividades, comidas, descanso y esas pequeñas cosas que cuentan."}
           action={
             canWrite && (
               <Button icon={Plus} onClick={() => open("entry")}>
@@ -873,11 +891,11 @@ export function Community({
         (!a.classroomId ||
           role === "director" ||
           role === "superadmin" ||
-          students.some((s) => s.classroomId === a.classroomId)) &&
+          (role === "guardian" || role === "student" ? student?.classroomId === a.classroomId : students.some((s) => s.classroomId === a.classroomId))) &&
         (role === "director" ||
           role === "superadmin" ||
           a.audience === "all" ||
-          a.audience === (role === "guardian" ? "families" : "staff")),
+          a.audience === (["guardian", "student"].includes(role) ? "families" : "staff")),
     );
     return (
       <>
@@ -930,7 +948,7 @@ export function Community({
   }
   if (page === "calendar" || page === "materials") {
     const agendaStudents =
-      role === "guardian" ? (student ? [student] : []) : students;
+      ["guardian", "student"].includes(role) ? (student ? [student] : []) : students;
     const rooms = data.classrooms.filter(
       (c) =>
         c.schoolId === schoolId &&
@@ -945,7 +963,7 @@ export function Community({
         (page !== "materials" || e.type === "materials"),
     );
     const birthdays = agendaStudents
-      .filter((s) => s.birthDate)
+      .filter((s) => s.birthDate && s.status !== "inactive")
       .map((s) => ({
         id: `birthday-${s.id}`,
         title: `Cumpleaños de ${s.firstName}`,
@@ -989,13 +1007,14 @@ export function Community({
               aria-label="Mes de la agenda"
               type="month"
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              onChange={(e) => changeMonth(e.target.value)}
             />
           </label>
           <span className="muted">{agenda.length} actividades este mes</span>
         </div>
+        {page === "calendar" && <MonthCalendar month={month} events={agenda} selected={selectedDay} onSelect={setSelectedDay} onMonth={changeMonth} />}
         <section className="panel">
-          {agenda.map((e) => (
+          {(selectedDay ? agenda.filter(e => e.date === selectedDay) : agenda).map((e) => (
             <article className="calendar-row" key={e.id}>
               <span className="event-date">
                 <b>{e.date.slice(8, 10)}</b>
@@ -1032,9 +1051,9 @@ export function Community({
               )}
             </article>
           ))}
-          {!agenda.length && (
+          {!(selectedDay ? agenda.filter(e => e.date === selectedDay) : agenda).length && (
             <Empty
-              title="Este mes está por escribir"
+              title={selectedDay ? "Sin actividades este día" : "Este mes está por escribir"}
               subtitle="No hay actividades registradas para el mes seleccionado."
             />
           )}
@@ -1202,7 +1221,7 @@ export function Community({
           </form>
           <small className="muted">
             {liveMode
-              ? "Los mensajes se actualizan al abrir la app y cada minuto. Puedes usar el botón de actualizar."
+              ? "Los mensajes se actualizan al recibir novedades. Puedes usar el botón de actualizar."
               : "Modo local: los mensajes se guardan en este navegador."}
           </small>
         </section>
@@ -1362,6 +1381,7 @@ export function Settings({ store, school, role, open, act }: PageProps) {
   };
   return (
     <>
+      {role === "director" && school && <PaymentConnection schoolId={school.id} />}
       <SectionTitle
         title="A tu manera"
         subtitle="La identidad de tu institución, en cada detalle."

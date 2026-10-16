@@ -10,6 +10,7 @@ export function Button({
   type = "button",
   disabled = false,
   className = "",
+  "aria-label": ariaLabel,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -18,10 +19,12 @@ export function Button({
   type?: "submit" | "button";
   disabled?: boolean;
   className?: string;
+  "aria-label"?: string;
 }) {
   return (
     <button
       type={type}
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={onClick}
       className={`btn btn-${variant} ${className}`}
@@ -176,6 +179,7 @@ export function Modal({
   onClose,
   onSubmit,
   submitLabel = "Guardar",
+  submitDisabled = false,
   busy = false,
   error = "",
 }: {
@@ -185,30 +189,35 @@ export function Modal({
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   submitLabel?: string;
+  submitDisabled?: boolean;
   busy?: boolean;
   error?: string;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  const busyRef = useRef(busy);
+  closeRef.current = onClose;
+  busyRef.current = busy;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const focusable = () => [
       ...(dialog.current?.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), input, select, textarea, a[href]",
+        "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]",
       ) || []),
     ];
-    focusable()[1]?.focus();
+    focusable()[1]?.focus({ preventScroll: true });
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
+      if (e.key === "Escape" && !busyRef.current) closeRef.current();
       if (e.key === "Tab") {
         const items = focusable();
         const first = items[0],
           last = items.at(-1);
         if (e.shiftKey && document.activeElement === first) {
           e.preventDefault();
-          last?.focus();
+          last?.focus({ preventScroll: true });
         } else if (!e.shiftKey && document.activeElement === last) {
           e.preventDefault();
-          first?.focus();
+          first?.focus({ preventScroll: true });
         }
       }
     };
@@ -218,9 +227,10 @@ export function Modal({
     return () => {
       document.removeEventListener("keydown", key);
       document.body.style.overflow = overflow;
-      previous?.focus();
+      previous?.focus({ preventScroll: true });
+      window.dispatchEvent(new Event("micole:modal-closed"));
     };
-  }, [onClose, busy]);
+  }, []);
   return (
     <div
       className="modal-backdrop"
@@ -266,7 +276,7 @@ export function Modal({
               </Button>
               <Button
                 type="submit"
-                disabled={busy}
+                disabled={busy || submitDisabled}
                 icon={busy ? LoaderCircle : undefined}
               >
                 {busy ? "Guardando…" : submitLabel}

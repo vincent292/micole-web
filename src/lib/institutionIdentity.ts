@@ -1,9 +1,10 @@
-export const institutionLogoMaxBytes = 256 * 1024;
+export const institutionLogoMaxBytes = 10 * 1024 * 1024;
+import { validateMapsUrl } from "./operations";
 const imageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 export function validateInstitutionLogoFile(file: Pick<File, "type" | "size">) {
   if (!imageTypes.has(file.type) || file.size > institutionLogoMaxBytes)
-    throw new Error("Usa un logo JPG, PNG o WebP de hasta 256 KB.");
+    throw new Error("Usa un logo JPG, PNG o WebP de hasta 10 MB para optimizarlo.");
 }
 
 export function validateInstitutionHttpsUrl(value: string, label: string) {
@@ -38,20 +39,38 @@ export function validateInstitutionNit(value: string) {
   return value;
 }
 
-function readLogoDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () =>
-      reject(new Error("No pudimos leer el logo. Selecciona el archivo otra vez."));
-    reader.readAsDataURL(file);
-  });
+export async function optimizeInstitutionImage(file: File, kind: "logo" | "banner" = "logo"): Promise<string> {
+  validateInstitutionLogoFile(file);
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image(); image.src = objectUrl;
+    await image.decode();
+    if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth * image.naturalHeight > 40000000)
+      throw new Error("La imagen es demasiado grande. Usa una foto de hasta 40 megapíxeles.");
+    const canvas = document.createElement("canvas");
+    const maxWidth = kind === "logo" ? 512 : 1400;
+    let scale = Math.min(1, maxWidth / image.naturalWidth, (kind === "logo" ? 512 : 700) / image.naturalHeight);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("No se pudo optimizar la imagen.");
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const result = canvas.toDataURL("image/webp", .82 - attempt * .08);
+      if (!result.startsWith("data:image/webp;base64,")) throw new Error("Este navegador no permite guardar WebP. Usa una versión actualizada.");
+      if (result.length <= (kind === "logo" ? 345000 : 525000)) return result;
+      scale *= .8;
+    }
+    throw new Error("No pudimos reducir la imagen. Elige una imagen más pequeña.");
+  } finally { URL.revokeObjectURL(objectUrl); }
 }
 
 export async function readInstitutionIdentity(
   form: FormData,
   existingLogo = "",
+  existingBanner = "",
 ) {
+  if (form.get("privateContactReady") === "false") throw new Error("Espera a que carguen los datos de Dirección antes de guardar.");
   const text = (name: string) => String(form.get(name) || "").trim();
   const nit = validateInstitutionNit(text("nit"));
   const address = text("address");
@@ -67,7 +86,7 @@ export async function readInstitutionIdentity(
     const file = form.get("logoFile");
     if (file instanceof File && file.size) {
       validateInstitutionLogoFile(file);
-      logoUrl = await readLogoDataUrl(file);
+      logoUrl = await optimizeInstitutionImage(file);
     } else {
       logoUrl = validateInstitutionLogoUrl(text("logoUrl"));
       // Un archivo guardado se conserva hasta elegir otro o marcar «Quitar logo».
@@ -76,7 +95,13 @@ export async function readInstitutionIdentity(
     }
   }
 
+  const bannerFile = form.get("bannerFile");
+  const bannerUrl = form.has("removeBanner") ? "" : bannerFile instanceof File && bannerFile.size ? await optimizeInstitutionImage(bannerFile, "banner") : existingBanner;
   return {
+    bannerUrl,
+    mapsUrl: validateMapsUrl(text("mapsUrl")),
+    directorIdentity: text("directorIdentity").toUpperCase(),
+    directorPhone: text("directorPhone"),
     nit,
     address,
     phone,

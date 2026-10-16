@@ -50,7 +50,7 @@ beforeAll(async () => {
     "202610140002_family_enrollment.sql",
     "202610140003_support_registered_parents.sql",
     "202610140004_financial_reports.sql",
-    "202610140005_institution_identity.sql",
+    "202610140005_institution_identity.sql", "202610150001_student_access.sql",
   ])
     await db.exec(
       readFileSync(

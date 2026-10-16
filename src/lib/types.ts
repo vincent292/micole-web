@@ -1,4 +1,4 @@
-export type Role = "superadmin" | "director" | "teacher" | "guardian";
+export type Role = "superadmin" | "director" | "teacher" | "guardian" | "student";
 export type Status = "active" | "pending" | "inactive";
 export type ChargeStatus = "pending" | "paid" | "overdue" | "cancelled";
 export interface School {
@@ -12,6 +12,10 @@ export interface School {
   status: Status;
   createdAt: string;
   logoUrl?: string;
+  bannerUrl?: string;
+  mapsUrl?: string;
+  directorIdentity?: string;
+  directorPhone?: string;
   phone?: string;
   nit?: string;
   address?: string;
@@ -26,6 +30,13 @@ export interface Classroom {
   level: string;
   schedule: string;
   teacherIds: string[];
+  startTime?: string;
+  endTime?: string;
+  weekdays?: number[];
+  capacity?: number;
+  monthlyFee?: number;
+  academicYear?: number;
+  active?: boolean;
 }
 export interface Teacher {
   id: string;
@@ -50,6 +61,7 @@ export interface Student {
   status: Status;
   enrolledAt: string;
   withdrawnAt?: string;
+  withdrawalReason?: string;
   foodRestrictions?: string;
   emergencyPhone?: string;
   emergencyContact?: string;
@@ -91,6 +103,9 @@ export interface Charge {
   invoiceName?: string;
   invoiceNit?: string;
   invoicePhone?: string;
+  paidAmount?: number;
+  minimumAccessRatio?: number;
+  academicRequestId?: string;
 }
 export interface PlatformCharge {
   id: string;
@@ -287,7 +302,48 @@ export interface StudentDocument {
   createdAt: string;
   localUrl?: string;
 }
+export interface StudentLoginAccount {
+  studentId: string;
+  email: string;
+  enabled: boolean;
+}
+export interface StudentPortalAccess {
+  allowed: boolean;
+  message: string;
+}
+export interface AcademicRequest {
+ id: string; schoolId: string; classroomId: string;
+ kind: "annual_materials" | "monthly_materials" | "specific_materials" | "activity";
+ academicYear: number; title: string; details: string; eventDate: string;
+ amount: number; dueDate?: string; blocksAccess: boolean;
+ status: "pending" | "approved" | "rejected"; createdBy: string;
+ reviewedBy?: string; reviewNote: string; createdAt: string;
+}
+export interface ActivityParticipation {
+ id: string; requestId: string; studentId: string; schoolId: string;
+ participating: boolean; reason: string;
+}
+export interface SchoolReceipt {
+ id: string; schoolId: string; studentId: string; total: number;
+ paymentMethod: "cash" | "transfer" | "qr"; reference: string;
+ items?: { chargeId: string; concept: string; amount: number }[];
+ verificationSource: "manual" | "provider"; recordedBy: string; createdAt: string;
+}
+export interface InvoiceRequest {
+ id: string; schoolId: string; studentId: string; receiptId: string;
+ legalName: string; nitCi: string; phone: string; amount: number;
+ status: "pending" | "issued"; invoiceNumber: string; issuedAt?: string; createdAt: string;
+}
+export interface OperationSettings {
+ id: string; schoolId: string; finalFullInstallments: number; requireAnnualMaterials: boolean;
+}
 export interface AppData {
+  academicRequests: AcademicRequest[];
+  activityParticipations: ActivityParticipation[];
+  schoolReceipts: SchoolReceipt[];
+  invoiceRequests: InvoiceRequest[];
+  operationSettings: OperationSettings[];
+  studentPortalAccess?: StudentPortalAccess;
   familyIntakes: FamilyIntake[];
   studentDocuments: StudentDocument[];
   institutionRequests: InstitutionRequest[];
@@ -309,7 +365,7 @@ export interface AppData {
   invitations: Invitation[];
   media: MediaAsset[];
 }
-export type Collection = keyof AppData;
+export type Collection = Exclude<keyof AppData, "studentPortalAccess">;
 export interface Membership {
   schoolId: string;
   role: Exclude<Role, "superadmin">;
@@ -338,4 +394,5 @@ export interface Identity {
   memberships: Membership[];
   teacherIds: string[];
   guardianStudentIds: string[];
+  studentIds?: string[];
 }

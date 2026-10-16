@@ -26,8 +26,10 @@ test("superadmin crea y edita identidad completa, conserva el logo y puede ocult
   await page.getByRole("button", { name: "Nueva institución", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nombre de la institución").fill("Colegio Nueva Comunidad");
-  await dialog.getByLabel("Ciudad", { exact: false }).fill("Tarija");
+  await dialog.getByLabel("Ciudad", { exact: false }).selectOption("Tarija");
   await dialog.getByLabel("Nombre de la directora").fill("Ana Paredes");
+  await dialog.getByLabel("Carnet de Dirección").fill("1234567 LP");
+  await dialog.getByLabel("Celular de Dirección").fill("70000000");
   await dialog.getByLabel("NIT (opcional)").fill("1234567890");
   await dialog.getByLabel("Dirección de la institución").fill("Av. Las Américas 120");
   await dialog.getByLabel("Teléfono de la institución").fill("+591 70001234");
@@ -42,7 +44,7 @@ test("superadmin crea y edita identidad completa, conserva el logo y puede ocult
   await expect(card).toContainText("Av. Las Américas 120");
   await expect(card).toContainText("Pendiente");
   await expect(card.getByRole("link", { name: "Visitar sitio web" })).toHaveAttribute("href", "https://colegio.example.com");
-  await expect(card.getByAltText("Logo de Colegio Nueva Comunidad")).toHaveAttribute("src", /^data:image\/png;base64,/);
+  await expect(card.getByAltText("Logo de Colegio Nueva Comunidad")).toHaveAttribute("src", /^data:image\/webp;base64,/);
 
   await card.getByRole("button", { name: "Editar institución" }).click();
   await dialog.getByLabel("Dirección de la institución").fill("Calle Familia 55");
@@ -50,7 +52,7 @@ test("superadmin crea y edita identidad completa, conserva el logo y puede ocult
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(card).toContainText("Oculta en la página de MiCole");
-  await expect(card.getByAltText("Logo de Colegio Nueva Comunidad")).toHaveAttribute("src", /^data:image\/png;base64,/);
+  await expect(card.getByAltText("Logo de Colegio Nueva Comunidad")).toHaveAttribute("src", /^data:image\/webp;base64,/);
 
   await page.reload();
   await admin(page);
@@ -101,6 +103,6 @@ test("Dirección actualiza identidad, valida archivos y HTTPS y conserva cambios
   await page.reload();
   await menu(page, "Configuración");
   await expect(panel).toContainText("Oculta en la página de MiCole");
-  await expect(panel.getByRole("img", { name: /^Logo de/ })).toHaveAttribute("src", /^data:image\/png;base64,/);
+  await expect(panel.getByRole("img", { name: /^Logo de/ })).toHaveAttribute("src", /^data:image\/webp;base64,/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

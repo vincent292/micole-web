@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { liveMode, supabase, setSupportSession } from "./supabase";
+import { liveMode, supabase, setSupportSession, authReturnIssue } from "./supabase";
 import { claimInvitation, getIdentity } from "./repository";
 import type { Identity } from "./types";
 export function useIdentity() {
   const navigate = useNavigate();
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [loading, setLoading] = useState(liveMode);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(authReturnIssue);
   const [signedIn, setSignedIn] = useState(false);
   const sequenceRef = useRef(0);
   const refresh = useCallback(async () => {
@@ -23,6 +23,8 @@ export function useIdentity() {
       if (sequence !== sequenceRef.current) return;
       setSignedIn(!!data.user);
       if (!data.user) {
+        if (authReturnIssue && (location.search.includes("error") || location.hash.includes("error")))
+          history.replaceState(null, "", location.pathname);
         setSupportSession(null);
         setIdentity(null);
         return;
@@ -51,6 +53,7 @@ export function useIdentity() {
       }
       if (sequence !== sequenceRef.current) return;
       setIdentity(next);
+      if (next.roles.length) sessionStorage.removeItem("micole_school_intent");
       setError("");
       if (invitationClaimed)
         navigate(
@@ -70,9 +73,14 @@ export function useIdentity() {
   useEffect(() => {
     void refresh();
     if (!supabase || !liveMode) return;
+    let pendingFocus = false;
     const focus = () => {
+      if (document.querySelector('[aria-modal="true"]')) { pendingFocus = true; return; }
+      pendingFocus = false;
       void refresh();
     };
+    const modalClosed = () => { if (pendingFocus) window.setTimeout(focus, 0); };
+    window.addEventListener("micole:modal-closed", modalClosed);
     window.addEventListener("focus", focus);
     const expired = () => {
       navigate("/app/support", { replace: true });
@@ -103,6 +111,7 @@ export function useIdentity() {
       sequenceRef.current++;
       subscription.unsubscribe();
       window.removeEventListener("focus", focus);
+      window.removeEventListener("micole:modal-closed", modalClosed);
       window.removeEventListener("micole:support-expired", expired);
     };
   }, [refresh]);

@@ -44,7 +44,7 @@ beforeAll(async () => {
     "202610130001_initial.sql", "202610130002_workspace.sql", "202610130003_billing_cycle.sql",
     "202610130004_micole_operations.sql", "202610130005_invitation_lifecycle.sql",
     "202610140001_platform_support.sql", "202610140002_family_enrollment.sql",
-    "202610140003_support_registered_parents.sql", "202610140004_financial_reports.sql", "202610140005_institution_identity.sql",
+    "202610140003_support_registered_parents.sql", "202610140004_financial_reports.sql", "202610140005_institution_identity.sql", "202610150001_student_access.sql",
   ]) await db.exec(readFileSync(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8").replace("create extension if not exists pgcrypto;", ""));
   await query("insert into aulanexo_private.platform_admin_allowlist(email) values('reports-owner@test.bo')");
   for (const [user, email] of [[admin, "reports-owner@test.bo"], [director, "reports-director@test.bo"], [teacher, "reports-teacher@test.bo"], [guardian, "reports-mother@test.bo"], [directorOther, "reports-other@test.bo"]]) {

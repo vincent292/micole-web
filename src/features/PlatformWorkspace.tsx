@@ -1,3 +1,4 @@
+import { PaymentConnection } from "./PaymentConnection";
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
@@ -26,6 +27,7 @@ const names = {
   director: "Dirección",
   teacher: "Docente",
   guardian: "Familia",
+  student: "Estudiante",
 };
 export function PlatformOverview({ store, identity, go, open }: PageProps) {
   const data = store.data;
@@ -307,6 +309,7 @@ export function PlatformSupport({
               <option value="director">Dirección</option>
               <option value="teacher">Docente</option>
               <option value="guardian">Familia</option>
+              <option value="student">Estudiante</option>
             </select>
           </Field>
           <Field label="Usuario o acceso" name="support-account">
@@ -405,6 +408,7 @@ export function PlatformSettings() {
   }, []);
   return (
     <>
+      <PaymentConnection />
       <SectionTitle
         title="Integraciones de MiCole"
         subtitle="Estado de las conexiones que utiliza la plataforma."

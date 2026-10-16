@@ -59,6 +59,7 @@ export function AuthPage({
     };
   }, []);
   const rememberInvitation = () => {
+    if (intent) sessionStorage.setItem("micole_school_intent", "1");
     if (invitation)
       sessionStorage.setItem("micole_invite", location.pathname.split("/")[2]);
     else {
@@ -107,7 +108,7 @@ export function AuthPage({
           </span>
           <h2>
             {auth.signedIn && auth.identity && !auth.identity.roles.length
-              ? "Conectemos tu institución"
+              ? "Tu acceso está por vincularse"
               : invitation
                 ? "Tu colegio te invita"
                 : "Bienvenido a MiCole"}
@@ -308,6 +309,7 @@ function InstitutionOnboarding({
   store: AppStore;
 }) {
   const identity = auth.identity!;
+  const [wantsSchool, setWantsSchool] = useState(new URLSearchParams(location.search).get("intent") === "school" || sessionStorage.getItem("micole_school_intent") === "1");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const request = store.data.institutionRequests
@@ -333,6 +335,13 @@ function InstitutionOnboarding({
         </Button>
       </div>
     );
+  if (!request && !wantsSchool) return <div className="institution-onboarding">
+    <div className="account-chip"><CheckCircle2 size={17} />{identity.email}</div>
+    <p>Dirección debe registrar este mismo correo en tu acceso. Si eres madre o padre, tus hijos se vincularán automáticamente. Si eres estudiante, tu colegio debe habilitar tu acceso opcional.</p>
+    <Button className="full" onClick={() => { void auth.refresh(); }}>Comprobar mi acceso</Button>
+    <p className="auth-hint">Si recibiste una invitación para el equipo docente, abre el enlace usando esta cuenta.</p>
+    <Button className="full" variant="ghost" onClick={() => setWantsSchool(true)}>Quiero incorporar mi institución</Button>
+  </div>;
   return (
     <div className="institution-onboarding">
       <div className="account-chip">
