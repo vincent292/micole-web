@@ -1,15 +1,13 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from 'npm:@aws-sdk/client-s3@3';
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3';
+import { r2OriginHeaders } from './origins.ts';
 // Secrets: APP_ORIGIN, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET.
 // JWT se verifica con getUser: compatible con claves públicas y claves JWT asimétricas.
 Deno.serve(async (req: Request) => {
-  const origin = Deno.env.get('APP_ORIGIN');
-  const headers = { 'Access-Control-Allow-Origin': origin || '', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-micole-support', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Vary': 'Origin', 'Content-Type': 'application/json' };
-  const reply = (body: object, status = 200) => new Response(JSON.stringify(body), { status, headers });
-  // Android sends an explicit bearer token and no browser Origin. JWT and RLS below remain mandatory.
-  const requestOrigin = req.headers.get('origin');
-  if (!origin || (requestOrigin !== null && requestOrigin !== origin)) return reply({ error: 'Origen no autorizado.' }, 403);
+  const headers = r2OriginHeaders(req.headers.get('origin'), Deno.env.get('APP_ORIGINS') || Deno.env.get('APP_ORIGIN') || '');
+  const reply = (body: object, status = 200) => new Response(JSON.stringify(body), { status, headers: headers || { 'Content-Type': 'application/json' } });
+  if (!headers) return reply({ error: 'Origen no autorizado.' }, 403);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   if (req.method !== 'POST') return reply({ error: 'Método no permitido.' }, 405);
   try {
@@ -26,6 +24,24 @@ Deno.serve(async (req: Request) => {
     const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID'), secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY');
     if (!account || !bucket || !accessKeyId || !secretAccessKey) throw new Error('Cloudflare R2 todavía no está configurado.');
     const s3 = new S3Client({ region: 'auto', endpoint: `https://${account}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey }, requestChecksumCalculation: 'WHEN_REQUIRED' });
+    if (body.action === 'assignment_download') {
+      const {data:asset,error}=await db.from('assignment_files').select('object_key,file_name').eq('id',body.assetId).eq('status','ready').single();
+      if(error||!asset)return reply({error:'No tienes acceso a este archivo de tarea.'},403);
+      const url=await getSignedUrl(s3,new GetObjectCommand({Bucket:bucket,Key:asset.object_key,ResponseContentDisposition:`attachment; filename*=UTF-8''${encodeURIComponent(asset.file_name)}`}),{expiresIn:300});return reply({url});
+    }
+    if(body.action === 'assignment_upload'){
+      const {data:asset,error}=await db.rpc('reserve_assignment_file',{p_submission_id:body.submissionId,p_file_name:body.fileName,p_mime_type:body.mimeType,p_size:body.size});
+      if(error||!asset)return reply({error:error?.message||'No puedes adjuntar archivos a esta entrega.'},403);
+      const url=await getSignedUrl(s3,new PutObjectCommand({Bucket:bucket,Key:asset.objectKey,ContentType:body.mimeType,ContentLength:body.size}),{expiresIn:120});return reply({...asset,url});
+    }
+    if(body.action === 'assignment_finalize'){
+      const {data:asset,error}=await db.rpc('assignment_file_for_upload',{p_id:body.assetId});if(error||!asset)return reply({error:error?.message||'Esta carga no está autorizada.'},403);
+      const head=await s3.send(new HeadObjectCommand({Bucket:bucket,Key:asset.object_key}));
+      if(head.ContentLength!==asset.size_bytes||head.ContentType!==asset.mime_type){await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:asset.object_key}));return reply({error:'El archivo no coincide con la carga autorizada.'},400);}
+      const server=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+      const {error:finishError}=await server.rpc('finish_assignment_file',{p_id:asset.id,p_size:head.ContentLength,p_mime_type:head.ContentType});if(finishError)return reply({error:'No se pudo confirmar el archivo; verifica el plazo de la tarea.'},400);
+      return reply({id:asset.id});
+    }
     const isDocument = String(body.action).startsWith('document_');
     if (body.action === 'download' || body.action === 'document_download') {
       const { data: asset, error } = await db.from(isDocument ? 'student_documents' : 'media_assets').select('object_key').eq('id', body.assetId).single();
@@ -64,5 +80,5 @@ Deno.serve(async (req: Request) => {
     const { data: asset, error } = await db.from('media_assets').insert({ school_id: student.school_id, student_id: student.id, object_key: key, bucket: 'aulanexo-private', mime_type: head.ContentType, caption: String(body.caption || '').trim().slice(0, 300), uploaded_by: actorId }).select('id').single();
     if (error) throw error;
     return reply({ id: asset.id });
-  } catch (e) { console.error('r2-media', e); return reply({ error: e instanceof Error ? e.message : 'No se pudo procesar la imagen.' }, 400); }
+  } catch (e) { console.error('r2-media', e instanceof Error ? e.name : 'unknown'); return reply({ error: e instanceof Error ? e.message : 'No se pudo procesar la imagen.' }, 400); }
 });

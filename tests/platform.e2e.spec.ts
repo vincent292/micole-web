@@ -40,7 +40,7 @@ test("superadmin tiene una navegación de plataforma y evita rutas operativas", 
       navigation.getByRole("button", { name, exact: true }),
     ).toHaveCount(0);
   await expect(
-    navigation.getByRole("button", { name: "Soporte y probar roles" }),
+    navigation.getByRole("button", { name: "Pruebas y soporte" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Instituciones", exact: true }),
@@ -71,10 +71,12 @@ test("soporte se abre con motivo y permite volver a plataforma", async ({
   page,
 }) => {
   await admin(page);
-  await menu(page, "Soporte y probar roles");
+  await menu(page, "Pruebas y soporte");
+  await page.getByRole("button", {name:"Soporte a una institución",exact:true}).click();
   await expect(
     page.getByRole("button", { name: "Entrar como Dirección" }),
   ).toBeDisabled();
+  await page.getByRole("button", {name:"Soporte a una institución",exact:true}).click();
   await page
     .getByLabel("Motivo de soporte")
     .fill("Revisar una inscripción de prueba");
@@ -113,7 +115,7 @@ test("plataforma y soporte caben en tablet y celulares, con menú compacto", asy
       "Solicitudes de colegios",
       "Historial de cambios",
       "Configuración",
-      "Soporte y probar roles",
+      "Pruebas y soporte",
     ]) {
       await menu(page, item);
       expect(
@@ -128,6 +130,7 @@ test("plataforma y soporte caben en tablet y celulares, con menú compacto", asy
       fullPage: true,
     });
   }
+  await page.getByRole("button", {name:"Soporte a una institución",exact:true}).click();
   await page
     .getByLabel("Motivo de soporte")
     .fill("Comprobar la navegación móvil");

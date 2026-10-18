@@ -1,3 +1,4 @@
+import {showFormSection} from './form-sections';
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 test.use({ reducedMotion: "reduce" });
@@ -28,18 +29,18 @@ test("inscripción, activación, plan y persistencia forman un flujo completo", 
     .getByRole("button", { name: "Nueva inscripción", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Nombres", { exact: false }).fill("Luciana");
-  await dialog.getByLabel("Apellidos", { exact: false }).fill("Prueba");
-  await dialog.getByLabel("Fecha de nacimiento").fill("2023-05-02");
-  await dialog.getByLabel("Aula", { exact: false }).selectOption("c1");
-  await dialog.getByLabel("Número de CI del niño").fill("CI-LUCIANA-1");
-  await dialog.getByLabel("Nombre completo de la madre").fill("Ana Prueba");
-  await dialog.getByLabel("Correo de la madre").fill("ana@example.com");
-  await dialog.getByLabel("Nombre completo del padre").fill("Pedro Prueba");
-  await dialog.getByLabel("Correo del padre").fill("pedro@example.com");
-  await dialog.getByLabel("Cuotas mensuales").selectOption("2");
-  await dialog.getByLabel("Mensualidad fija").fill("420");
-  await dialog.getByLabel("Merienda mensual").fill("60");
+  await showFormSection(page,'Nombres'); await dialog.getByLabel("Nombres", { exact: false }).fill("Luciana");
+  await showFormSection(page,'Apellidos'); await dialog.getByLabel("Apellidos", { exact: false }).fill("Prueba");
+  await showFormSection(page,'Fecha de nacimiento'); await dialog.getByLabel("Fecha de nacimiento").fill("2023-05-02");
+  await showFormSection(page,'Aula'); await dialog.getByLabel("Aula", { exact: false }).selectOption("c1");
+  await showFormSection(page,'Número de CI del niño'); await dialog.getByLabel("Número de CI del niño").fill("CI-LUCIANA-1");
+  await showFormSection(page,'Nombre completo de la madre'); await dialog.getByLabel("Nombre completo de la madre").fill("Ana Prueba");
+  await showFormSection(page,'Correo de la madre'); await dialog.getByLabel("Correo de la madre").fill("ana@example.com");
+  await showFormSection(page,'Nombre completo del padre'); await dialog.getByLabel("Nombre completo del padre").fill("Pedro Prueba");
+  await showFormSection(page,'Correo del padre'); await dialog.getByLabel("Correo del padre").fill("pedro@example.com");
+  await showFormSection(page,'Cuotas mensuales'); await dialog.getByLabel("Cuotas mensuales").selectOption("2");
+  await showFormSection(page,'Mensualidad fija'); await dialog.getByLabel("Mensualidad fija").fill("420");
+  await showFormSection(page,'Merienda mensual'); await dialog.getByLabel("Merienda mensual").fill("60");
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   await navigate(page, "Estudiantes");
@@ -104,11 +105,11 @@ test("familia completa ficha, manda permiso y la maestra responde; alumnos ajeno
     .first()
     .click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Alergias", { exact: false }).fill("Ninguna");
-  await dialog.getByLabel("Alimentos que no puede comer").fill("Ninguno");
-  await dialog.getByLabel("Contacto de emergencia").fill("Abuela");
-  await dialog.getByLabel("Teléfono de emergencia").fill("70000000");
-  await dialog.getByLabel("¿Tiene seguro?").selectOption("false");
+  await showFormSection(page,'Alergias'); await dialog.getByLabel("Alergias", { exact: false }).fill("Ninguna");
+  await showFormSection(page,'Alimentos que no puede comer'); await dialog.getByLabel("Alimentos que no puede comer").fill("Ninguno");
+  await showFormSection(page,'Contacto de emergencia'); await dialog.getByLabel("Contacto de emergencia").fill("Abuela");
+  await showFormSection(page,'Teléfono de emergencia'); await dialog.getByLabel("Teléfono de emergencia").fill("70000000");
+  await showFormSection(page,'¿Tiene seguro?'); await dialog.getByLabel("¿Tiene seguro?").selectOption("false");
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await page.getByRole("button", { name: "Documentos", exact: true }).click();
   await expect(
@@ -220,10 +221,10 @@ test("tarifas por alumno, descuentos y publicación por aula funcionan desde los
   await navigate(page, "Pagos y mensualidades");
   await page.getByRole("button", { name: "Crear plan de pagos" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Estudiante", { exact: false }).selectOption("a6");
+  await showFormSection(page,'Estudiante'); await dialog.getByLabel("Estudiante", { exact: false }).selectOption("a6");
   await expect(dialog.getByLabel("Mensualidad fija")).toHaveValue("520");
-  await dialog.getByLabel("Fecha de inicio").fill("2026-11-01");
-  await dialog.getByLabel("Cuotas mensuales").selectOption("2");
+  await showFormSection(page,'Fecha de inicio'); await dialog.getByLabel("Fecha de inicio").fill("2026-11-01");
+  await showFormSection(page,'Cuotas mensuales'); await dialog.getByLabel("Cuotas mensuales").selectOption("2");
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   const november = page
@@ -246,7 +247,7 @@ test("tarifas por alumno, descuentos y publicación por aula funcionan desde los
   await expect(november).toContainText("Bs 549");
   await expect(
     page.getByRole("row").filter({ hasText: "Mensualidad diciembre" }),
-  ).toContainText("Bs 499");
+  ).toContainText("Bs 549");
   await switchRole(page, "Docente");
   await navigate(page, "Cuaderno digital");
   await page.getByRole("button", { name: "Nueva entrada" }).click();

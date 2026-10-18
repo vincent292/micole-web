@@ -1,3 +1,4 @@
+import {usePlatformTariffs} from '../Pricing';
 import { useState } from "react";
 import {
   AnimatePresence,
@@ -91,18 +92,19 @@ const questions = [
   ],
   [
     "¿La mensualidad del colegio está incluida?",
-    "La licencia de MiCole cuesta Bs 29 por estudiante activo al mes, y se añade a la mensualidad que define la institución. La matrícula y la merienda se configuran aparte.",
+    "La licencia de MiCole se añade a la mensualidad que define la institución. Su tarifa vigente aparece en esta página y puede existir un acuerdo propio para tu colegio. La matrícula y la merienda se configuran aparte.",
   ],
   [
     "¿Cómo funcionan los pagos?",
-    "Dirección crea los planes y registra los pagos recibidos en efectivo o por transferencia. La integración de QR dinámico se habilitará cuando esté disponible el proveedor bancario.",
+    "Dirección crea los planes y registra los pagos recibidos en efectivo o por transferencia. Los QR dinámicos de Baneco se habilitan al configurar y comprobar la cuenta bancaria correspondiente.",
   ],
   [
     "¿Puedo usarlo desde el celular?",
-    "Sí. La web se adapta al celular y puedes añadir un acceso a tu pantalla de inicio. La aplicación Android nativa es una siguiente etapa.",
+    "Sí. La web se adapta al celular y puedes añadir un acceso a tu pantalla de inicio. También puedes usar la aplicación Android de MiCole.",
   ],
 ];
 export function Landing() {
+  const {rates,ready,error:tariffError}=usePlatformTariffs();
   const [menu, setMenu] = useState(false);
   const reducedMotion = useReducedMotion() !== false;
   const { scrollYProgress } = useScroll();
@@ -423,9 +425,10 @@ export function Landing() {
                   <span className="pricing-label">
                     MICole · LICENCIA POR ESTUDIANTE
                   </span>
-                  <div className="price">
+                  {tariffError&&<p className="message" role="status">Consulta las tarifas vigentes con MiCole.</p>}
+                <div className="price">
                     <sup>Bs</sup>
-                    <strong>29</strong>
+                    <strong>{ready?rates.monthlyLicenseFee.toLocaleString("es-BO"):"…"}</strong>
                     <span>/ mes</span>
                   </div>
                   <p>Por cada estudiante con inscripción activa.</p>
@@ -434,7 +437,7 @@ export function Landing() {
                       <Sparkles size={20} /> Activación inicial
                     </span>
                     <b>
-                      Bs 50 <small>una sola vez</small>
+                      Bs {ready?rates.activationFee.toLocaleString("es-BO"):"…"} <small>una sola vez</small>
                     </b>
                   </div>
                   <ul>

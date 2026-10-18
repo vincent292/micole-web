@@ -22,7 +22,7 @@ async function fixture(page: Page, role: "student"|"guardian"|"director", option
   let body;try{body=request.postDataJSON();}catch{body=null;}
   calls.push({name,method:request.method(),body});
   let json:unknown=name==='finance_register'?{receipts:[],invoices:[]}:[];
-  if(name==='workspace_identity')json={id:userId,email:user.email,name:"Cuenta Prueba",roles:[role],memberships:[{schoolId,role}],teacherIds:[],guardianStudentIds:role==='guardian'?[studentId,siblingId]:[],studentIds:role==='student'?[studentId]:[],canSupport:false};
+  if(name==='platform_tariffs')json={activationFee:50,monthlyLicenseFee:29,inherited:true};else if(name==='workspace_identity')json={id:userId,email:user.email,name:"Cuenta Prueba",roles:[role],memberships:[{schoolId,role}],teacherIds:[],guardianStudentIds:role==='guardian'?[studentId,siblingId]:[],studentIds:role==='student'?[studentId]:[],canSupport:false};
   else if(name==='student_portal') json={accessAllowed:!options.locked,accessMessage:options.locked?"Tu acceso está en pausa. Pide a tu familia que revise tu inscripción y los pagos.":"",schools:[{...school,color:school.brand_color}],students:[{id:studentId,schoolId,classroomId:roomId,firstName:"Lucía",lastName:"Prueba",status:"active"}],classrooms:[{id:roomId,schoolId,name:"Primero A",level:"Primaria",schedule:"Mañana",teacherIds:[]}],events:options.locked?[]:[{id:uid(60),schoolId,classroomId:roomId,title:events[0].title,date,type:"homework",description:events[0].description}],announcements:options.locked?[]:[{id:uid(70),schoolId,classroomId:roomId,title:notices[0].title,content:notices[0].content,audience:"families",createdAt:date}],dailyEntries:options.locked?[]:[{id:uid(80),schoolId,studentId,category:"tarea",note:tasks[0].note,date}]};
   else if(name==='schools')json=[school];else if(name==='students')json=students;
   else if(name==='classrooms')json=[{id:roomId,school_id:schoolId,name:"Primero A"},{id:otherRoomId,school_id:schoolId,name:"Primero B"}];
@@ -55,7 +55,7 @@ for(const width of [1440,768,390])test(`estudiante ${width}px: consulta publicac
  await page.getByRole('button',{name:'Mes anterior'}).click();await expect(page.getByText('Evaluación de lectura')).toBeVisible();
  await page.goto('/app/announcements');await expect(page.getByText('Salida del curso')).toBeVisible();await expect(page.getByRole('button',{name:'Nuevo comunicado'})).toHaveCount(0);
  for(const path of ['payments','family','messages','requests','grades','students','settings']) {await page.goto(`/app/${path}`);await expect(page).toHaveURL(/\/app\/overview/);}
- expect(calls.filter(c=>!['workspace_identity','student_portal'].includes(c.name))).toEqual([]);
+ expect(calls.filter(c=>!['workspace_identity','student_portal','subject_catalog','school_subjects','class_subjects','subject_teachers','assignments','assignment_submissions','assignment_files','notifications'].includes(c.name))).toEqual([]);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('estudiante bloqueado no recibe ni muestra contenido',async({page})=>{

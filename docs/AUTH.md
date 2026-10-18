@@ -37,3 +37,11 @@ Pruebas: `npm test`, `npm run test:e2e` y `npm run supabase:smoke:students`. La 
 ## Android
 
 La app nativa de MiCole está en `/Users/vincentariassaavedra/Desktop/micole-android/micole-android`, usa el mismo Supabase y los mismos permisos. El 16 de octubre de 2026 se agregó y verificó `micoleandroid://auth/callback` en los retornos permitidos, conservando las URLs web. Google y correo utilizan PKCE S256. El esquema se registra en el APK (`com.micole.android`); Expo Go no lo registra. La cuenta propietaria de plataforma sigue validándose en el servidor. La prueba de consentimiento Google completo debe hacerse con el APK instalado.
+
+## Rutas en Vercel
+
+`vercel.json` reescribe las rutas de la SPA a `/index.html` sin redirigir la URL del navegador. Así React puede procesar `/auth/callback` y conservar el código o fragmento de retorno de Supabase. También permite abrir directamente `/login`, `/app/*`, `/invite/*`, `/inscripcion/*` y `/pago/*`. Los archivos estáticos existentes se sirven normalmente.
+
+La corrección debe incluirse en un nuevo despliegue de Vercel; no basta con actualizar los proveedores de Google. Después de publicar, comprobar que `/auth/callback` devuelve HTTP 200, abrir `/login` y completar de nuevo el acceso con Google. No compartir ni copiar a registros el fragmento `access_token` del retorno.
+
+Verificado el 17 de octubre de 2026: despliegue de producción `dpl_B9kceZfutPZvndEUZRPNwN4Lwv1J` en `https://micole-web.vercel.app`, basado en la revisión publicada `886929f4d5cc801d8bb42f5e8ce76bb2d40dfb9b` más `vercel.json`. En Chromium, `/`, `/login`, `/auth/callback` y `/app/overview` devuelven HTTP 200 y cargan React; el callback de error vencido muestra el mensaje correspondiente y limpia el fragmento. Tres pruebas locales de autenticación y la compilación pasaron. Esta comprobación no inicia una sesión Google del usuario; completar el consentimiento sigue requiriendo su interacción.

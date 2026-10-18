@@ -69,7 +69,7 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
       brand_color: "#3D6EF7",
     };
     let json: unknown = name === "finance_register" ? {receipts:[],invoices:[]} : [];
-    if (name === "workspace_identity")
+    if (name === "platform_tariffs") json={activationFee:50,monthlyLicenseFee:29,inherited:true};else if (name === "workspace_identity")
       json = {
         id: owner,
         email: user.email,
@@ -135,8 +135,9 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
   ).toEqual([]);
   await page
     .getByRole("navigation")
-    .getByRole("button", { name: "Soporte y probar roles" })
+    .getByRole("button", { name: "Pruebas y soporte" })
     .click();
+  await page.getByRole("button", {name:"Soporte a una institución",exact:true}).click();
   await page
     .getByLabel("Motivo de soporte")
     .fill("Revisar la inscripción conectada");
@@ -176,8 +177,9 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
   expect(state).toEqual({ support: null, auth: true });
   await page
     .getByRole("navigation")
-    .getByRole("button", { name: "Soporte y probar roles" })
+    .getByRole("button", { name: "Pruebas y soporte" })
     .click();
+  await page.getByRole("button", {name:"Soporte a una institución",exact:true}).click();
   await page
     .getByLabel("Motivo de soporte")
     .fill("Revisar la inscripción conectada");
@@ -188,7 +190,7 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
   expired = true;
   await page.getByRole("button", { name: "Actualizar datos" }).click();
   await expect(
-    page.getByRole("heading", { name: "Soporte y probar roles", exact: true }),
+    page.getByRole("heading", { name: "Pruebas y soporte", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Sesión de soporte" }),

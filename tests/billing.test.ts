@@ -95,4 +95,6 @@ describe("planes de pago y acceso", () => {
       chargeStatus({ ...seed.charges[2], status: "cancelled" }, "2026-10-20"),
     ).toBe("cancelled");
   });
+  it('usa la licencia del plan sin aplicar la tarifa fija anterior',()=>{const charges=buildSchedule({...plan,licenseFee:35},()=> 'custom');expect(charges.filter(c=>c.period).every(c=>c.licenseAmount===35)).toBe(true);});
+
 });

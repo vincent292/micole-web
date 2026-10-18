@@ -1,6 +1,14 @@
 import type { AppData } from "./types";
 
 export const seed: AppData = {
+  subjectCatalog: [],
+  subjects: [],
+  classSubjects: [],
+  subjectTeachers: [],
+  assignments: [],
+  submissions: [],
+  assignmentFiles: [],
+
   academicRequests: [], activityParticipations: [], schoolReceipts: [], invoiceRequests: [], operationSettings: [],
   familyIntakes: [],
   studentDocuments: [],

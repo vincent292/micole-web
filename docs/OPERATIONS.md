@@ -26,7 +26,7 @@ El servidor bloquea los cargos durante el cobro y usa un identificador idempoten
 
 Un docente puede corroborar cobros únicamente de materiales/actividades aprobadas de sus aulas; no puede cobrar mensualidades, modificar planes ni consultar datos fiscales. Los padres pueden consultar sus propios cobros y preparar enlaces, nunca confirmar pagos.
 
-Los enlaces de pago caducan a las 48 horas. WhatsApp abre un mensaje para envío manual al número elegido; no se envía nada automáticamente. La página pública muestra solo institución, nombre mínimo, conceptos, importe y estado. No incluye CI, correos ni datos médicos. Si cambian los saldos, solicita un enlace nuevo; un abono completo del importe solicitado da el enlace por pagado aunque reste deuda en la cuota. **La generación de QR dinámico sigue pendiente del proveedor**: no se presenta un QR simulado.
+Los enlaces de pago caducan a las 48 horas. WhatsApp abre un mensaje para envío manual al número elegido; no se envía nada automáticamente. La página pública muestra solo institución, nombre mínimo, conceptos, importe y estado. No incluye CI, correos ni datos médicos. Si cambian los saldos, solicita un enlace nuevo; un abono completo del importe solicitado da el enlace por pagado aunque reste deuda en la cuota. La página puede generar el QR real de Baneco con la conexión habilitada del colegio. La confirmación proviene de una consulta autenticada al banco; consulta [la integración Baneco](BANECO.md).
 
 ## Facturación
 
@@ -56,6 +56,10 @@ Los cambios de fondo esperan mientras haya un modal abierto. El formulario captu
 
 ## Configuración bancaria y validación
 
-Integraciones permite guardar proveedor, cuenta, entorno y claves bancarias por institución; superadmin tiene una configuración separada para MiCole. Las credenciales se cifran con Supabase Vault, nunca se devuelven a React ni se publican en variables `VITE_`. No se escriben en auditoría ni se incluyen en las señales. Si Vault no está disponible, guardar claves falla en lugar de almacenarlas sin cifrar. Cambiar proveedor/cuenta/entorno exige volver a introducirlas. La configuración guardada no activa un adaptador inexistente: se necesita la documentación del banco para generación de QR, consulta y webhook autenticado.
+Integraciones permite guardar proveedor, cuenta, entorno y claves bancarias por institución; superadmin tiene una configuración separada para MiCole. Las credenciales se cifran con Supabase Vault, nunca se devuelven a React ni se publican en variables `VITE_`. No se escriben en auditoría ni se incluyen en las señales. Si Vault no está disponible, guardar claves falla en lugar de almacenarlas sin cifrar. Cambiar proveedor/cuenta/entorno exige volver a introducirlas. La conexión Baneco se guarda, se comprueba y se habilita en pasos explícitos. El callback bancario solo adelanta una consulta autenticada; el worker programado verifica los QR aunque la app esté cerrada. Consulte [Baneco](BANECO.md) para certificación, credenciales y revisión de pagos.
 
 Migraciones: `202610150002_school_operations.sql`, `202610150003_collections_invoices.sql`, `202610150004_realtime_notices.sql`. Para instalaciones con las once anteriores, `npm run supabase:migrate:operations` aplica las tres de forma transaccional. `npm run supabase:smoke:operations` comprueba permisos, datos privados, cuotas, abonos, recibos, facturas, enlaces, Vault y señales con datos temporales y `ROLLBACK`; no hace transacciones bancarias ni envía WhatsApp.
+
+## Cambios de precios
+
+Las tarifas de MiCole son configurables por el propietario. Dirección puede cambiar precios escolares para nuevas emisiones. Las cuotas emitidas no se reducen ni se recalculan al ajustar precios o descuentos. Los aumentos autorizados requieren motivo y no se permiten con un QR reservado. Los abonos conservan importe original y saldo. Consulta [PRICING.md](PRICING.md).

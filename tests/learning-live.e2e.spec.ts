@@ -1,0 +1,813 @@
+import { showFormSection } from "./form-sections";
+import { test, expect, type Page, type WebSocketRoute } from "@playwright/test";
+const id = (n: number) =>
+  `ca000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const [
+  userId,
+  schoolId,
+  roomId,
+  otherRoomId,
+  studentId,
+  otherStudentId,
+  teacherId,
+] = [1, 20, 30, 31, 40, 41, 50].map(id);
+const date = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/La_Paz",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
+test.use({ baseURL: "http://localhost:4174", reducedMotion: "reduce" });
+async function setup(page: Page, role = "director") {
+  const calls: { name: string; body: any }[] = [];
+  const state = {
+    life: {
+     years:[{id:id(800),school_id:schoolId,year:2026,name:'Gestión 2026',starts_on:'2026-01-01',ends_on:'2026-12-31',status:'open'}],
+     enrollments:[{id:id(801),school_id:schoolId,year_id:id(800),student_id:studentId,classroom_id:roomId,student_name:'Lucía Prueba',classroom_name:'Primero A',started_on:'2026-01-01',status:'enrolled',monthly_fee:400}],
+     care:[] as any[], terms:[{id:id(802),school_id:schoolId,year_id:id(800),name:'Tercer periodo',starts_on:'2026-10-01',ends_on:'2026-12-31',weight:1,status:'open',revision:0}],
+     assessments:[{id:id(803),school_id:schoolId,term_id:id(802),classroom_id:roomId,title:'Evaluación de lectura',assessment_date:'2026-10-18',max_score:20,weight:1}],scores:[] as any[],cards:[] as any[],
+    },
+    admissionSettings: [] as any[],
+    grades: [] as any[],
+    catalog: [
+      { id: id(300), name: "Matemáticas" },
+      { id: id(301), name: "Lenguaje" },
+    ],
+    subjects: [] as any[],
+    classSubjects: [] as any[],
+    subjectTeachers: [] as any[],
+    assignments: [] as any[],
+    submissions: [] as any[],
+    files: [] as any[],
+    school: {
+      id: schoolId,
+      name: "Colegio Operaciones",
+      slug: "operaciones",
+      city: "La Paz",
+      status: "active",
+      brand_color: "#3D6EF7",
+      director_name: "Directora",
+      address: "Av. Arce",
+      banner_url: "",
+      maps_url: "",
+    },
+    rooms: [
+      {
+        id: roomId,
+        school_id: schoolId,
+        name: "Primero A",
+        level: "Primaria",
+        academic_year: 2026,
+        schedule: "08:00 – 12:00",
+        start_time: "08:00:00",
+        end_time: "12:00:00",
+        weekdays: [1, 2, 3, 4, 5],
+        capacity: 20,
+        monthly_fee: 400,
+        active: true,
+      },
+      {
+        id: otherRoomId,
+        school_id: schoolId,
+        name: "Primero B",
+        level: "Primaria",
+        academic_year: 2026,
+        schedule: "08:00 – 12:00",
+        start_time: "08:00:00",
+        end_time: "12:00:00",
+        weekdays: [1, 2, 3, 4, 5],
+        capacity: 20,
+        monthly_fee: 450,
+        active: true,
+      },
+    ],
+    students: [
+      {
+        id: studentId,
+        school_id: schoolId,
+        classroom_id: roomId,
+        first_name: "Lucía",
+        last_name: "Prueba",
+        birth_date: "2020-01-01",
+        status: "active",
+        enrolled_at: date,
+        profile_complete: true,
+        monthly_fee: 400,
+        mother_name: "Madre",
+        mother_email: "madre@example.invalid",
+        mother_phone: "70000000",
+        father_name: "Padre",
+        father_email: "padre@example.invalid",
+      },
+      {
+        id: otherStudentId,
+        school_id: schoolId,
+        classroom_id: otherRoomId,
+        first_name: "Mateo",
+        last_name: "Prueba",
+        birth_date: "2020-01-01",
+        status: "active",
+        enrolled_at: date,
+        profile_complete: true,
+        monthly_fee: 450,
+        mother_name: "Madre",
+        mother_email: "madre@example.invalid",
+        father_name: "Padre",
+        father_email: "padre@example.invalid",
+      },
+    ],
+    charges: [
+      {
+        id: id(100),
+        school_id: schoolId,
+        student_id: studentId,
+        concept: "Mensualidad octubre",
+        due_date: date,
+        period: date.slice(0, 7),
+        amount: 100,
+        paid_amount: 0,
+        minimum_access_ratio: 0.5,
+        status: "pending",
+      },
+      {
+        id: id(101),
+        school_id: schoolId,
+        student_id: studentId,
+        concept: "Mensualidad noviembre",
+        due_date: "2026-11-10",
+        period: "2026-11",
+        amount: 100,
+        paid_amount: 0,
+        minimum_access_ratio: 1,
+        status: "pending",
+      },
+    ] as any[],
+    receipts: [] as any[],
+    invoices: [] as any[],
+    requests: [] as any[],
+    events: [] as any[],
+    notices: [] as any[],
+    contact: { directorIdentity: "1234567 LP", directorPhone: "70000000" },
+  };
+  const user = {
+    id: userId,
+    email: `${role}@example.invalid`,
+    aud: "authenticated",
+    role: "authenticated",
+    user_metadata: { full_name: "Cuenta Operaciones" },
+    app_metadata: { provider: "email" },
+    created_at: new Date().toISOString(),
+  };
+  const seconds = Math.floor(Date.now() / 1000);
+  const jwt = `${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from(JSON.stringify({ sub: userId, exp: seconds + 3600, iat: seconds, aud: "authenticated", role: "authenticated" })).toString("base64url")}.test`;
+  await page.addInitScript(
+    ({ user, jwt, seconds }) =>
+      localStorage.setItem(
+        "sb-micole-test-auth-token",
+        JSON.stringify({
+          access_token: jwt,
+          refresh_token: "test",
+          expires_at: seconds + 3600,
+          expires_in: 3600,
+          token_type: "bearer",
+          user,
+        }),
+      ),
+    { user, jwt, seconds },
+  );
+  let socket: WebSocketRoute | undefined,
+    topic = "",
+    joinRef = "";
+  await page.routeWebSocket("**/realtime/v1/websocket*", (ws) => {
+    socket = ws;
+    ws.onMessage((raw) => {
+      const frame = JSON.parse(String(raw));
+      const message = Array.isArray(frame)
+        ? {
+            join_ref: frame[0],
+            ref: frame[1],
+            topic: frame[2],
+            event: frame[3],
+            payload: frame[4],
+          }
+        : frame;
+      if (message.event === "phx_join") {
+        topic = message.topic;
+        joinRef = message.join_ref;
+        ws.send(
+          JSON.stringify([
+            message.join_ref,
+            message.ref,
+            topic,
+            "phx_reply",
+            {
+              status: "ok",
+              response: {
+                postgres_changes: [
+                  {
+                    id: 1,
+                    event: "*",
+                    schema: "public",
+                    table: "workspace_signals",
+                  },
+                ],
+              },
+            },
+          ]),
+        );
+      }
+      if (message.event === "heartbeat")
+        ws.send(
+          JSON.stringify([
+            message.join_ref,
+            message.ref,
+            message.topic,
+            "phx_reply",
+            { status: "ok", response: {} },
+          ]),
+        );
+    });
+  });
+  const signal = (changedTable = "students") =>
+    socket?.send(
+      JSON.stringify([
+        joinRef,
+        null,
+        topic,
+        "postgres_changes",
+        {
+          ids: [1],
+          data: {
+            schema: "public",
+            table: "workspace_signals",
+            type: "UPDATE",
+            columns: [
+              { name: "school_id", type: "uuid" },
+              { name: "revision", type: "int8" },
+              { name: "changed_at", type: "timestamptz" },
+            ],
+            commit_timestamp: new Date().toISOString(),
+            record: {
+              school_id: schoolId,
+              revision: 2,
+              changed_table: changedTable,
+              changed_at: new Date().toISOString(),
+            },
+            old_record: { school_id: schoolId },
+            errors: null,
+          },
+        },
+      ]),
+    );
+  await page.route("**/auth/v1/**", (route) =>
+    route.fulfill({
+      json: route.request().url().includes("/settings")
+        ? { external: { email: true, google: true } }
+        : user,
+    }),
+  );
+  await page.route("**/rest/v1/**", async (route) => {
+    const req = route.request(),
+      name = new URL(req.url()).pathname.split("/").at(-1)!;
+    let body: any;
+    try {
+      body = req.postDataJSON();
+    } catch {
+      body = null;
+    }
+    calls.push({ name, body });
+    let json: unknown = [];
+    if (name === "platform_tariffs") json={activationFee:50,monthlyLicenseFee:29,inherited:true};else if (name === "workspace_identity")
+      json = {
+        id: userId,
+        email: user.email,
+        name: "Cuenta Operaciones",
+        roles: [role],
+        memberships: [{ schoolId, role }],
+        teacherIds: role === "teacher" ? [teacherId] : [],
+        guardianStudentIds: role === "guardian" ? [studentId] : [],
+        studentIds: role === "student" ? [studentId] : [],
+      };
+    else if(name==='school_workspace')json=state.life;
+    else if(name==='save_care_record'){const row={...body.p_record,id:id(810),school_id:schoolId,classroom_id:roomId};state.life.care.push(row);json=row.id;}
+    else if(name==='save_academic_term'){const row={...body.p_term,id:id(811),school_id:schoolId,status:'open',revision:0};state.life.terms.push(row);json=row.id;}
+    else if(name==='save_assessment_scores'){state.life.scores=body.p_scores.map((v:any)=>({...v,id:id(812),assessment_id:body.p_assessment_id}));json=body.p_scores.length;}
+    else if(name==='save_admission_settings'){state.admissionSettings=[{school_id:schoolId,family_policy:body.p_family_policy,child_ci_required:body.p_child_ci_required,require_annual_materials:body.p_require_materials,final_full_installments:2}];json=null;}
+    else if(name==='school_operation_settings')json=state.admissionSettings;
+    else if(name==='import_school_directory')json={rows:body.p_rows.map((_:any,i:number)=>({row:i+1,ok:true})),committed:body.p_commit,count:body.p_rows.length,activationFee:50,licenseFee:29};
+    else if(name==='grades') {if(body&&['POST','PATCH'].includes(req.method())){const row={...body,created_at:date};state.grades.push(row);json=row;}else json=state.grades;}
+    else if (name === "subject_catalog") json = state.catalog;
+    else if (name === "school_subjects") json = state.subjects;
+    else if (name === "class_subjects") json = state.classSubjects;
+    else if (name === "subject_teachers") json = state.subjectTeachers;
+    else if (name === "assignments") json = state.assignments;
+    else if (name === "assignment_submissions") json = state.submissions;
+    else if (name === "assignment_files") json = state.files;
+    else if (name === "student_portal")
+      json = {
+        accessAllowed: true,
+        accessMessage: "",
+        schools: [{ id: schoolId, name: state.school.name, status: "active" }],
+        students: [
+          {
+            id: studentId,
+            schoolId,
+            classroomId: roomId,
+            firstName: "Lucía",
+            lastName: "Prueba",
+            status: "active",
+          },
+        ],
+        classrooms: [
+          {
+            id: roomId,
+            schoolId,
+            name: "Primero A",
+            teacherIds: [],
+            subjectsEnabled: true,
+          },
+        ],
+        events: [],
+        announcements: [],
+        dailyEntries: [],
+      };
+    else if (name === "configure_class_subject") {
+      const subject = id(310),
+        cs = id(311);
+      state.subjects.push({
+        id: subject,
+        school_id: schoolId,
+        name: body.p_name,
+      });
+      state.classSubjects.push({
+        id: cs,
+        school_id: schoolId,
+        classroom_id: body.p_classroom_id,
+        subject_id: subject,
+        active: body.p_active,
+      });
+      state.subjectTeachers = body.p_teacher_ids.map(
+        (idTeacher: string, i: number) => ({
+          id: id(320 + i),
+          school_id: schoolId,
+          class_subject_id: cs,
+          teacher_id: idTeacher,
+        }),
+      );
+      Object.assign(state.rooms[0], { subjects_enabled: true });
+      json = cs;
+    } else if (name === "save_assignment") {
+      const old = state.assignments.find((a) => a.id === body.p_assignment.id);
+      if (old) Object.assign(old, body.p_assignment);
+      else
+        state.assignments.push({
+          ...body.p_assignment,
+          school_id: schoolId,
+          created_at: date,
+          created_by: userId,
+        });
+      json = body.p_assignment.id;
+    } else if (name === "save_assignment_submission") {
+      let sub = state.submissions.find(
+        (s) => s.assignment_id === body.p_assignment_id,
+      );
+      if (!sub) {
+        sub = {
+          id: id(410),
+          assignment_id: body.p_assignment_id,
+          school_id: schoolId,
+          student_id: studentId,
+          revision: 0,
+        };
+        state.submissions.push(sub);
+      }
+      Object.assign(sub, {
+        body: body.p_body,
+        status: body.p_submit ? "submitted" : "draft",
+        submitted_by: userId,
+        submitted_at: date,
+        updated_at: date,
+        feedback: "",
+        revision: sub.revision + 1,
+      });
+      json = sub.id;
+    } else if (name === "review_assignment_submission") {
+      const sub = state.submissions.find((s) => s.id === body.p_id);
+      Object.assign(sub, {
+        status: body.p_decision,
+        feedback: body.p_feedback,
+        score: body.p_score,
+      });
+      json = null;
+    } else if (name === "schools") json = [state.school];
+    else if (name === "students") json = state.students;
+    else if (name === "classrooms") json = state.rooms;
+    else if (name === "teachers")
+      json = [
+        {
+          id: teacherId,
+          school_id: schoolId,
+          name: "Profesora Prueba",
+          email: "profesora@example.invalid",
+          status: "active",
+          specialty: "Titular",
+        },
+      ];
+    else if (name === "teacher_classrooms")
+      json = [{ classroom_id: roomId, teacher_id: teacherId }];
+    else if (name === "school_charges") json = state.charges;
+    else if (name === "platform_charges")
+      json = state.students.map((s, i) => ({
+        id: id(120 + i),
+        school_id: schoolId,
+        student_id: s.id,
+        concept: "Activación",
+        period: date.slice(0, 7),
+        amount: 50,
+        status: "paid",
+      }));
+    else if (name === "finance_register")
+      json = { receipts: state.receipts, invoices: state.invoices };
+    else if (name === "academic_requests") json = state.requests;
+    else if (name === "calendar_events") json = state.events;
+    else if (name === "announcements") json = state.notices;
+    else if (name === "institution_private_contact") json = state.contact;
+    else if (name === "payment_connection_status")
+      json = {
+        provider: "",
+        accountReference: "",
+        environment: "test",
+        credentialsStored: false,
+        integrationReady: false,
+      };
+    else if (name === "save_school") {
+      Object.assign(
+        state.school,
+        Object.fromEntries(
+          Object.entries(body.p_school).filter(
+            ([key]) => !["director_identity", "director_phone"].includes(key),
+          ),
+        ),
+      );
+      state.contact = {
+        directorIdentity: body.p_school.director_identity,
+        directorPhone: body.p_school.director_phone,
+      };
+      json = null;
+    } else if (name === "save_classroom") {
+      Object.assign(
+        state.rooms.find((r) => r.id === body.p_room.id)!,
+        body.p_room,
+      );
+      json = null;
+    } else if (name === "enroll_student_with_plan") {
+      state.students.push(body.p_student);
+      json = null;
+    } else if (name === "save_academic_request") {
+      state.requests.push({
+        ...body.p_request,
+        status: "pending",
+        created_at: date,
+        review_note: "",
+      });
+      json = body.p_request.id;
+    } else if (name === "review_academic_request") {
+      const request = state.requests.find((r) => r.id === body.p_id)!;
+      request.status = body.p_approve ? "approved" : "rejected";
+      if (body.p_approve) {
+        state.events.push({
+          id: request.id,
+          school_id: schoolId,
+          classroom_id: request.classroom_id,
+          title: request.title,
+          description: request.details,
+          event_date: request.event_date,
+          type: "materials",
+        });
+        state.notices.push({
+          id: request.id,
+          school_id: schoolId,
+          classroom_id: request.classroom_id,
+          title: request.title,
+          content: request.details,
+          audience: "families",
+          created_at: date,
+        });
+      }
+      json = null;
+    } else if (name === "checkout_school_payment") {
+      if (!state.receipts.some((r) => r.id === body.p_receipt_id)) {
+        let total = 0;
+        for (const item of body.p_items) {
+          const charge = state.charges.find((c) => c.id === item.chargeId)!;
+          charge.paid_amount += item.amount;
+          if (charge.paid_amount >= charge.amount) charge.status = "paid";
+          total += item.amount;
+        }
+        state.receipts.push({
+          id: body.p_receipt_id,
+          school_id: schoolId,
+          student_id: body.p_student_id,
+          total,
+          payment_method: body.p_method,
+          reference: body.p_reference,
+          verification_source: "manual",
+          recorded_by: userId,
+          created_at: new Date().toISOString(),
+        });
+        if (body.p_invoice?.invoiceName)
+          state.invoices.push({
+            id: id(200),
+            school_id: schoolId,
+            student_id: studentId,
+            receipt_id: body.p_receipt_id,
+            legal_name: body.p_invoice.invoiceName,
+            nit_ci: body.p_invoice.invoiceNit,
+            phone: body.p_invoice.invoicePhone,
+            amount: total,
+            status: "pending",
+            invoice_number: "",
+            created_at: new Date().toISOString(),
+          });
+      }
+      json = body.p_receipt_id;
+    } else if (name === "mark_invoice_issued") {
+      Object.assign(
+        state.invoices.find((i) => i.id === body.p_id),
+        { status: "issued", invoice_number: body.p_number },
+      );
+      json = null;
+    } else if (name === "create_payment_link") json = "a".repeat(64);
+    else if (name === "withdraw_student") {
+      Object.assign(
+        state.students.find((s) => s.id === body.p_student_id)!,
+        { status: "inactive", withdrawal_reason: body.p_reason },
+      );
+      json = null;
+    }
+    await route.fulfill({ json });
+  });
+  return { state, calls, signal, ready: () => !!topic };
+}
+
+function seedLearning(state: any) {
+  Object.assign(state.rooms[0], { subjects_enabled: true });
+  state.subjects.push({
+    id: id(310),
+    school_id: schoolId,
+    name: "Matemáticas",
+  });
+  state.classSubjects.push({
+    id: id(311),
+    school_id: schoolId,
+    classroom_id: roomId,
+    subject_id: id(310),
+    active: true,
+  });
+  state.subjectTeachers.push({
+    id: id(320),
+    school_id: schoolId,
+    class_subject_id: id(311),
+    teacher_id: teacherId,
+  });
+  state.assignments.push({
+    id: id(400),
+    school_id: schoolId,
+    classroom_id: roomId,
+    class_subject_id: id(311),
+    title: "Sumamos jugando",
+    instructions: "Resuelve y explica cómo llegaste al resultado.",
+    due_at: "2030-12-02T03:59:59Z",
+    allow_late: true,
+    max_score: 100,
+    status: "published",
+    created_by: userId,
+    created_at: date,
+    updated_at: date,
+  });
+}
+
+test("Dirección busca materias y crea una personalizada con sus docentes", async ({
+  page,
+}) => {
+  const { calls } = await setup(page);
+  await page.goto("/app/subjects");
+  await page
+    .getByRole("button", { name: "Asignar materia", exact: true })
+    .click();
+  const modal = page.getByRole("dialog");
+  await modal.getByLabel("Materia", { exact: true }).fill("Robótica y lógica");
+  await modal.getByLabel("Profesora Prueba", { exact: true }).check();
+  await modal.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Robótica y lógica", exact: true }),
+  ).toBeVisible();
+  expect(
+    calls.find((c) => c.name === "configure_class_subject")?.body,
+  ).toMatchObject({ p_name: "Robótica y lógica", p_teacher_ids: [teacherId] });
+});
+test("docente publica una tarea ligada a aula, materia y fecha de entrega", async ({
+  page,
+}) => {
+  const { calls, state } = await setup(page, "teacher");
+  seedLearning(state);
+  await page.goto("/app/assignments");
+  await page.getByRole("button", { name: "Nueva tarea", exact: true }).click();
+  const d = page.getByRole("dialog");
+  await d
+    .getByRole("combobox", { name: "Materia", exact: true })
+    .selectOption(id(311));
+  await d.getByLabel("Título", { exact: false }).fill("Resolver problemas");
+  await d
+    .getByLabel("Instrucciones", { exact: true })
+    .fill("Explica cómo resuelves cada problema.");
+  await d
+    .getByRole("navigation", { name: "Secciones del formulario" })
+    .getByRole("button", { name: /Entrega y publicación$/ })
+    .click();
+  await d
+    .getByLabel("Fecha límite (opcional)", { exact: true })
+    .fill("2030-12-01");
+  await d.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Resolver problemas", exact: true }),
+  ).toBeVisible();
+  expect(
+    calls.find((c) => c.name === "save_assignment")?.body.p_assignment,
+  ).toMatchObject({
+    classroom_id: roomId,
+    class_subject_id: id(311),
+    due_at: "2030-12-01T23:59:59.999-04:00",
+    status: "published",
+  });
+});
+test("el estudiante entrega y la familia consulta sin botones de escritura", async ({
+  page,
+}) => {
+  const { calls, state } = await setup(page, "student");
+  seedLearning(state);
+  await page.goto("/app/assignments");
+  await page
+    .getByRole("button", { name: "Entregar tarea", exact: true })
+    .click();
+  const d = page.getByRole("dialog");
+  await d
+    .getByLabel("Tu respuesta", { exact: true })
+    .fill("Mi solución usa tres grupos de objetos.");
+  await d.getByRole("button", { name: "Entregar tarea", exact: true }).click();
+  await expect(page.getByText("Entregada", { exact: true })).toBeVisible();
+  expect(
+    calls.find((c) => c.name === "save_assignment_submission")?.body.p_submit,
+  ).toBe(true);
+  await expect(
+    page.getByRole("button", { name: "Nueva tarea", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Ver tarea", exact: true }).click();
+  await expect(
+    page.getByText("Mi solución usa tres grupos de objetos.", { exact: true }),
+  ).toBeVisible();
+});
+test("la familia ve respuestas y comentarios y no puede entregar o revisar", async ({
+  page,
+}) => {
+  const { state } = await setup(page, "guardian");
+  seedLearning(state);
+  state.submissions.push({
+    id: id(410),
+    school_id: schoolId,
+    assignment_id: id(400),
+    student_id: studentId,
+    status: "reviewed",
+    body: "Respuesta de Lucía",
+    score: 85,
+    feedback: "Buen razonamiento",
+    revision: 1,
+  });
+  await page.goto("/app/assignments");
+  await page.getByRole("button", { name: "Ver tarea", exact: true }).click();
+  await expect(
+    page.getByText("Comentarios: Buen razonamiento", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: /Entregar tarea|Revisar entrega|Nueva tarea/,
+    }),
+  ).toHaveCount(0);
+});
+test("docente devuelve la entrega con instrucciones para corregir", async ({
+  page,
+}) => {
+  const { calls, state } = await setup(page, "teacher");
+  seedLearning(state);
+  state.submissions.push({
+    id: id(410),
+    school_id: schoolId,
+    assignment_id: id(400),
+    student_id: studentId,
+    status: "submitted",
+    body: "Respuesta de Lucía",
+    feedback: "",
+    revision: 1,
+  });
+  await page.goto("/app/assignments");
+  await page.getByRole("button", { name: /Ver tarea y entregas/ }).click();
+  await page
+    .getByRole("button", { name: "Revisar entrega", exact: true })
+    .click();
+  const d = page.getByRole("dialog");
+  await d
+    .getByRole("combobox", { name: "Resultado de la revisión", exact: true })
+    .selectOption("returned");
+  await d
+    .getByLabel("Comentarios", { exact: true })
+    .fill("Explica el último ejercicio.");
+  await d.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page.getByText("Para corregir", { exact: true })).toBeVisible();
+  expect(
+    calls.find((c) => c.name === "review_assignment_submission")?.body
+      .p_decision,
+  ).toBe("returned");
+});
+for (const width of [390, 768, 1280])
+  test(`formulario institucional por secciones y acciones visibles a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 780 });
+    const { calls } = await setup(page);
+    await page.goto("/app/settings");
+    await page
+      .getByRole("button", { name: "Editar identidad", exact: true })
+      .click();
+    const d = page.getByRole("dialog");
+    await d
+      .getByLabel("Nombre de la institución", { exact: false })
+      .fill("Institución con nombre completo");
+    await showFormSection(page, "NIT");
+    await d.getByLabel("NIT (opcional)").fill("123456789");
+    const button = d.getByRole("button", { name: "Guardar", exact: true }),
+      box = await button.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y + box!.height).toBeLessThanOrEqual(780);
+    await showFormSection(page, "Nombre de la institución");
+    await expect(
+      d.getByLabel("Nombre de la institución", { exact: false }),
+    ).toHaveValue("Institución con nombre completo");
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await d.screenshot({
+      path: `/private/tmp/micole-academics/form-web-${width}.png`,
+    });
+    await button.click();
+    await expect(d).toHaveCount(0);
+    expect(calls.find((c) => c.name === "save_school")?.body.p_school.nit).toBe(
+      "123456789",
+    );
+  });
+
+test('Guardar lleva a una sección con datos obligatorios pendientes sin perder el texto',async({page})=>{
+ const {calls,state}=await setup(page,'teacher');seedLearning(state);await page.goto('/app/assignments');await page.getByRole('button',{name:'Nueva tarea',exact:true}).click();const d=page.getByRole('dialog');await d.getByLabel('Título',{exact:false}).fill('Una tarea con texto conservado');await d.getByLabel('Instrucciones',{exact:true}).fill('La materia sigue pendiente de seleccionar.');await d.getByRole('navigation',{name:'Secciones del formulario'}).getByRole('button',{name:/Entrega y publicación$/}).click();await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect(d.getByRole('combobox',{name:'Materia',exact:true})).toBeVisible();await expect(d.getByLabel('Título',{exact:false})).toHaveValue('Una tarea con texto conservado');expect(calls.some(c=>c.name==='save_assignment')).toBe(false);
+});
+
+test('las notas se registran con la materia asignada y no solo con un texto libre',async({page})=>{
+ const {state,calls}=await setup(page,'teacher');seedLearning(state);await page.goto('/app/grades');await page.getByRole('button',{name:'Registrar evaluación',exact:true}).click();const d=page.getByRole('dialog');await d.getByRole('combobox',{name:'Materia',exact:false}).selectOption(id(311));await d.getByLabel('Período',{exact:false}).fill('Primer trimestre');await d.getByLabel('Nota o valoración',{exact:false}).fill('90');await d.getByLabel('Recomendación',{exact:false}).fill('Continúa practicando.');await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect(d).toHaveCount(0);const row=calls.find(c=>c.name==='grades'&&c.body?.class_subject_id===id(311))?.body;expect(row).toMatchObject({student_id:studentId,subject:'Matemáticas'});
+});
+
+
+test('cuidados registra comida y conserva la nota al cambiar de sección a 390px',async({page})=>{
+ await page.setViewportSize({width:390,height:844});const {calls}=await setup(page,'teacher');await page.goto('/app/care');
+ await page.getByRole('button',{name:'Registrar cuidado',exact:true}).click();const d=page.getByRole('dialog');
+ await d.getByLabel('Alimento',{exact:false}).fill('Sopa de verduras');
+ await d.getByRole('navigation',{name:'Secciones del formulario'}).getByRole('button',{name:/Más detalles$/}).click();await d.getByLabel('Observaciones',{exact:true}).fill('Comió con tranquilidad y pidió agua.');
+ await d.getByRole('navigation',{name:'Secciones del formulario'}).getByRole('button',{name:/Datos principales$/}).click();await expect(d.getByLabel('Alimento',{exact:false})).toHaveValue('Sopa de verduras');
+ const box=await d.getByRole('button',{name:'Guardar',exact:true}).boundingBox();expect(box!.y+box!.height).toBeLessThanOrEqual(844);
+ await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect.poll(()=>calls.some(c=>c.name==='save_care_record')).toBe(true);
+ expect(calls.find(c=>c.name==='save_care_record')?.body.p_record).toMatchObject({kind:'meal',food:'Sopa de verduras',note:'Comió con tranquilidad y pidió agua.'});
+ await expect(page.getByText('Sopa de verduras · Todo',{exact:true})).toBeVisible();
+});
+test('docente califica evaluación y ve el promedio normalizado',async({page})=>{
+ const {calls}=await setup(page,'teacher');await page.goto('/app/gradebook');await page.getByRole('button',{name:'Calificar',exact:true}).click();
+ const d=page.getByRole('dialog');await d.getByLabel('Nota de Lucía Prueba',{exact:true}).fill('15');await d.getByRole('button',{name:'Guardar',exact:true}).click();
+ await expect.poll(()=>calls.some(c=>c.name==='save_assessment_scores')).toBe(true);expect(calls.find(c=>c.name==='save_assessment_scores')?.body.p_scores[0].score).toBe(15);
+ await expect(page.getByRole('cell',{name:'75',exact:true})).toBeVisible();
+});
+test('familia consulta cuidados e historial sin acciones de escritura',async({page})=>{
+ const {state}=await setup(page,'guardian');state.life.care.push({id:id(810),student_id:studentId,classroom_id:roomId,entry_date:date,kind:'rest',occurred_at:'12:30',ended_at:'14:00',note:'Descanso tranquilo'});
+ await page.goto('/app/care');await expect(page.getByText('Descanso tranquilo',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Registrar cuidado',exact:true})).toHaveCount(0);
+ await page.goto('/app/years');await expect(page.getByRole('cell',{name:'Inscrito',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Nueva gestión',exact:true})).toHaveCount(0);
+});
+test('importación muestra previsualización y requiere confirmación antes de guardar',async({page})=>{
+ const {calls}=await setup(page);await page.goto('/app/onboarding');await page.getByRole('combobox',{name:'Tipo de importación',exact:true}).selectOption('teachers');
+ await page.getByLabel('Archivo CSV',{exact:true}).setInputFiles({name:'docentes.csv',mimeType:'text/csv',buffer:Buffer.from('name,email,specialty,year,classroom\nMaría Importación,maria@example.invalid,Inglés,2026,Primero A\n')});
+ await expect(page.getByText('1 de 1 filas válidas. Todavía no se guardó ningún registro.',{exact:true})).toBeVisible();expect(calls.some(c=>c.name==='import_school_directory'&&c.body.p_commit)).toBe(false);
+ await page.getByRole('button',{name:'Confirmar e importar',exact:true}).click();await expect(page.getByText('1 registros importados.',{exact:true})).toBeVisible();
+ expect(calls.find(c=>c.name==='import_school_directory'&&c.body.p_commit)?.body.p_rows[0].name).toBe('María Importación');
+});
+test('requisitos configurables permiten inscripción con solo padre y CI opcional',async({page})=>{
+ const {state}=await setup(page);state.admissionSettings=[{school_id:schoolId,family_policy:'father',child_ci_required:false,require_annual_materials:false}];
+ await page.goto('/app/students');await page.getByRole('button',{name:'Inscribir estudiante',exact:true}).click();const d=page.getByRole('dialog');
+ await expect(d.getByLabel('Número de CI del niño',{exact:true})).not.toHaveAttribute('required','');
+ await showFormSection(page,'Madre y padre');await expect(d.getByLabel('Nombre completo de la madre',{exact:true})).not.toHaveAttribute('required','');await expect(d.getByLabel('Correo del padre',{exact:false})).toHaveAttribute('required','');
+});

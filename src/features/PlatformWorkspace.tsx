@@ -1,3 +1,5 @@
+import {TariffSettings} from './Pricing';
+import { TestWorkspace, type TestAccount } from "./TestWorkspace";
 import { PaymentConnection } from "./PaymentConnection";
 import { useEffect, useState } from "react";
 import {
@@ -152,8 +154,8 @@ export function PlatformOverview({ store, identity, go, open }: PageProps) {
             <button onClick={() => go("support")}>
               <Headset size={21} />
               <span>
-                <b>Entrar en soporte</b>
-                <small>Elegir colegio, usuario y rol</small>
+                <b>Probar roles y dar soporte</b>
+                <small>Pruebas propias o atención a instituciones</small>
               </span>
               <ArrowRight size={16} />
             </button>
@@ -171,7 +173,20 @@ export function PlatformOverview({ store, identity, go, open }: PageProps) {
     </>
   );
 }
-export function PlatformSupport({
+export function PlatformSupport(props: Parameters<typeof SupportAccess>[0] & {
+ onTest: (schoolId: string, account: TestAccount) => Promise<void>;
+}) {
+ const [mode,setMode]=useState<"test"|"support">("test");
+ if(!props.identity.canSupport)return <Empty title="Acceso reservado" subtitle="Solo el propietario de MiCole puede probar roles." />;
+ return <div className="test-access-page">
+  <div className="test-mode-tabs" role="group" aria-label="Tipo de acceso">
+   <Button variant={mode==='test'?'primary':'secondary'} onClick={()=>setMode('test')}>Pruebas con mi institución</Button>
+   <Button variant={mode==='support'?'primary':'secondary'} onClick={()=>setMode('support')}>Soporte a una institución</Button>
+  </div>
+  {mode==='test'?<TestWorkspace {...props}/>:<SupportAccess {...props}/>}
+ </div>;
+}
+function SupportAccess({
   store,
   identity,
   initialSchoolId,
@@ -387,7 +402,7 @@ export function PlatformSupport({
     </div>
   );
 }
-export function PlatformSettings() {
+export function PlatformSettings({schools}:{schools:PageProps["store"]["data"]["schools"]}) {
   const [providers, setProviders] = useState<{
     google: boolean;
     email: boolean;
@@ -408,6 +423,7 @@ export function PlatformSettings() {
   }, []);
   return (
     <>
+      <TariffSettings schools={schools}/>
       <PaymentConnection />
       <SectionTitle
         title="Integraciones de MiCole"
@@ -447,8 +463,8 @@ export function PlatformSettings() {
           ],
           [
             "QR bancario",
-            "API pendiente",
-            "Se conectará la cuenta de MiCole y la de cada institución. Los pagos manuales ya están disponibles.",
+            "Baneco integrado",
+            "Configura y comprueba la cuenta de MiCole arriba. Cada institución administra su propia conexión Baneco.",
           ],
         ].map(([title, state, description]) => (
           <article key={title} className="entity-card">

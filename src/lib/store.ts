@@ -178,16 +178,10 @@ export function useAppStore(
     );
   }
   async function enroll(student: Student, plan?: PaymentPlan) {
-    if (
-      !student.motherName ||
-      !student.motherEmail ||
-      !student.fatherName ||
-      !student.fatherEmail ||
-      !student.identityNumber
-    )
-      throw new Error("Completa CI, nombres y correos de madre y padre.");
-    if (student.motherEmail === student.fatherEmail)
-      throw new Error("Madre y padre deben tener correos diferentes.");
+    const settings=current.current.operationSettings.find(s=>s.schoolId===student.schoolId);
+    if ((settings?.familyPolicy!=="father"&&(!student.motherName||!student.motherEmail))||(settings?.familyPolicy!=="mother"&&(!student.fatherName||!student.fatherEmail))||(settings?.childCiRequired!==false&&!student.identityNumber))
+      throw new Error("Completa los responsables y el CI exigidos por la institución.");
+    if(student.motherEmail&&student.motherEmail===student.fatherEmail)throw new Error("Madre y padre deben tener correos diferentes.");
     if (
       current.current.students.some(
         (s) =>
@@ -195,8 +189,8 @@ export function useAppStore(
           ((student.rude &&
             s.rude?.replace(/\s/g, "").toUpperCase() ===
               student.rude.replace(/\s/g, "").toUpperCase()) ||
-            s.identityNumber?.replace(/\s/g, "").toUpperCase() ===
-              student.identityNumber?.replace(/\s/g, "").toUpperCase()),
+            (student.identityNumber && s.identityNumber?.replace(/\s/g, "").toUpperCase() ===
+              student.identityNumber.replace(/\s/g, "").toUpperCase())),
       )
     )
       throw new Error("El RUDE o CI ya está registrado en esta institución.");
@@ -271,7 +265,7 @@ export function useAppStore(
       )
     )
       throw new Error(
-        "Primero registra el pago de activación de Bs 50 desde la plataforma.",
+        "Primero registra el pago de activación de MiCole desde la plataforma.",
       );
     await run(
       () =>
@@ -454,30 +448,6 @@ export function useAppStore(
             ? { ...p, discount, discountFrom: from, discountTo: to }
             : p,
         ),
-        charges: prev.charges.map((c) => {
-          if (
-            c.planId !== plan.id ||
-            !c.period ||
-            ["paid", "cancelled"].includes(c.status)
-          )
-            return c;
-          const deduction =
-            c.dueDate >= from && c.dueDate <= to
-              ? Math.min(discount, (c.baseAmount || 0) + (c.snackAmount || 0))
-              : 0;
-          return {
-            ...c,
-            discountAmount: deduction,
-            amount:
-              Math.round(
-                ((c.baseAmount || 0) +
-                  (c.snackAmount || 0) +
-                  (c.licenseAmount || 0) -
-                  deduction) *
-                  100,
-              ) / 100,
-          };
-        }),
       }),
     );
   }

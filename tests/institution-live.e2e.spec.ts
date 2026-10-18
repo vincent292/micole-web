@@ -1,3 +1,4 @@
+import {showFormSection} from './form-sections';
 import { expect, test } from "@playwright/test";
 
 test.use({ baseURL: "http://localhost:4174", reducedMotion: "reduce" });
@@ -20,7 +21,7 @@ test("una base pendiente de migrar mantiene el formulario y no descarta datos nu
       return;
     }
     let json: unknown = name === "finance_register" ? {receipts:[],invoices:[]} : [];
-    if (name === "workspace_identity") json = { id: userId, email: user.email, name: "Dirección de prueba", canSupport: false, roles: ["director"], memberships: [{ schoolId, role: "director" }], teacherIds: [], guardianStudentIds: [], support: null };
+    if (name === "platform_tariffs") json={activationFee:50,monthlyLicenseFee:29,inherited:true};else if (name === "workspace_identity") json = { id: userId, email: user.email, name: "Dirección de prueba", canSupport: false, roles: ["director"], memberships: [{ schoolId, role: "director" }], teacherIds: [], guardianStudentIds: [], support: null };
     if (name === "schools") json = [{ id: schoolId, name: "Colegio de prueba", slug: "prueba", city: "La Paz", status: "active", brand_color: "#3D6EF7", director_name: "Dirección de prueba" }];
     if (name === "save_school") { saves++; json = null; }
     if (name === "institution_private_contact") json={directorIdentity:"",directorPhone:""};
@@ -29,8 +30,8 @@ test("una base pendiente de migrar mantiene el formulario y no descarta datos nu
   await page.goto("/app/settings");
   await page.getByRole("button", { name: "Editar identidad", exact: true }).click();
   const modal = page.getByRole("dialog");
-  await modal.getByLabel("NIT (opcional)", { exact: true }).fill("987654321");
-  await modal.getByLabel("Dirección de la institución", { exact: true }).fill("Calle de prueba 123");
+  await showFormSection(page,'NIT (opcional)'); await modal.getByLabel("NIT (opcional)", { exact: true }).fill("987654321");
+  await showFormSection(page,'Dirección de la institución'); await modal.getByLabel("Dirección de la institución", { exact: true }).fill("Calle de prueba 123");
   await modal.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(modal.getByRole("alert")).toContainText("requiere una actualización");
   await expect(modal.getByLabel("NIT (opcional)", { exact: true })).toHaveValue("987654321");

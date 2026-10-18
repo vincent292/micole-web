@@ -1,0 +1,197 @@
+.life-actions,
+.life-tabs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.life-actions > span {
+  flex: 1;
+  min-width: 220px;
+}
+.life-stats {
+  margin-bottom: 20px;
+}
+.care-timeline {
+  padding: 12px 22px;
+}
+.care-item {
+  display: flex;
+  gap: 20px;
+  padding: 22px 0;
+  border-bottom: 1px solid #e3eaf6;
+  align-items: flex-start;
+}
+.care-item:last-child {
+  border-bottom: 0;
+}
+.care-item time {
+  font-weight: 600;
+  color: #3d6ef7;
+  min-width: 95px;
+}
+.care-item h3 {
+  font-size: 16px;
+  margin: 0 0 7px;
+}
+.care-item p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 5px 0;
+}
+.care-incident time {
+  color: #a52d3b;
+}
+.life-report-cards {
+  display: grid;
+  gap: 18px;
+}
+.grade-missing {
+  display: block;
+  color: #9b5a00;
+}
+.score-list {
+  display: grid;
+  gap: 15px;
+}
+.score-row {
+  padding: 16px;
+  background: #f8faff;
+  border: 1px solid #e3eaf6;
+  border-radius: 14px;
+}
+.score-row h3 {
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+.setup-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.setup-steps button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #e3eaf6;
+  padding: 14px;
+  border-radius: 12px;
+  background: white;
+  color: #4d6178;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.setup-steps button.active {
+  background: #edf2ff;
+  border-color: #3d6ef7;
+  color: #214cc1;
+}
+.setup-steps button span {
+  flex-shrink: 0;
+}
+.setup-step {
+  padding: 25px;
+  margin-bottom: 20px;
+}
+.setup-step p {
+  line-height: 1.7;
+}
+.file-input-label {
+  position: relative;
+  overflow: hidden;
+  background: #edf2ff;
+  color: #214cc1;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.file-input-label input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.import-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  padding-top: 12px;
+}
+.import-columns dt {
+  font-family: monospace;
+  color: #263238;
+}
+.import-columns dd {
+  margin: 3px 0;
+  color: #667a90;
+}
+.printable-card small {
+  display: block;
+  line-height: 1.6;
+  margin-top: 12px;
+}
+@media (max-width: 650px) {
+  .setup-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .setup-steps button {
+    font-size: 12px;
+    padding: 10px;
+  }
+  .care-item {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .care-item time {
+    min-width: 80px;
+    font-size: 12px;
+  }
+  .care-item > .grow {
+    min-width: 160px;
+  }
+  .life-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .score-row {
+    padding: 12px;
+  }
+  .setup-step {
+    padding: 18px;
+  }
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .life-report-cards,
+  .life-report-cards * {
+    visibility: visible;
+  }
+  .life-report-cards {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+  .printable-card {
+    break-inside: avoid;
+    border: 1px solid #ddd;
+    margin: 12px;
+    padding: 20px;
+    box-shadow: none;
+  }
+  .no-print {
+    display: none;
+  }
+  .printable-card .table-scroll {
+    overflow: visible;
+  }
+  .printable-card table {
+    min-width: 0;
+    width: 100%;
+  }
+}

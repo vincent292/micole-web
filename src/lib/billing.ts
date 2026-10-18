@@ -12,7 +12,9 @@ export const today = () =>
 export const round = (amount: number) =>
   Math.round((amount + Number.EPSILON) * 100) / 100;
 export function buildSchedule(plan: PaymentPlan, id: () => string): Charge[] {
+  const licenseFee=plan.licenseFee??LICENSE_FEE;
   const amounts = [
+    licenseFee,
     plan.monthlyFee,
     plan.snackFee,
     plan.enrollmentFee,
@@ -84,9 +86,9 @@ export function buildSchedule(plan: PaymentPlan, id: () => string): Charge[] {
       period,
       baseAmount,
       snackAmount,
-      licenseAmount: LICENSE_FEE,
+      licenseAmount: licenseFee,
       discountAmount,
-      amount: round(baseAmount + snackAmount + LICENSE_FEE - discountAmount),
+      amount: round(baseAmount + snackAmount + licenseFee - discountAmount),
       status: "pending",
     });
   }
@@ -124,7 +126,7 @@ export function studentAccess(
   )
     return {
       allowed: false,
-      reason: "La activación inicial de Bs 50 está pendiente.",
+      reason: "La activación inicial de MiCole está pendiente.",
     };
   if (student.accessUntil && student.accessUntil >= date)
     return { allowed: true, reason: "" };

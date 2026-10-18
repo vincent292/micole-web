@@ -24,6 +24,7 @@ export interface School {
   activeStudentCount?: number;
 }
 export interface Classroom {
+  subjectsEnabled?: boolean;
   id: string;
   schoolId: string;
   name: string;
@@ -108,6 +109,8 @@ export interface Charge {
   academicRequestId?: string;
 }
 export interface PlatformCharge {
+  licenseCount?: number;
+  unitAmount?: number;
   id: string;
   schoolId: string;
   studentId?: string;
@@ -134,6 +137,7 @@ export interface DailyEntry {
   date: string;
 }
 export interface PaymentPlan {
+  licenseFee?: number;
   id: string;
   schoolId: string;
   studentId: string;
@@ -183,6 +187,7 @@ export interface Message {
   authorRole: Role;
 }
 export interface Grade {
+  classSubjectId?: string;
   id: string;
   schoolId: string;
   studentId: string;
@@ -335,9 +340,25 @@ export interface InvoiceRequest {
  status: "pending" | "issued"; invoiceNumber: string; issuedAt?: string; createdAt: string;
 }
 export interface OperationSettings {
+ familyPolicy?: 'both'|'mother'|'father'; childCiRequired?: boolean;
  id: string; schoolId: string; finalFullInstallments: number; requireAnnualMaterials: boolean;
 }
+export interface SubjectCatalogItem { id: string; name: string; normalizedName?: string }
+export interface SchoolSubject extends SubjectCatalogItem { schoolId: string }
+export interface ClassSubject { id: string; schoolId: string; classroomId: string; subjectId: string; active: boolean }
+export interface SubjectTeacher { id: string; schoolId: string; classSubjectId: string; teacherId: string }
+export interface Assignment { id: string; schoolId: string; classroomId: string; classSubjectId?: string; title: string; instructions: string; dueAt?: string; allowLate: boolean; maxScore: number; status: 'draft' | 'published' | 'closed'; createdBy: string; createdAt: string; updatedAt: string }
+export interface AssignmentSubmission { id: string; schoolId: string; assignmentId: string; studentId: string; body: string; status: 'draft' | 'submitted' | 'returned' | 'reviewed'; score?: number; feedback: string; submittedBy: string; submittedAt?: string; reviewedAt?: string; updatedAt: string; revision: number }
+export interface AssignmentFile { id: string; schoolId: string; submissionId: string; fileName: string; mimeType: string; sizeBytes: number; status: 'pending' | 'ready'; uploadedBy: string; createdAt: string }
 export interface AppData {
+  subjectCatalog: SubjectCatalogItem[];
+  subjects: SchoolSubject[];
+  classSubjects: ClassSubject[];
+  subjectTeachers: SubjectTeacher[];
+  assignments: Assignment[];
+  submissions: AssignmentSubmission[];
+  assignmentFiles: AssignmentFile[];
+
   academicRequests: AcademicRequest[];
   activityParticipations: ActivityParticipation[];
   schoolReceipts: SchoolReceipt[];
@@ -371,6 +392,7 @@ export interface Membership {
   role: Exclude<Role, "superadmin">;
 }
 export interface SupportSession {
+  mode?: "support" | "test";
   id: string;
   schoolId: string;
   role: Exclude<Role, "superadmin">;

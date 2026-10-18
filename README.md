@@ -19,7 +19,7 @@ npm run dev
 - `/app/overview`: panel privado; demás módulos bajo `/app/`.
 - `/app/reports`: reportes financieros de Dirección y superadministración.
 - `/app/cash`, `/app/invoices`: cobros, recibos y solicitudes de facturación.
-- `/pago/TOKEN`: enlace público temporal de conceptos e importe, preparado para el proveedor QR.
+- `/pago/TOKEN`: enlace público temporal de conceptos e importe con generación de QR Baneco y confirmación bancaria.
 - `/invite/TOKEN`: aceptación de invitación por el correo verificado.
 - `/inscripcion/TOKEN`: ficha de cuidado sin login, compartida por Dirección con madre o padre.
 
@@ -183,7 +183,10 @@ Fuentes: [Google Auth](https://supabase.com/docs/guides/auth/social-login/auth-g
 2. Despliega `supabase/functions/r2-media`. El gateway heredado no valida el JWT; la función lo verifica con `auth.getUser()` y comprueba RLS.
 3. Configura secrets: `APP_ORIGIN`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. No se colocan en variables `VITE_`.
 4. Configura CORS del bucket para el origen de la app, métodos `GET`, `PUT`, `HEAD`, header `Content-Type` y exposición opcional de `ETag`.
-5. Activa `VITE_R2_ENABLED=true`.
+5. Copia `.env.r2.example` a `.env.r2.local` (ignorado por Git), completa las credenciales y ejecuta `npm run supabase:setup:r2`. Verifica escritura/lectura/limpieza de un archivo sintético, CORS, despliega la función y comprueba que exige sesión.
+6. Solo tras completar la verificación activa `VITE_R2_ENABLED=true` en `.env` y `EXPO_PUBLIC_R2_ENABLED=true` en el `.env.local` de Android. Reinicia los servidores de desarrollo para cargar el entorno.
+
+`APP_ORIGINS` admite una lista de orígenes exactos separada por comas; conserva `APP_ORIGIN` para compatibilidad. La política del bucket está en `docs/r2-cors.json`. Android usa la misma función de Supabase sin enviar `Origin`, siempre con JWT y las comprobaciones de permisos. No necesita claves R2 ni URL pública del bucket. `npm run supabase:verify:r2` comprueba la conexión sin desplegar.
 
 Subida con URL de 120 segundos, validación de tipo/tamaño (hasta 5 MB) al finalizar, y descarga autorizada con URL de 5 minutos. Sin estas credenciales la galería muestra que necesita configuración. [Referencia R2](https://developers.cloudflare.com/r2/buckets/cors/).
 
@@ -203,8 +206,8 @@ Las pruebas locales aplican las migraciones a PostgreSQL embebido (PGlite), simu
 
 ## Integraciones pendientes
 
-- API QR dinámica y cuenta/API de cada institución: intención, destino correcto, expiración, webhook firmado, monto y transacción única.
-- Credenciales y despliegue de R2.
+- Baneco QR Simple ya está integrado: falta que cada titular configure y compruebe sus credenciales, y realizar el primer cobro controlado. Consulta [la guía bancaria](docs/BANECO.md).
+- Probar una carga desde las aplicaciones con una sesión autorizada; bucket, credenciales y función R2 ya están configurados.
 - SIAT, si se integra un proveedor de facturación.
 - Aplicación Android nativa y push.
 - Antes del lanzamiento público: consentimientos de imágenes, retención, restauración de backups y ajustes/pagos parciales si se necesitan.
@@ -234,6 +237,20 @@ Los padres consultan actividades, calendario mensual interactivo, comunicados y 
 
 ## Aulas, caja y operación diaria
 
-Consulta [docs/OPERATIONS.md](docs/OPERATIONS.md) para las reglas de inscripción, pagos parciales, materiales con aprobación, cumpleaños, Maps y credenciales bancarias. Las cuotas iniciales permiten acceso al alcanzar el 50 %; las últimas dos exigen el 100 %. El saldo sigue pendiente hasta completarse. Caja no sustituye la integración bancaria: el QR dinámico y su confirmación automática requieren la documentación y el adaptador del proveedor.
+Consulta [docs/OPERATIONS.md](docs/OPERATIONS.md) para las reglas de inscripción, pagos parciales, materiales con aprobación, cumpleaños, Maps y credenciales bancarias. Las cuotas iniciales permiten acceso al alcanzar el 50 %; las últimas dos exigen el 100 %. El saldo sigue pendiente hasta completarse. Caja permite generar QR dinámicos con Baneco, además del registro manual. Las cuentas MiCole e institucionales son independientes; la confirmación se verifica en el servidor. Consulta [configuración Baneco](docs/BANECO.md).
 
 `npm run supabase:smoke:operations` comprueba estos flujos contra Supabase en una transacción que termina en `ROLLBACK`. Para actualizar una instalación que ya tenga las once migraciones anteriores: `npm run supabase:migrate:operations`.
+
+## QR Baneco
+
+Configuración bancaria, abonos seleccionados, enlaces públicos, conciliación automática y revisión de pagos: [docs/BANECO.md](docs/BANECO.md). El adaptador y su worker ya están desplegados; las credenciales del titular se guardan desde Configuración. No se han realizado pagos bancarios reales durante el desarrollo.
+
+## Precios configurables
+
+El propietario configura tarifas MiCole generales o por institución. Dirección modifica precios para nuevas cuotas; las emitidas no se pueden disminuir y admiten abonos que conservan el saldo. Consulta [tarifas y cuotas emitidas](docs/PRICING.md).
+
+Estado de Cloudflare R2 y continuidad para Codex: [docs/R2.md](docs/R2.md).
+
+## Cuidados, gestiones e importación
+
+Ver [operación de cuidados, libretas e historial](docs/SCHOOL_LIFE.md) y [correo dedicado SMTP](docs/EMAIL.md). Los cuatro módulos están integrados en web y Android; esta entrega no genera un APK.

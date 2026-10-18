@@ -3,6 +3,14 @@ import { initials } from "./format";
 import type { AppData, Collection, Identity } from "./types";
 
 export const emptyData = (): AppData => ({
+  subjectCatalog: [],
+  subjects: [],
+  classSubjects: [],
+  subjectTeachers: [],
+  assignments: [],
+  submissions: [],
+  assignmentFiles: [],
+
   academicRequests: [], activityParticipations: [], schoolReceipts: [], invoiceRequests: [], operationSettings: [],
   familyIntakes: [],
   studentDocuments: [],
@@ -26,6 +34,14 @@ export const emptyData = (): AppData => ({
   media: [],
 });
 const tables: Record<Collection, string> = {
+  subjectCatalog: "subject_catalog",
+  subjects: "school_subjects",
+  classSubjects: "class_subjects",
+  subjectTeachers: "subject_teachers",
+  assignments: "assignments",
+  submissions: "assignment_submissions",
+  assignmentFiles: "assignment_files",
+
   academicRequests: "academic_requests", activityParticipations: "activity_participations", schoolReceipts: "school_receipts", invoiceRequests: "invoice_requests", operationSettings: "school_operation_settings",
   familyIntakes: "family_intake_forms",
   studentDocuments: "student_documents",
@@ -73,8 +89,9 @@ export function fromRow(table: Collection, row: Record<string, unknown>) {
   if (table === "events" || table === "requests")
     result.date = row.event_date || row.request_date;
   for (const field of [
+    "maxScore", "score",
     "paidAmount", "minimumAccessRatio", "total",
-    "monthlyFee",
+    "monthlyFee", "licenseFee", "licenseCount", "unitAmount",
     "amount",
     "snackFee",
     "enrollmentFee",
@@ -84,7 +101,7 @@ export function fromRow(table: Collection, row: Record<string, unknown>) {
     "discountAmount",
     "discount",
   ])
-    if (result[field] !== undefined) result[field] = Number(result[field]);
+    if (result[field] !== undefined && !(table === "grades" && field === "score")) result[field] = Number(result[field]);
   return result;
 }
 export function toRow(table: Collection, item: object) {
@@ -115,6 +132,7 @@ export function toRow(table: Collection, item: object) {
         "classroomId",
         "studentId",
         "teacherId",
+        "classSubjectId",
         "userId",
         "accessUntil",
         "withdrawnAt",
@@ -154,6 +172,7 @@ export async function loadData(platform = false, student = false, collections?: 
       (result[key] as unknown[]) = portal[key];
     }
     result.studentPortalAccess = { allowed: portal.accessAllowed === true, message: portal.accessMessage };
+    await loadLearning(result);
     return result;
   }
   await Promise.all(
@@ -283,4 +302,13 @@ export async function getIdentity(): Promise<Identity> {
 }
 export async function claimInvitation(token: string) {
   return rpc("claim_invitation", { p_token: token });
+}
+
+const learningCollections: Collection[] = ['subjectCatalog','subjects','classSubjects','subjectTeachers','assignments','submissions','assignmentFiles','notifications'];
+async function loadLearning(result: AppData) {
+ await Promise.all(learningCollections.map(async key=>{
+  const {data,error}=await client().from(tables[key]).select('*');
+  if(error) throw new Error(`No pudimos cargar tareas y materias: ${error.message}`);
+  (result[key] as unknown[])=(data||[]).map(row=>fromRow(key,row));
+ }));
 }

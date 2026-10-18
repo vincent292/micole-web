@@ -102,7 +102,7 @@ export function StudentLoginModal({
           <div className="soft-note">
             <ShieldCheck size={18} /> Las mensualidades y los datos de salud se
             administran desde la cuenta familiar. El estudiante no puede publicar
-            ni modificar información.
+            ni modificar publicaciones del colegio. Puede entregar sus propias tareas y consultar su revisión.
           </div>
           {saved && (
             <div className="message info" role="status">
@@ -133,9 +133,9 @@ export function StudentOverview({ store, student, school, go }: PageProps) {
         <span className="row-icon"><BookOpen size={25} /></span>
         <div>
           <h2>Hola, {student?.firstName || "estudiante"}</h2>
-          <p>Tu espacio para consultar las tareas y novedades de tu colegio.</p>
+          <p>Tu espacio para consultar novedades y entregar tus tareas.</p>
         </div>
-        <span className="course-tag">Solo lectura</span>
+        <span className="course-tag">Mi aprendizaje</span>
       </section>
       {allowed ? (
         <>
@@ -146,7 +146,7 @@ export function StudentOverview({ store, student, school, go }: PageProps) {
           </div>
           <section className="panel">
             <SectionTitle title="Lo que viene" subtitle="Actividades y tareas de tu curso."
-              action={<Button variant="secondary" onClick={() => go("calendar")}>Ver agenda</Button>}
+              action={<><Button variant="secondary" onClick={() => go("assignments")}>Tareas y entregas</Button><Button variant="ghost" onClick={() => go("calendar")}>Ver agenda</Button></>}
             />
             {upcoming.slice(0,5).map(event => (
               <article className="calendar-row" key={event.id}>

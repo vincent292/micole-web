@@ -1,3 +1,6 @@
+import {TariffSettings,ChargeAmountDialog,StudentFeesDialog,usePlatformTariffs} from './Pricing';
+import { PlatformBankDues, BankRegister } from "./BankQr";
+import { learningDay } from "../lib/learning";
 import { PaymentConnection } from "./PaymentConnection";
 import { SchoolLocation } from "../components/SchoolLocation";
 import { chargeBalance } from "../lib/operations";
@@ -491,6 +494,7 @@ export function Directory({
                   estudiantes activos
                 </div>
                 <Button variant="secondary" onClick={() => go(`students?classroom=${encodeURIComponent(c.id)}`)}>Ver estudiantes</Button>
+                <div className="table-actions"><Button variant="ghost" onClick={()=>go(`subjects?classroom=${encodeURIComponent(c.id)}`)}>Materias</Button><Button variant="ghost" onClick={()=>go(`assignments?classroom=${encodeURIComponent(c.id)}`)}>Tareas y entregas</Button></div>
                 <div className="entity-footer">
                   <div className="avatar-stack">
                     {c.teacherIds.map((id) => (
@@ -570,6 +574,8 @@ export function Payments({
             )
           : []),
       ];
+  const [adjusted,setAdjusted]=useState<{id:string;amount:number;concept:string}|null>(null),[feeStudent,setFeeStudent]=useState<Student|null>(null);
+  const {rates}=usePlatformTariffs(school?.id);
   const usable = charges.filter((c) => c.status !== "cancelled");
   const sum = (paid: boolean) =>
     usable
@@ -577,11 +583,12 @@ export function Payments({
       .reduce((a, c) => a + c.amount, 0);
   return (
     <>
+      {platform&&<TariffSettings schools={store.data.schools}/>}
       <SectionTitle
         title={platform ? "Facturación de MiCole" : "Cada pago, en orden"}
         subtitle={
           platform
-            ? "Bs 50 de activación · Bs 29 al mes por estudiante activo."
+            ? "Activaciones y licencias según las tarifas configuradas al emitir cada cobro."
             : "Mensualidades, matrículas y el estado de cuenta de cada familia."
         }
         action={
@@ -719,6 +726,8 @@ export function Payments({
                     </td>
                     <td>
                       <div className="table-actions">
+                        {['superadmin','director'].includes(role)&&!['paid','cancelled'].includes(c.status)&&<Button variant="ghost" onClick={()=>setAdjusted(c)}>Aumentar importe</Button>}
+
                         {c.status !== "cancelled" && c.status !== "paid" && (
                           <Button
                             variant="secondary"
@@ -749,6 +758,7 @@ export function Payments({
                               <ReceiptText size={17} />
                             </button>
                           )}
+                        {platform && !["paid","cancelled"].includes(c.status) && <Button variant="secondary" onClick={()=>open("qr",c)}>Generar QR Baneco</Button>}
                         {c.status === "paid" && (
                           <Check size={17} className="green-text" />
                         )}
@@ -776,23 +786,27 @@ export function Payments({
                 title={`Plan de ${fullName(students.find((s) => s.id === p.studentId))}`}
                 subtitle={`${p.months} meses · ${money(p.monthlyFee)} de mensualidad · ${p.discount ? money(p.discount) + " de descuento" : "Sin descuento"}`}
                 action={
-                  <Button
+                  <div className="action-group"><Button variant="secondary" onClick={()=>{const target=students.find(s=>s.id===p.studentId);if(target)setFeeStudent(target);}}>Precios para nuevas cuotas</Button><Button
                     variant="secondary"
                     onClick={() => open("planDiscount", p)}
                   >
                     Ajustar descuento
-                  </Button>
+                  </Button></div>
                 }
               />
             </section>
           ))}
+      {!platform && ["director","guardian"].includes(role) && <PlatformBankDues charges={store.data.platformCharges.filter(c=>c.schoolId===school?.id&&(role!=="guardian"||c.studentId===student?.id))} onChanged={()=>void store.refresh()}/>}
+      {platform&&<BankRegister canReview={true}/>}
+      {adjusted&&<ChargeAmountDialog charge={adjusted} kind={platform?'platform':'school'} onClose={()=>setAdjusted(null)} onSaved={()=>{setAdjusted(null);void store.refresh();}}/>}
+      {feeStudent&&<StudentFeesDialog student={feeStudent} onClose={()=>setFeeStudent(null)} onSaved={()=>{setFeeStudent(null);void store.refresh();}}/>}
       <div className="soft-note">
         <ReceiptText size={18} />
         <span>
           {platform
             ? "Las liquidaciones se pagan a la cuenta de MiCole. Son independientes de los cobros escolares."
-            : "La licencia de Bs 29 se incluye en cada mensualidad. La institución liquida sus licencias a MiCole por separado."}{" "}
-          El QR dinámico requiere configurar el proveedor bancario.
+            : `Las nuevas mensualidades incluyen ${money(rates.monthlyLicenseFee)} de licencia MiCole. Las emitidas conservan su importe.`}{" "}
+          Los QR usan la conexión Baneco correspondiente a cada cuenta.
         </span>
       </div>
     </>
@@ -808,6 +822,7 @@ export function Community({
   identity,
   open,
   act,
+  go,
 }: PageProps & { page: string }) {
   const data = store.data,
     schoolId = school?.id,
@@ -962,6 +977,7 @@ export function Community({
         (!e.classroomId || rooms.some((c) => c.id === e.classroomId)) &&
         (page !== "materials" || e.type === "materials"),
     );
+    const taskDates=data.assignments.filter(a=>a.schoolId===schoolId&&a.status!=='draft'&&a.dueAt&&rooms.some(r=>r.id===a.classroomId)).map(a=>({id:`assignment-${a.id}`,title:a.title,date:learningDay(a.dueAt),description:'Fecha límite de entrega',type:'homework'}));
     const birthdays = agendaStudents
       .filter((s) => s.birthDate && s.status !== "inactive")
       .map((s) => ({
@@ -971,7 +987,7 @@ export function Community({
         description: fullName(s),
         type: "birthday",
       }));
-    const agenda = (page === "calendar" ? [...events, ...birthdays] : events)
+    const agenda = (page === "calendar" ? [...events, ...birthdays, ...taskDates] : events)
       .filter((e) => e.date.startsWith(month))
       .sort((a, b) => a.date.localeCompare(b.date));
     return (
@@ -1038,7 +1054,8 @@ export function Community({
                 <h3>{e.title}</h3>
                 <p>{e.description}</p>
               </div>
-              {canWrite && !e.id.startsWith("birthday-") && (
+              {e.id.startsWith("assignment-") && <Button variant="ghost" onClick={()=>go("assignments")}>Ver tarea</Button>}
+              {canWrite && !e.id.startsWith("birthday-") && !e.id.startsWith("assignment-") && (
                 <button
                   className="icon-button"
                   title="Editar evento"
@@ -1444,7 +1461,7 @@ export function Settings({ store, school, role, open, act }: PageProps) {
           </div>
           <div className="integration-row">
             <span>QR dinámico bancario</span>
-            <Badge status="pending" label="Esperando API" />
+            <Badge status="active" label="Baneco disponible" />
           </div>
           <p className="muted">
             Las credenciales bancarias y de R2 se configuran en el servidor. La

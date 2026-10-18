@@ -34,7 +34,7 @@ async function asUser<T>(user: string, fn: () => Promise<T>) {
 }
 const query = (sql: string, params: unknown[] = []) => db.query(sql, params);
 beforeAll(async () => {
-  await db.exec(`create role authenticated; create role anon; create schema auth;
+  await db.exec(`create role authenticated; create role anon;create role service_role; create schema auth;
   create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');
   create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
   grant usage on schema auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;

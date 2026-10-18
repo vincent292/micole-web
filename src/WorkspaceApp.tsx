@@ -69,6 +69,8 @@ import { Gallery } from "./features/Gallery";
 import { StudentLoginModal, StudentOverview } from "./features/StudentAccess";
 import { Collections, Invoices } from "./features/Collections";
 import { LearningRequests } from "./features/LearningRequests";
+import { Subjects, Assignments } from "./features/Academics";
+import {Care,Gradebook,Years,Onboarding} from "./features/SchoolLife";
 import { Reports } from "./features/Reports";
 const roleNames: Record<Role, string> = {
   superadmin: "Superadministración",
@@ -79,10 +81,13 @@ const roleNames: Record<Role, string> = {
 };
 const ALL: Role[] = ["superadmin", "director", "teacher", "guardian", "student"];
 const pageDescriptions: Record<string, string> = {
+  care:"Cuidados y resumen diario para las familias.",gradebook:"Evaluaciones, promedios y libretas publicadas.",years:"Reinscripciones e historial por gestión.",onboarding:"Configura e importa tu comunidad por pasos.",
+  subjects:"Organiza materias opcionales y sus docentes por aula.",
+  assignments:"Publica tareas, recibe entregas y revisa trabajos.",
   schools: "Gestiona instituciones e invita a sus directoras.",
   platform: "Activaciones y licencias de MiCole por institución.",
   reports: "Revisa ingresos, cuotas pendientes y movimientos por período.",
-  support: "Entra en un colegio con un rol concreto y registra el motivo.",
+  support: "Prueba roles en tu institución o abre soporte para atender un caso.",
   institutionRequests: "Revisa y responde las solicitudes de nuevos colegios.",
   audit: "Consulta quién cambió un registro y cuándo lo hizo.",
   settings: "Revisa la configuración y las conexiones disponibles.",
@@ -177,6 +182,12 @@ const nav: {
     roles: ["superadmin", "director"],
     group: "TU ESPACIO",
   },
+  {key:"care",label:"Cuidados diarios",icon:Heart,roles:COMMUNITY_ROLES,group:"COMUNIDAD"},
+  {key:"gradebook",label:"Evaluación y libretas",icon:GraduationCap,roles:COMMUNITY_ROLES,group:"COMUNIDAD"},
+  {key:"years",label:"Gestiones e historial",icon:BookOpen,roles:COMMUNITY_ROLES,group:"ADMINISTRACIÓN"},
+  {key:"onboarding",label:"Preparar institución",icon:ListChecks,roles:["director"],group:"ADMINISTRACIÓN"},
+  {key:"subjects",label:"Materias",icon:BookOpen,roles:["director","teacher","guardian","student"],group:"COMUNIDAD"},
+  {key:"assignments",label:"Tareas y entregas",icon:ListChecks,roles:["director","teacher","guardian","student"],group:"COMUNIDAD"},
   {
     key: "journal",
     label: "Cuaderno digital",
@@ -235,7 +246,7 @@ const nav: {
   },
   {
     key: "support",
-    label: "Soporte y probar roles",
+    label: "Pruebas y soporte",
     icon: Headset,
     roles: ["superadmin"],
     group: "ADMINISTRACIÓN",
@@ -408,7 +419,7 @@ function Workspace({
       (!locked || ["payments", "cash", "invoices"].includes(n.key)) &&
       (!needsProfile || ["payments", "cash", "invoices", "family"].includes(n.key)),
   );
-  const validPage = locked
+  const validPage = studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
     ? (["payments", "cash", "invoices"].includes(page) ? page : "payments")
     : needsProfile && !["payments", "cash", "invoices"].includes(page)
       ? "family"
@@ -477,7 +488,7 @@ function Workspace({
     setProfile(false);
     setNotifications(false);
   }, [location.pathname]);
-  const exitSupport = async () => {
+  const exitSupport = async (destination = "/app/overview") => {
     setSupportBusy(true);
     try {
       if (liveMode && support)
@@ -489,7 +500,7 @@ function Workspace({
         setDemoAccount(null);
         setRole("superadmin");
       }
-      navigate("/app/overview");
+      navigate(destination);
     } catch (e) {
       setNoticeError(
         e instanceof Error ? e.message : "No se pudo cerrar soporte.",
@@ -525,6 +536,16 @@ function Workspace({
         expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       });
     }
+    navigate("/app/overview");
+  };
+  const startTest = async (sid: string, account: import("./features/TestWorkspace").TestAccount) => {
+    const session = await rpc<{ id: string }>("start_test_session", {
+      p_school_id: sid, p_role: account.role,
+      p_target_id: account.role === "director" ? null : account.id,
+      p_relationship: account.relationship || null,
+    });
+    setSupportSession(session.id);
+    await refreshIdentity();
     navigate("/app/overview");
   };
   useEffect(() => {
@@ -802,7 +823,7 @@ function Workspace({
               )}
               {isPlatform && identity.canSupport && (
                 <button onClick={() => go("support")}>
-                  <Headset size={16} /> Soporte y probar roles
+                  <Headset size={16} /> Pruebas y soporte
                 </button>
               )}
               {identity.roles
@@ -850,12 +871,12 @@ function Workspace({
           <div
             className="support-banner"
             role="region"
-            aria-label="Sesión de soporte"
+            aria-label={support.mode === "test" ? "Sesión de pruebas" : "Sesión de soporte"}
           >
             <Headset size={20} />
             <div>
               <b>
-                Soporte · {roleNames[role]}
+                {support.mode === "test" ? "Pruebas" : "Soporte"} · {roleNames[role]}
                 {liveMode ? ` · ${identity.name}` : " · datos de ejemplo"}
               </b>
               <small>
@@ -868,6 +889,7 @@ function Workspace({
                 · {support.reason}
               </small>
             </div>
+            {support.mode === "test" && <Button variant="secondary" disabled={supportBusy} onClick={() => void exitSupport("/app/support")}>Cambiar rol</Button>}
             <Button
               variant="secondary"
               disabled={supportBusy}
@@ -979,6 +1001,7 @@ function Workspace({
                   initialSchoolId={schoolId === "s1" ? undefined : schoolId}
                   {...props}
                   onStart={startSupport}
+                  onTest={startTest}
                 />
               )}
               {validPage === "overview" && role === "student" && <StudentOverview {...props} /> }
@@ -1019,13 +1042,19 @@ function Workspace({
                   {...props}
                 />
               )}
+              {validPage === "care" && <Care key={`${school?.id}-${student?.id}`} {...props} />}
+              {validPage === "gradebook" && <Gradebook key={`${school?.id}-${student?.id}`} {...props} />}
+              {validPage === "years" && <Years key={`${school?.id}-${student?.id}`} {...props} />}
+              {validPage === "onboarding" && <Onboarding {...props} />}
+              {validPage === "subjects" && <Subjects key={`${school?.id}-${student?.id}`} {...props} />}
+              {validPage === "assignments" && <Assignments key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "cash" && <Collections key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "invoices" && <Invoices key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "materials" && (role === "student" ? <Community page="materials" {...props} /> : <LearningRequests key={`${school?.id}-${student?.id}-materials`} page="materials" {...props} />)}
               {validPage === "activities" && <LearningRequests key={`${school?.id}-${student?.id}-activities`} page="activities" {...props} />}
               {validPage === "family" && <Family {...props} />}
               {validPage === "settings" &&
-                (isPlatform ? <PlatformSettings /> : <Settings {...props} />)}
+                (isPlatform ? <PlatformSettings schools={store.data.schools} /> : <Settings {...props} />)}
               {["institutionRequests", "audit"].includes(validPage) && (
                 <PlatformOperations page={validPage} {...props} />
               )}

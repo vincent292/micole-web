@@ -32,7 +32,7 @@ async function fixtureApi(page: Page, initialRole: "director" | "superadmin") {
     const params = request.method() === "POST" ? request.postDataJSON() as Record<string, unknown> : null;
     state.calls.push({ name, params });
     let json: unknown = name === "finance_register" ? {receipts:[],invoices:[]} : [];
-    if (name === "workspace_identity") {
+    if (name === "platform_tariffs") json={activationFee:50,monthlyLicenseFee:29,inherited:true};else if (name === "workspace_identity") {
       json = {
         id: userId, email: user.email, name: user.user_metadata.full_name,
         canSupport: state.role === "superadmin", roles: [state.role],

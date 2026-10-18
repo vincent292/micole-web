@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Field } from "./UI";
+import { Field, FormSection } from "./UI";
 import type { CareProfile, Student } from "../lib/types";
 export function readCareProfile(form: HTMLFormElement): CareProfile {
   const data = new FormData(form);
@@ -28,7 +28,7 @@ export function CareFields({
   );
   return (
     <>
-      <div className="form-section-label">SALUD Y ALIMENTACIÓN</div>
+      <FormSection title="Salud y alimentación">
       <Field
         label="Alergias"
         name="allergies"
@@ -60,7 +60,8 @@ export function CareFields({
           defaultValue={value?.careInstructions}
         />
       </Field>
-      <div className="form-section-label">SEGURO</div>
+      </FormSection>
+      <FormSection title="Seguro">
       <Field label="¿Tiene seguro?" name="hasInsurance" required>
         <select
           name="hasInsurance"
@@ -90,7 +91,8 @@ export function CareFields({
           />
         </div>
       )}
-      <div className="form-section-label">A QUIÉN LLAMAR EN UNA EMERGENCIA</div>
+      </FormSection>
+      <FormSection title="Emergencias">
       <p className="muted care-note">
         Estos contactos ayudan al colegio a comunicarse en una emergencia. No
         reciben acceso a MiCole.
@@ -121,6 +123,7 @@ export function CareFields({
           defaultValue={value?.secondEmergencyPhone}
         />
       </div>
+      </FormSection>
     </>
   );
 }

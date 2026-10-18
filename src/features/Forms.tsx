@@ -1,8 +1,11 @@
+import {usePlatformTariffs} from './Pricing';
+import { BankQrDialog } from "./BankQr";
+import {subjectName,subjectOptions} from "../lib/learning";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Copy, Link, LockKeyhole, ReceiptText } from "lucide-react";
 import { CareFields, readCareProfile } from "../components/CareFields";
-import { Button, Field, Modal } from "../components/UI";
+import { Button, Field, Modal, FormSection } from "../components/UI";
 import { bolivianCities, monthCount } from "../lib/operations";
 import { shiftMonth } from "../components/MonthCalendar";
 import { buildSchedule, today } from "../lib/billing";
@@ -97,7 +100,7 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
 
   return (
     <>
-      <div className="form-section-label">IDENTIDAD Y CONTACTO</div>
+      <FormSection title="Logo y portada">
       <div className="institution-logo-preview" aria-live="polite">
         {preview && !previewFailed ? (
           <img
@@ -169,6 +172,12 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
         />
         <span>Quitar logo y usar las iniciales</span>
       </label>
+      <Field label="Banner de la institución" name="bannerFile"><input type="file" name="bannerFile" accept="image/png,image/jpeg,image/webp" /></Field>
+      <p className="muted">Se convierte a WebP y se ajusta hasta 1400 × 700 px.</p>
+      {institution?.bannerUrl && <img className="institution-banner-preview" src={institution.bannerUrl} alt="Portada actual" />}
+      <label className="check-field"><input type="checkbox" name="removeBanner" /> Quitar banner</label>
+      </FormSection>
+      <FormSection title="Contacto y ubicación">
       <div className="form-grid">
         <Field label="NIT (opcional)" name="nit">
           <input
@@ -190,15 +199,12 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
       <Field label="Sitio web (opcional)" name="website">
         <input type="url" name="website" maxLength={2048} defaultValue={institution?.website || ""} placeholder="https://…" />
       </Field>
-      <div className="form-section-label">UBICACIÓN Y PORTADA</div>
+
       <Field label="Ubicación en Google Maps" name="mapsUrl">
         <textarea name="mapsUrl" rows={2} maxLength={4500} defaultValue={institution?.mapsUrl || ""} placeholder="Pega el enlace de Google Maps o Compartir → Insertar un mapa" />
       </Field>
-      <Field label="Banner de la institución" name="bannerFile"><input type="file" name="bannerFile" accept="image/png,image/jpeg,image/webp" /></Field>
-      <p className="muted">Se convierte a WebP y se ajusta hasta 1400 × 700 px.</p>
-      {institution?.bannerUrl && <img className="institution-banner-preview" src={institution.bannerUrl} alt="Portada actual" />}
-      <label className="check-field"><input type="checkbox" name="removeBanner" /> Quitar banner</label>
-      <div className="form-section-label">DATOS PRIVADOS DE DIRECCIÓN</div>
+      </FormSection>
+      <FormSection title="Dirección y publicación">
       <input type="hidden" name="privateContactReady" value={String(contactReady)} />
       <fieldset disabled={!contactReady} className="form-grid">
         <Field label="Carnet de Dirección" name="directorIdentity"><input name="directorIdentity" maxLength={40} required={!institution} value={contact.directorIdentity} onChange={e => setContact({ ...contact, directorIdentity: e.target.value })} /></Field>
@@ -215,6 +221,7 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
           El nombre, logo, ciudad y sitio web se muestran cuando la institución está activa.
         </p>
       </div>
+      </FormSection>
     </>
   );
 }
@@ -237,12 +244,17 @@ export function WorkspaceModal({
   onSuccess: (message: string) => void;
 }) {
   const [admissionRoomId, setAdmissionRoomId] = useState(id ? store.data.students.find(s => s.id === id)?.classroomId || "" : "");
+  const [gradeStudentId,setGradeStudentId]=useState(student?.id||students[0]?.id||"");
   const [planStudentId, setPlanStudentId] = useState(student?.id || "");
   const [error, setError] = useState(""),
     [link, setLink] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const needsTariffs=type==="plan"||(type==="student"&&!id);
+  const tariffs=usePlatformTariffs(school?.id,needsTariffs);
   const frozenData = useRef(store.data);
   const data = frozenData.current;
+  const admissionSettings=data.operationSettings.find(s=>s.schoolId===school?.id);
+  const needsMother=admissionSettings?.familyPolicy!=="father",needsFather=admissionSettings?.familyPolicy!=="mother";
   const editStudent = data.students.find((s) => s.id === id);
   const editTeacher = data.teachers.find((t) => t.id === id);
   const editClassroom = data.classrooms.find((c) => c.id === id);
@@ -354,8 +366,8 @@ export function WorkspaceModal({
           lastName: val("lastName"),
           birthDate: val("birthDate"),
           classroomId: val("classroomId"),
-          guardianName: val("motherName"),
-          guardianEmail: val("motherEmail").toLowerCase(),
+          guardianName: val("motherName")||val("fatherName"),
+          guardianEmail: (val("motherEmail")||val("fatherEmail")).toLowerCase(),
           motherName: val("motherName"),
           motherEmail: val("motherEmail").toLowerCase(),
           motherPhone: val("motherPhone"),
@@ -371,8 +383,10 @@ export function WorkspaceModal({
           enrolledAt: editStudent?.enrolledAt || createdAt,
           status: editStudent?.status || "pending",
         };
+        if(!id)Object.assign(item,{activationFeeQuote:tariffs.rates.activationFee});
         if (id) await store.save("students", item);
         else await store.enroll(item, {
+          licenseFee: tariffs.rates.monthlyLicenseFee,
           id: uid(), schoolId, studentId: item.id, startDate: val("startDate"), months: num("months"),
           monthlyFee: item.monthlyFee, snackFee: item.snackFee || 0, enrollmentFee: item.enrollmentFee || 0,
           dueDay: num("dueDay"), discount: num("discount"), discountFrom: val("discountFrom"), discountTo: val("discountTo"), prorate: f.prorate === "on", createdAt,
@@ -423,6 +437,7 @@ export function WorkspaceModal({
         });
       if (type === "plan")
         await store.createPlan({
+          licenseFee: tariffs.rates.monthlyLicenseFee,
           id: uid(),
           schoolId,
           studentId: val("studentId"),
@@ -490,7 +505,8 @@ export function WorkspaceModal({
           id: uid(),
           schoolId,
           studentId: val("studentId"),
-          subject: val("subject"),
+          classSubjectId: val("classSubjectId") || undefined,
+          subject: val("classSubjectId") ? subjectName(data,val("classSubjectId")) : val("subject"),
           period: val("period"),
           score: val("score"),
           recommendation: val("recommendation"),
@@ -595,7 +611,7 @@ export function WorkspaceModal({
       if (type === "reset") store.reset();
       onSuccess(
         type === "student" && !id
-          ? "Inscripción creada. Activación de Bs 50 pendiente; ya puedes invitar a la familia."
+          ? `Inscripción creada. Activación de ${money(tariffs.rates.activationFee)} pendiente; ya puedes invitar a la familia.`
           : type === "invoice"
             ? "Solicitud de factura guardada para la institución."
             : "Cambios guardados correctamente.",
@@ -610,30 +626,7 @@ export function WorkspaceModal({
       setSubmitting(false);
     }
   }
-  if (type === "qr")
-    return (
-      <Modal
-        title="Pago con QR"
-        onClose={onClose}
-        onSubmit={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-        submitLabel="Entendido"
-      >
-        <span className="row-icon">
-          <ReceiptText size={25} />
-        </span>
-        <h3>
-          {charge?.concept} · {money(charge?.amount || 0)}
-        </h3>
-        <p className="muted">
-          El proveedor de QR dinámico todavía no está conectado. La cuota sigue
-          pendiente. Consulta con tu institución para pagar por transferencia o
-          en efectivo.
-        </p>
-      </Modal>
-    );
+  if (type === "qr") return <BankQrDialog request={charge?{kind:data.platformCharges.some(c=>c.id===charge.id)?"platform":"school",schoolId:charge.schoolId,studentId:"studentId" in charge?charge.studentId:undefined,items:[{chargeId:charge.id,amount:charge.amount}]}:undefined} onClose={onClose} onChanged={()=>void store.refresh()}/>;
   if (link)
     return (
       <Modal
@@ -686,13 +679,14 @@ export function WorkspaceModal({
       title={titles[type] || "Guardar registro"}
       subtitle={
         type === "student"
-          ? "Una inscripción pendiente genera la activación de Bs 50."
+          ? "Una inscripción pendiente genera la activación de MiCole según la tarifa vigente."
           : "Cada detalle nos ayuda a estar más cerca."
       }
       onClose={onClose}
       onSubmit={submit}
-      error={error}
+      error={error|| (needsTariffs?tariffs.error:"")}
       busy={submitting || store.busy}
+      submitDisabled={needsTariffs&&!tariffs.ready}
       submitLabel={
         type.includes("Invite") || type === "invite"
           ? "Crear enlace"
@@ -703,6 +697,7 @@ export function WorkspaceModal({
     >
       {(type === "school" || type === "branding") && (
         <>
+          <FormSection title="Datos generales">
           <Field
             label="Nombre de la institución"
             name="name"
@@ -729,11 +724,13 @@ export function WorkspaceModal({
           ) : (
             <p className="institution-field-help">Dirección: {editSchool?.director}</p>
           )}
+          </FormSection>
           <InstitutionIdentityFields institution={type === "branding" ? editSchool : undefined} />
         </>
       )}
       {type === "student" && (
         <>
+          <FormSection title="Estudiante">
           <div className="form-grid">
             <Field
               label="Nombres"
@@ -781,25 +778,27 @@ export function WorkspaceModal({
             <Field
               label="Número de CI del niño"
               name="identityNumber"
-              required
+              required={admissionSettings?.childCiRequired!==false}
               defaultValue={editStudent?.identityNumber}
             />
           </div>
+          </FormSection>
+          <FormSection title="Madre y padre">
           <div className="form-section-label">MADRE · ACCESO A MICOLE</div>
           <Field
             label="Nombre completo de la madre"
             name="motherName"
-            required
-            defaultValue={editStudent?.motherName || editStudent?.guardianName}
+            required={needsMother}
+            defaultValue={editStudent?.motherName || (!editStudent?.fatherEmail ? editStudent?.guardianName : "")}
           />
           <div className="form-grid">
             <Field
               label="Correo de la madre"
               name="motherEmail"
               type="email"
-              required
+              required={needsMother}
               defaultValue={
-                editStudent?.motherEmail || editStudent?.guardianEmail
+                editStudent?.motherEmail || (!editStudent?.fatherEmail ? editStudent?.guardianEmail : "")
               }
             />
             <Field
@@ -813,7 +812,7 @@ export function WorkspaceModal({
           <Field
             label="Nombre completo del padre"
             name="fatherName"
-            required
+            required={needsFather}
             defaultValue={editStudent?.fatherName}
           />
           <div className="form-grid">
@@ -821,7 +820,7 @@ export function WorkspaceModal({
               label="Correo del padre"
               name="fatherEmail"
               type="email"
-              required
+              required={needsFather}
               defaultValue={editStudent?.fatherEmail}
             />
             <Field
@@ -837,15 +836,18 @@ export function WorkspaceModal({
             defaultValue={editStudent?.allergies}
             placeholder="Escribe ninguna si no tiene"
           />
-          <div className="form-section-label">PLAN DE PAGOS DE LA INSCRIPCIÓN</div>
+          </FormSection>
+          <FormSection title="Plan de pagos">
+          {id&&<p className="soft-note">Los precios editados se usarán en nuevas emisiones. Las cuotas ya creadas conservan su importe.</p>}
           {id ? <div className="form-grid"><Field label="Mensualidad fija" name="monthlyFee" type="number" min={0} step="0.01" required defaultValue={editStudent?.monthlyFee || 0} /><Field label="Merienda mensual" name="snackFee" type="number" min={0} step="0.01" defaultValue={editStudent?.snackFee || 0} /><Field label="Matrícula (0 si no aplica)" name="enrollmentFee" type="number" min={0} step="0.01" defaultValue={editStudent?.enrollmentFee || 0} /></div>
-          : <PlanFields key={admissionRoomId} student={{ monthlyFee: rooms.find(r => r.id === admissionRoomId)?.monthlyFee || 0 } as Student} schoolId={school?.id || ""} />}
+          : <PlanFields licenseFee={tariffs.rates.monthlyLicenseFee} key={admissionRoomId} student={{ monthlyFee: rooms.find(r => r.id === admissionRoomId)?.monthlyFee || 0 } as Student} schoolId={school?.id || ""} />}
           <div className="soft-note">
-            La licencia mensual de Bs 29 está incluida en las cuotas del plan. Puedes
+            La licencia mensual de MiCole está incluida en las cuotas del plan. Puedes
             compartir la ficha familiar por WhatsApp después de guardar. Madre y
             padre encontrarán a sus hijos al ingresar con los correos
             registrados.
           </div>
+          </FormSection>
         </>
       )}
       {type === "profile" && (
@@ -985,7 +987,7 @@ export function WorkspaceModal({
               ))}
             </select>
           </Field>
-          <PlanFields
+          <PlanFields licenseFee={tariffs.rates.monthlyLicenseFee}
             key={planStudentId}
             student={students.find((s) => s.id === planStudentId)}
             schoolId={school?.id || ""}
@@ -1018,9 +1020,7 @@ export function WorkspaceModal({
             />
           </div>
           <div className="soft-note">
-            Se recalculan las cuotas no pagadas del plan según el vencimiento.
-            Los pagos registrados permanecen intactos y la licencia sigue siendo
-            Bs 29.
+            El descuento se usará en nuevas emisiones según sus fechas. Todas las cuotas ya creadas conservan su importe y descuento original.
           </div>
         </>
       )}
@@ -1164,9 +1164,11 @@ export function WorkspaceModal({
       )}
       {type === "grade" && (
         <>
-          {studentSelect()}
+          <Field label="Estudiante" name="studentId" required><select name="studentId" required value={gradeStudentId} onChange={e=>setGradeStudentId(e.target.value)}>{students.map(s=><option key={s.id} value={s.id}>{fullName(s)}</option>)}</select></Field>
           <div className="form-grid">
-            <Field label="Materia" name="subject" required />
+            {data.classrooms.find(r=>r.id===students.find(s=>s.id===gradeStudentId)?.classroomId)?.subjectsEnabled ?
+             <Field label="Materia" name="classSubjectId" required><select key={gradeStudentId} name="classSubjectId" required defaultValue=""><option value="" disabled>Selecciona una materia</option>{subjectOptions(data,students.find(s=>s.id===gradeStudentId)?.classroomId||'',identity,role).map(s=><option key={s.value} value={s.value}>{s.label}</option>)}</select></Field>:
+             <Field label="Materia" name="subject" required defaultValue="Desarrollo integral"/>}
             <Field
               label="Período"
               name="period"
@@ -1321,7 +1323,7 @@ export function WorkspaceModal({
             defaultValue={today().slice(0, 7)}
           />
           <div className="soft-note">
-            Se calculan Bs 29 por estudiante activo al momento de generar. El
+            Se usa la tarifa vigente por estudiante activo al momento de generar. El
             mismo período no se puede liquidar dos veces.
           </div>
         </>
@@ -1372,8 +1374,7 @@ export function WorkspaceModal({
           />
           <div className="soft-note">
             Permite revisar la agenda temporalmente aunque exista deuda. No
-            modifica el saldo ni permite saltarse la activación inicial de Bs
-            50.
+            modifica el saldo ni permite saltarse la activación inicial de MiCole.
           </div>
         </>
       )}
@@ -1402,8 +1403,7 @@ export function WorkspaceModal({
           />
           <div className="soft-note">
             La baja cancela las cuotas futuras no pagadas; las deudas vencidas
-            permanecen. La activación requiere confirmar los Bs 50 de
-            plataforma. El acceso temporal no elimina la deuda.
+            permanecen. La activación requiere confirmar el cobro inicial de MiCole. El acceso temporal no elimina la deuda.
           </div>
         </>
       )}
@@ -1419,12 +1419,15 @@ export function WorkspaceModal({
 function PlanFields({
   student,
   schoolId,
+  licenseFee=29,
 }: {
   student?: Student;
   schoolId: string;
+  licenseFee?: number;
 }) {
   const initial: PaymentPlan = {
     id: "preview",
+    licenseFee,
     schoolId,
     studentId: student?.id || "",
     startDate: today(),
@@ -1444,7 +1447,7 @@ function PlanFields({
   let charges: ReturnType<typeof buildSchedule> = [];
   let invalid = "";
   try {
-    charges = buildSchedule(preview, () => "preview");
+    charges = buildSchedule({...preview,licenseFee}, () => "preview");
   } catch (e) {
     invalid = e instanceof Error ? e.message : "";
   }
@@ -1563,7 +1566,7 @@ function PlanFields({
           </>
         )}
         <small>
-          Incluye Bs 29 de licencia en cada mensualidad. El descuento aplica
+          Incluye {money(licenseFee)} de licencia en cada mensualidad. El descuento aplica
           según el vencimiento y no reduce la licencia. El corte mensual
           continúa al terminar el plan mientras la inscripción siga activa.
         </small>

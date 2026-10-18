@@ -75,6 +75,7 @@ export function Overview({
     .slice(0, 3);
   return (
     <>
+      {role === "director" && school && <div className="soft-note life-actions"><span>Configura requisitos e importa tu comunidad desde el asistente.</span><Button variant="secondary" onClick={()=>go("onboarding")}>Preparar institución</Button></div>}
       {(role === "director" || role === "superadmin") &&
         (!school || !classrooms.length || !data.teachers.some(t => t.schoolId === school.id) || !data.academicRequests.some(r => r.schoolId === school.id && r.kind === "annual_materials" && r.status === "approved")) && (
           <section className="panel setup-guide">
@@ -187,10 +188,10 @@ export function Overview({
             <StatCard
               label="Licencias mensuales"
               value={money(
-                data.students.filter((s) => s.status === "active").length * 29,
+                data.platformCharges.filter(c=>!c.studentId&&c.status!=="cancelled"&&c.period===new Date().toISOString().slice(0,7)).reduce((n,c)=>n+c.amount,0),
               )}
               icon={TrendingUp}
-              footer="Bs 29 por estudiante"
+              footer="Liquidaciones emitidas del mes"
             />
             <StatCard
               label="Por cobrar · plataforma"

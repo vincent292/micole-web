@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { ReactNode, FormEvent } from "react";
 import { X, Inbox, Plus, Search, LoaderCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -172,6 +173,13 @@ export function Empty({
     </div>
   );
 }
+const FormNavigation = createContext<{active:string;register:(id:string,label:string)=>()=>void}|null>(null);
+/** Keep all inputs mounted, so changing sections preserves values and FormData. */
+export function FormSection({title,children}:{title:string;children:ReactNode}) {
+ const id=useId(),nav=useContext(FormNavigation),register=nav?.register;
+ useLayoutEffect(()=>register?.(id,title),[register,id,title]);
+ return <section data-form-section={id} hidden={!!nav?.active && nav.active!==id} className="form-section"><h3>{title}</h3><div className="form-section-body">{children}</div></section>;
+}
 export function Modal({
   title,
   subtitle,
@@ -193,6 +201,13 @@ export function Modal({
   busy?: boolean;
   error?: string;
 }) {
+  const [sections,setSections]=useState<{id:string;label:string}[]>([]);
+  const [selected,setSelected]=useState('');
+  const register=useCallback((id:string,label:string)=>{setSections(old=>old.some(s=>s.id===id)?old:[...old,{id,label}]);return ()=>setSections(old=>old.filter(s=>s.id!==id));},[]);
+  const active=sections.some(s=>s.id===selected)?selected:sections[0]?.id||'';
+  const index=sections.findIndex(s=>s.id===active);
+  const body=useRef<HTMLDivElement>(null);
+  const navigate=(id:string)=>{setSelected(id);body.current?.scrollTo({top:0});};
   const dialog = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   const busyRef = useRef(busy);
@@ -260,10 +275,15 @@ export function Modal({
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={onSubmit}>
+        {sections.length>1 && <nav className="form-step-nav" aria-label="Secciones del formulario">{sections.map((section,i)=><button key={section.id} type="button" disabled={busy} aria-current={active===section.id?'step':undefined} onClick={()=>navigate(section.id)}><span>{i+1}</span>{section.label}</button>)}</nav>}
+        <form onSubmit={onSubmit} onInvalidCapture={event=>{
+          const input=event.target as HTMLElement,id=input.closest<HTMLElement>('[data-form-section]')?.dataset.formSection;
+          if(id && id!==active) flushSync(()=>setSelected(id));
+          requestAnimationFrame(()=>input.focus({preventScroll:false}));
+        }}>
           <fieldset disabled={busy}>
-            <div className="modal-content">
-              {children}
+            <div className="modal-content" ref={body}>
+              <FormNavigation.Provider value={{active,register}}>{children}</FormNavigation.Provider>
               {error && (
                 <div className="message error" role="alert">
                   {error}
@@ -271,6 +291,7 @@ export function Modal({
               )}
             </div>
             <div className="modal-footer">
+              {sections.length>1 && <div className="form-step-controls"><small>{index+1} de {sections.length}</small><Button variant="ghost" disabled={busy||index<=0} onClick={()=>navigate(sections[index-1].id)}>Anterior</Button><Button variant="ghost" disabled={busy||index>=sections.length-1} onClick={()=>navigate(sections[index+1].id)}>Siguiente</Button></div>}
               <Button variant="secondary" onClick={onClose}>
                 Cancelar
               </Button>

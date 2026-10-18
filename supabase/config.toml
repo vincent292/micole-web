@@ -8,3 +8,9 @@ additional_redirect_urls = ["http://localhost:5173/auth/callback", "http://local
 
 [auth.email]
 enable_confirmations = true
+
+[functions.push-dispatch]
+verify_jwt = false # Internal worker authenticates x-micole-worker-key; no user or public send endpoint.
+
+[functions.bank-qr]
+verify_jwt = false # User JWT verified with auth.getUser; public links are exact-charge capabilities; worker uses its private key.

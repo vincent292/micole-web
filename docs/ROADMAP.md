@@ -10,7 +10,7 @@ Las catorce migraciones están aplicadas, incluida `202610150004_realtime_notice
 
 - Completar el ingreso interactivo con las cuentas Google que usarán la app. El proveedor y su redirección inicial ya se verificaron habilitados; los callbacks locales están configurados.
 - SMTP si se necesita correo para personas externas al equipo de Supabase.
-- Bucket R2, secrets, CORS y despliegue de `r2-media`.
+- Bucket R2 privado, secretos, CORS y `r2-media` configurados; falta validar una carga desde una sesión real de cada aplicación al publicarlas.
 - Proveedor QR para la cuenta de MiCole y las de cada institución.
 - Proveedor SIAT, si se implementa emisión fiscal.
 

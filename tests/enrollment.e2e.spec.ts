@@ -1,3 +1,4 @@
+import {showFormSection} from './form-sections';
 import { test, expect } from "@playwright/test";
 test.use({ reducedMotion: "reduce" });
 test("Dirección registra padres, comparte ficha móvil y aprueba cuidados sin cambiar pagos", async ({
@@ -11,18 +12,18 @@ test("Dirección registra padres, comparte ficha móvil y aprueba cuidados sin c
     .getByRole("button", { name: "Inscribir estudiante", exact: true })
     .click();
   let modal = page.getByRole("dialog");
-  await modal.getByLabel("Nombres", { exact: false }).fill("Valeria");
-  await modal.getByLabel("Apellidos", { exact: false }).fill("Familia Prueba");
-  await modal.getByLabel("Fecha de nacimiento").fill("2023-02-01");
-  await modal.getByLabel("Aula", { exact: false }).selectOption("c1");
-  await modal.getByLabel("Número de CI del niño").fill("CI-VALERIA-1");
-  await modal
+  await showFormSection(page,'Nombres'); await modal.getByLabel("Nombres", { exact: false }).fill("Valeria");
+  await showFormSection(page,'Apellidos'); await modal.getByLabel("Apellidos", { exact: false }).fill("Familia Prueba");
+  await showFormSection(page,'Fecha de nacimiento'); await modal.getByLabel("Fecha de nacimiento").fill("2023-02-01");
+  await showFormSection(page,'Aula'); await modal.getByLabel("Aula", { exact: false }).selectOption("c1");
+  await showFormSection(page,'Número de CI del niño'); await modal.getByLabel("Número de CI del niño").fill("CI-VALERIA-1");
+  await showFormSection(page,'Nombre completo de la madre'); await modal
     .getByLabel("Nombre completo de la madre")
     .fill("Daniela Martínez");
-  await modal.getByLabel("Correo de la madre").fill("daniela@example.com");
-  await modal.getByLabel("Nombre completo del padre").fill("Fernando Prueba");
-  await modal.getByLabel("Correo del padre").fill("fernando@example.com");
-  await modal.getByLabel("Mensualidad fija").fill("490");
+  await showFormSection(page,'Correo de la madre'); await modal.getByLabel("Correo de la madre").fill("daniela@example.com");
+  await showFormSection(page,'Nombre completo del padre'); await modal.getByLabel("Nombre completo del padre").fill("Fernando Prueba");
+  await showFormSection(page,'Correo del padre'); await modal.getByLabel("Correo del padre").fill("fernando@example.com");
+  await showFormSection(page,'Mensualidad fija'); await modal.getByLabel("Mensualidad fija").fill("490");
   await modal.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(modal).toBeHidden();
   let row = page.getByRole("row").filter({ hasText: "Valeria Familia Prueba" });
@@ -156,13 +157,13 @@ test.describe("ficha conectada", () => {
       }
     });
     await page.goto(`/inscripcion/${"a".repeat(64)}`);
-    await page.getByLabel("Alergias", { exact: false }).fill("Ninguna");
-    await page.getByLabel("Alimentos que no puede comer").fill("Ninguno");
-    await page.getByLabel("¿Tiene seguro?").selectOption("false");
-    await page
+    await showFormSection(page,'Alergias'); await page.getByLabel("Alergias", { exact: false }).fill("Ninguna");
+    await showFormSection(page,'Alimentos que no puede comer'); await page.getByLabel("Alimentos que no puede comer").fill("Ninguno");
+    await showFormSection(page,'¿Tiene seguro?'); await page.getByLabel("¿Tiene seguro?").selectOption("false");
+    await showFormSection(page,'Contacto de emergencia'); await page
       .getByLabel("Contacto de emergencia", { exact: false })
       .fill("Madre");
-    await page
+    await showFormSection(page,'Teléfono de emergencia'); await page
       .getByLabel("Teléfono de emergencia", { exact: false })
       .fill("70000000");
     await page.getByRole("checkbox").check();
