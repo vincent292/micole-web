@@ -139,7 +139,9 @@ export function useAppStore(
     setRealtimeStatus("connecting");
     const channel = supabase.channel(`workspace-${scope}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "workspace_signals" }, backgroundRefresh)
-      .subscribe(status => {
+      ;
+    if(platform) channel.on("postgres_changes", { event: "*", schema: "public", table: "platform_signals" }, backgroundRefresh);
+    channel.subscribe(status => {
         if (!active) return;
         if (status === "SUBSCRIBED") { setRealtimeStatus("connected"); backgroundRefresh(); }
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setRealtimeStatus("offline");
@@ -153,7 +155,7 @@ export function useAppStore(
       window.removeEventListener("micole:modal-closed", closed);
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [refresh, userId, scope]);
+  }, [refresh, userId, scope, platform]);
   async function run(
     remote: () => Promise<unknown>,
     local: (prev: AppData) => AppData,
@@ -206,10 +208,10 @@ export function useAppStore(
       () => plan ? rpc("enroll_student_with_plan", { p_student: toRow("students", student), p_plan: toRow("paymentPlans", plan) }) : rpc("enroll_student", { p_student: toRow("students", student) }),
       (prev) => ({
         ...prev,
-        students: [...prev.students, student],
+        students: [...prev.students, {...student,status:prev.schools.find(s=>s.id===student.schoolId)?.activationEnabled===false?"active":student.status}],
         paymentPlans: plan ? [...prev.paymentPlans, plan] : prev.paymentPlans,
         charges: plan ? [...prev.charges, ...buildSchedule(plan, uid).map(c => ({...c, paidAmount: 0, minimumAccessRatio: c.period && c.period < shiftMonthKey(plan.startDate.slice(0,7), Math.max(0, plan.months-2)) ? .5 : 1}))] : prev.charges,
-        platformCharges: [
+        platformCharges: prev.schools.find(s=>s.id===student.schoolId)?.activationEnabled===false?prev.platformCharges:[
           ...prev.platformCharges,
           {
             id: uid(),

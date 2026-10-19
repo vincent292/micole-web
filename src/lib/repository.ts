@@ -3,6 +3,7 @@ import { initials } from "./format";
 import type { AppData, Collection, Identity } from "./types";
 
 export const emptyData = (): AppData => ({
+  demoRequests: [],
   subjectCatalog: [],
   subjects: [],
   classSubjects: [],
@@ -34,6 +35,7 @@ export const emptyData = (): AppData => ({
   media: [],
 });
 const tables: Record<Collection, string> = {
+  demoRequests: "demo_requests",
   subjectCatalog: "subject_catalog",
   subjects: "school_subjects",
   classSubjects: "class_subjects",
@@ -90,7 +92,7 @@ export function fromRow(table: Collection, row: Record<string, unknown>) {
     result.date = row.event_date || row.request_date;
   for (const field of [
     "maxScore", "score",
-    "paidAmount", "minimumAccessRatio", "total",
+    "creditApplied", "paidAmount", "minimumAccessRatio", "total",
     "monthlyFee", "licenseFee", "licenseCount", "unitAmount",
     "amount",
     "snackFee",
@@ -112,7 +114,7 @@ export function toRow(table: Collection, item: object) {
         "initials",
         "teacherIds",
         "token",
-        "localUrl",
+        "localUrl", "pickupFileUrl", "platformEnabled", "activationEnabled",
         "activeStudentCount", "directorIdentity", "directorPhone",
       ].includes(key) ||
       value === undefined
@@ -182,7 +184,9 @@ export async function loadData(platform = false, student = false, collections?: 
   await Promise.all(
     (Object.keys(tables) as Collection[])
       .filter(table => !wanted || wanted.has(table))
+      .filter(table => table!=="demoRequests" || platform)
       .filter(table => !["schoolReceipts", "invoiceRequests"].includes(table))
+      .filter(table => table!=="demoRequests" || platform)
       .filter(
         (table) =>
           !platform ||
@@ -190,6 +194,7 @@ export async function loadData(platform = false, student = false, collections?: 
             "schools",
             "platformCharges",
             "institutionRequests",
+            "demoRequests",
             "notifications",
             "auditEvents",
           ].includes(table),

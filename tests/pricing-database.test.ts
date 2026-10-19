@@ -1,3 +1,4 @@
+import {enableActivationFixture,fundInstitutionFixtures} from "./funded-institution-fixture";
 import {
   afterAll,
   afterEach,
@@ -120,6 +121,7 @@ beforeAll(async () => {
       ),
     );
   await db.exec(`create schema vault;create table vault.secrets(id uuid primary key default gen_random_uuid(),secret text,name text);create view vault.decrypted_secrets as select id,secret as decrypted_secret,name from vault.secrets;create function vault.create_secret(p_secret text,p_name text,p_desc text) returns uuid language plpgsql security definer as $$declare result uuid;begin insert into vault.secrets(secret,name) values(p_secret,p_name) returning id into result;return result;end $$;`);
+  await enableActivationFixture(db);
   await q(
     "insert into aulanexo_private.platform_admin_allowlist(email) values('ops-owner@test.bo')",
   );
@@ -171,7 +173,7 @@ beforeAll(async () => {
   }
 }, 30000);
 beforeEach(async () => {
-  await db.exec("begin");
+  await db.exec("begin");await fundInstitutionFixtures(db);
   await q("insert into platform_admins(user_id) values($1) on conflict do nothing",[owner]);
   await acting(director, () =>
     q("select set_student_login($1,$2,true)", [child, "ops-kid@test.bo"]),

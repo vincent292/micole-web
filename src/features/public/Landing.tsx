@@ -1,3 +1,4 @@
+import { DemoContact } from "./DemoContact";
 import {usePlatformTariffs} from '../Pricing';
 import { useState } from "react";
 import {
@@ -153,7 +154,7 @@ export function Landing() {
                 <a href="#planes" onClick={() => setMenu(false)}>
                   Planes
                 </a>
-                <Link to="/demo" onClick={() => setMenu(false)}>Solicitar demo</Link>
+                <a href="#solicitar-demo" onClick={() => setMenu(false)}>Solicitar demo</a>
                 <a href="#preguntas" onClick={() => setMenu(false)}>
                   Preguntas
                 </a>
@@ -194,14 +195,14 @@ export function Landing() {
                   cuidar y acompañar a quienes más importan.
                 </m.p>
                 <m.div className="landing-hero-actions" variants={itemVariants}>
-                  <Link
-                    to="/login?intent=school"
+                  <a
+                    href="#solicitar-demo"
                     className="btn btn-primary landing-cta"
                   >
-                    Quiero MiCole en mi institución <ArrowRight size={19} />
-                  </Link>
+                    Solicitar demo para mi institución <ArrowRight size={19} />
+                  </a>
                   <Link to="/demo" className="landing-secondary">
-                    Solicitar demo <ArrowRight size={17} />
+                    Probar demo ahora <ArrowRight size={17} />
                   </Link>
                 </m.div>
                 <m.div className="hero-reassurance" variants={itemVariants}>
@@ -432,14 +433,7 @@ export function Landing() {
                     <span>/ mes</span>
                   </div>
                   <p>Por cada estudiante con inscripción activa.</p>
-                  <div className="activation-fee">
-                    <span>
-                      <Sparkles size={20} /> Activación inicial
-                    </span>
-                    <b>
-                      Bs {ready?rates.activationFee.toLocaleString("es-BO"):"…"} <small>una sola vez</small>
-                    </b>
-                  </div>
+                  <div className="activation-fee"><span>Crédito inicial por institución</span><b>Bs 500 <small>de saldo a favor</small></b><p>Se descuenta de las licencias mensuales de tus estudiantes.</p>{rates.activationEnabled&&rates.activationFee>0?<small>Activación por nuevo estudiante: Bs {rates.activationFee}.</small>:<small>Sin cobro de activación por estudiante.</small>}</div>
                   <ul>
                     <li>
                       <Check size={18} /> Panel para dirección y maestras
@@ -458,7 +452,7 @@ export function Landing() {
                     Quiero comenzar <ArrowRight size={18} />
                   </Link>
                   <small>
-                    La activación inicial no incluye la licencia del primer mes.
+                    El adelanto se descuenta de tus licencias. Al agotarse, continúas con los pagos mensuales.
                   </small>
                 </m.div>
                 <div className="pricing-explanation">
@@ -489,6 +483,7 @@ export function Landing() {
                 </div>
               </div>
             </m.section>
+            <DemoContact />
             <m.section id="preguntas" className="faq-section landing-container" {...reveal}>
               <div className="faq-heading">
                 <span className="landing-eyebrow">CONVERSEMOS</span>

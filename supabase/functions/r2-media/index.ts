@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from 'npm:@aws-sdk/client-s3@3';
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3';
+import { imageSignatureMatches } from './pickup-image.ts';
 import { r2OriginHeaders } from './origins.ts';
 // Secrets: APP_ORIGIN, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET.
 // JWT se verifica con getUser: compatible con claves públicas y claves JWT asimétricas.
@@ -24,6 +25,37 @@ Deno.serve(async (req: Request) => {
     const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID'), secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY');
     if (!account || !bucket || !accessKeyId || !secretAccessKey) throw new Error('Cloudflare R2 todavía no está configurado.');
     const s3 = new S3Client({ region: 'auto', endpoint: `https://${account}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey }, requestChecksumCalculation: 'WHEN_REQUIRED' });
+    if (body.action === 'pickup_download') {
+      const {data:permitted}=await db.rpc('may_read_pickup_identity',{p_file_id:body.assetId});
+      if(permitted!==true)return reply({error:'No tienes acceso al carnet de esta autorización.'},403);
+      const {data:asset,error}=await db.from('pickup_identity_files').select('object_key,mime_type').eq('id',body.assetId).eq('status','ready').single();
+      if(error||!asset)return reply({error:'El carnet no está disponible.'},403);
+      const url=await getSignedUrl(s3,new GetObjectCommand({Bucket:bucket,Key:asset.object_key,ResponseContentType:asset.mime_type,ResponseContentDisposition:'inline'}),{expiresIn:300});return reply({url});
+    }
+    if(body.action==='pickup_upload') {
+      const {data:asset,error}=await db.rpc('reserve_pickup_identity',{p_request_id:body.requestId,p_student_id:body.studentId,p_file_name:body.fileName,p_mime_type:body.mimeType,p_size:body.size});
+      if(error||!asset)return reply({error:error?.message||'No puedes adjuntar este carnet.'},403);
+      const url=await getSignedUrl(s3,new PutObjectCommand({Bucket:bucket,Key:asset.objectKey,ContentType:body.mimeType,ContentLength:body.size}),{expiresIn:120});return reply({...asset,url});
+    }
+    if(body.action==='pickup_finalize') {
+      const {data:asset,error}=await db.rpc('pickup_identity_for_upload',{p_id:body.assetId});
+      if(error||!asset)return reply({error:error?.message||'Esta carga no está autorizada.'},403);
+      const head=await s3.send(new HeadObjectCommand({Bucket:bucket,Key:asset.staging_key}));
+      if(head.ContentLength!==asset.size_bytes||head.ContentType!==asset.mime_type)return reply({error:'La foto no coincide con la carga autorizada.'},400);
+      const object=await s3.send(new GetObjectCommand({Bucket:bucket,Key:asset.staging_key,IfMatch:head.ETag}));
+      const bytes=await object.Body!.transformToByteArray();
+      if(bytes.length!==asset.size_bytes||!imageSignatureMatches(bytes,asset.mime_type))return reply({error:'Adjunta una imagen válida del carnet, en JPG, PNG o WebP.'},400);
+      const ext=asset.mime_type==='image/jpeg'?'jpg':asset.mime_type==='image/png'?'png':'webp';
+      // A fresh final key cannot be overwritten using the earlier signed upload URL.
+      const finalKey=`${asset.school_id}/pickups/${asset.request_id}/${asset.id}/${crypto.randomUUID()}.${ext}`;
+      await s3.send(new PutObjectCommand({Bucket:bucket,Key:finalKey,Body:bytes,ContentType:asset.mime_type}));
+      const server=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+      const {data:finished,error:finishError}=await server.rpc('finish_pickup_identity',{p_id:asset.id,p_size:bytes.length,p_mime_type:asset.mime_type,p_object_key:finalKey});
+      if(finishError)return reply({error:'No se pudo confirmar la foto. Revisa la autorización antes de volver a intentar.'},400);
+      if(finished!==true){await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:finalKey}));return reply({error:'Esta carga ya fue confirmada o venció.'},400);}
+      await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:asset.staging_key})).catch(()=>{});
+      return reply({id:asset.id});
+    }
     if (body.action === 'assignment_download') {
       const {data:asset,error}=await db.from('assignment_files').select('object_key,file_name').eq('id',body.assetId).eq('status','ready').single();
       if(error||!asset)return reply({error:'No tienes acceso a este archivo de tarea.'},403);

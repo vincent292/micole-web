@@ -120,6 +120,7 @@ export function studentAccess(
     data.platformCharges.some(
       (c) =>
         c.studentId === student.id &&
+        data.schools.find(s=>s.id===student.schoolId)?.activationEnabled!==false &&
         c.status !== "paid" &&
         c.status !== "cancelled",
     )

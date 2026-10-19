@@ -1,4 +1,5 @@
 import "./demo.css";
+import {useSearchMetadata} from "./lib/useSearchMetadata";
 import { publicDemo, publicDemoUrl } from "./lib/demo-config";
 import { DemoAccess } from "./features/public/DemoAccess";
 import { lazy, Suspense, useEffect, useRef } from "react";
@@ -35,6 +36,7 @@ const legacyPages = new Set([
   "audit",
 ]);
 export default function App() {
+  useSearchMetadata();
   const location = useLocation();
   if (publicDemo && ["/", "/demo", "/login"].includes(location.pathname)) return <DemoAccess />;
   if (!publicDemo && location.pathname === "/demo") return <DemoRedirect />;

@@ -1,0 +1,109 @@
+.demo-contact-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+  padding-block: 80px;
+  scroll-margin-top: 100px;
+}
+.demo-contact-copy h2 {
+  font:
+    700 clamp(30px, 3vw, 43px)/1.2 Poppins,
+    Inter,
+    sans-serif;
+  letter-spacing: -1.2px;
+  color: #263238;
+}
+.demo-contact-copy h2 span {
+  color: #3d6ef7;
+}
+.demo-contact-copy > p {
+  color: #52636c;
+  font-size: 16px;
+  line-height: 1.8;
+}
+.demo-contact-copy > p svg {
+  vertical-align: middle;
+  margin-right: 6px;
+  color: #3d6ef7;
+}
+.demo-contact-form {
+  padding: 28px;
+}
+.demo-contact-form form {
+  display: grid;
+  gap: 14px;
+}
+.demo-contact-form form > .btn {
+  width: 100%;
+}
+.demo-contact-form small {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.6;
+}
+.demo-contact-trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.demo-contact-success {
+  padding: 24px 10px;
+  text-align: center;
+}
+.demo-contact-success svg {
+  color: #16845c;
+}
+.demo-contact-success p {
+  line-height: 1.7;
+  color: #52636c;
+}
+.platform-credit-panel .stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-block: 18px;
+}
+.platform-credit-panel .message p {
+  margin: 0 0 12px;
+  line-height: 1.7;
+}
+.pickup-evidence {
+  margin-top: 12px;
+}
+.pickup-identity-image {
+  width: 100%;
+  max-height: 55dvh;
+  object-fit: contain;
+  background: #f8faff;
+  border: 1px solid #dbe4f2;
+  border-radius: 12px;
+}
+.platform-startup-notice {
+  background: #fff9e9;
+  border: 1px solid #f1d18c;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+.platform-startup-notice p {
+  margin: 6px 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+@media (max-width: 800px) {
+  .demo-contact-section {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding-block: 50px;
+  }
+  .demo-contact-form {
+    padding: 22px 18px;
+  }
+  .demo-contact-section .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .platform-credit-panel .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

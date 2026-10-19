@@ -1,6 +1,7 @@
 import type { AppData } from "./types";
 
 export const seed: AppData = {
+  demoRequests: [],
   subjectCatalog: [],
   subjects: [],
   classSubjects: [],

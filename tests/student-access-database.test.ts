@@ -1,3 +1,4 @@
+import {enableActivationFixture,fundInstitutionFixtures} from "./funded-institution-fixture";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
@@ -23,10 +24,12 @@ beforeAll(async () => {
   alter default privileges in schema public grant select,insert,update,delete on tables to authenticated,anon;`);
   const migrations = new URL("../supabase/migrations/", import.meta.url);
   for (const file of readdirSync(migrations).filter(f => f.endsWith(".sql")).sort()) await db.exec(readFileSync(new URL(file,migrations),"utf8").replace("create extension if not exists pgcrypto;", ""));
+  await enableActivationFixture(db);
   await query("insert into aulanexo_private.platform_admin_allowlist(email) values('owner-student@test.bo')");
   for (const [user, email] of [[owner,"owner-student@test.bo"],[director,"director-student@test.bo"],[teacher,"teacher-student@test.bo"],[mother,"mother-student@test.bo"],[father,"father-student@test.bo"],[kidUser,"kid@test.bo"],[stranger,"stranger-student@test.bo"],[otherDirector,"other-director-student@test.bo"],[unverified,"unverified-student@test.bo"]])
     await query("insert into auth.users(id,email,email_confirmed_at) values($1,$2,case when $3::boolean then now() else null end)",[user,email,user !== unverified]);
   await query("insert into schools(id,name,slug,status,nit,address) values($1,'Colegio de lectura','student-read','active','NIT PRIVADO','DIRECCION PRIVADA'),($2,'Otro colegio','student-other','active','','')",[school,otherSchool]);
+  await fundInstitutionFixtures(db);
   await query("insert into school_memberships(school_id,user_id,role) values($1,$2,'director'),($1,$3,'teacher'),($4,$5,'director')",[school,director,teacher,otherSchool,otherDirector]);
   await query("insert into classrooms(id,school_id,name) values($1,$2,'Primero A'),($3,$2,'Primero B')",[room,school,otherRoom]);
   await query("insert into teachers(id,school_id,user_id,name,email,status) values($1,$2,$3,'Profesora','teacher-student@test.bo','active')",[id(50),school,teacher]);

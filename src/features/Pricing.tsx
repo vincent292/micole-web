@@ -49,6 +49,8 @@ export function TariffSettings({ schools }: { schools: School[] }) {
   const [schoolId, setSchoolId] = useState(""),
     [editing, setEditing] = useState(false),
     [notice, setNotice] = useState("");
+  const [activationChange,setActivationChange]=useState<boolean|null>(null);
+  const [activationBusy,setActivationBusy]=useState(false),[activationError,setActivationError]=useState("");
   const { rates, ready, error, refresh } = usePlatformTariffs(schoolId);
   return (
     <section className="panel">
@@ -84,6 +86,8 @@ export function TariffSettings({ schools }: { schools: School[] }) {
       )}
       {ready ? (
         <>
+          <p className="message info">Activación por estudiante: <b>{rates.activationEnabled===false?"Deshabilitada":"Habilitada"}</b>. El adelanto inicial de la institución es Bs 500.</p>
+          <Button variant="secondary" disabled={!liveMode} onClick={()=>{setActivationChange(rates.activationEnabled===false);setActivationError("");}}>{rates.activationEnabled===false?"Habilitar activación por estudiante":"Deshabilitar activación por estudiante"}</Button>
           <div className="form-grid">
             <div className="preview-total">
               <span>Activación por estudiante</span>
@@ -116,6 +120,7 @@ export function TariffSettings({ schools }: { schools: School[] }) {
         Las cuotas emitidas y sus abonos se conservan. Un precio nuevo no
         modifica deudas anteriores.
       </p>
+      {activationChange!==null&&<Modal title={activationChange?"Habilitar cobro de activación":"Deshabilitar cobro de activación"} busy={activationBusy} error={activationError} onClose={()=>setActivationChange(null)} onSubmit={async e=>{e.preventDefault();setActivationBusy(true);setActivationError("");try{const f=new FormData(e.currentTarget);await rpc("set_platform_activation",{p_enabled:activationChange,p_reason:String(f.get("reason")||"")});refresh();window.dispatchEvent(new Event("micole:tariffs"));setActivationChange(null);setNotice("Configuración de activación actualizada.");}catch(e){setActivationError((e as Error).message);}finally{setActivationBusy(false);}}}><p>El cambio se aplica al cobro de activación de las instituciones. Los importes ya emitidos conservarán su historial.</p><Field label="Motivo del cambio" name="reason"><textarea name="reason" required minLength={5} maxLength={500} rows={3}/></Field></Modal>}
       {editing && (
         <TariffDialog
           schoolId={schoolId}
@@ -207,7 +212,7 @@ function TariffDialog({
             step="0.01"
             required
             disabled={inherit}
-            defaultValue={rates.activationFee}
+            defaultValue={rates.configuredActivationFee??rates.activationFee}
           />
         </Field>
         <Field

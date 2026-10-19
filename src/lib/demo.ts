@@ -18,7 +18,7 @@ export function readDemoData(): AppData {
       Array.isArray(parsed.students) &&
       Array.isArray(parsed.assignments)
     )
-      return parsed;
+      return {...makeDemoSeed(),...parsed,demoRequests:parsed.demoRequests||[],schools:parsed.schools.map((s: AppData["schools"][number])=>({...s,platformEnabled:true,activationEnabled:false}))};
   } catch {
     /* reset corrupted local data */
   }
@@ -655,7 +655,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
         rows: report,
         committed: false,
         count: report.filter((r) => r.ok).length,
-        activationFee: 50,
+        activationFee: 0,
         licenseFee: 29,
       };
       if (p.p_commit) {
@@ -700,7 +700,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
               guardianEmail: r.mother_email || r.father_email,
               allergies: "",
               monthlyFee: fee,
-              status: "pending",
+              status: "active",
               enrolledAt: today(),
             });
             const plan = {
@@ -726,15 +726,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
                 minimumAccessRatio: i >= all.length - 2 ? 1 : 0.5,
               })),
             );
-            data.platformCharges.push({
-              id: id(),
-              schoolId,
-              studentId,
-              concept: "Activación MiCole · Demo",
-              period: today().slice(0, 7),
-              amount: 50,
-              status: "pending",
-            });
+
           }
         });
         result = { ...(result as object), committed: true, count: rows.length };
@@ -767,7 +759,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
       break;
     }
     case "platform_tariffs":
-      result = { activationFee: 50, monthlyLicenseFee: 29, inherited: true };
+      result = { activationFee: 0, configuredActivationFee:50,activationEnabled:false,initialCredit:500, monthlyLicenseFee: 29, inherited: true };
       mutation = false;
       break;
     case "baneco_payment_register":

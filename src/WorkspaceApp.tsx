@@ -1,3 +1,5 @@
+import { PlatformCreditPanel } from "./features/PlatformCredit";
+import { DemoRequests } from "./features/DemoRequests";
 import { publicDemo, demoRole, setDemoRole, demoAccounts } from "./lib/demo-config";
 import { DemoAccess } from "./features/public/DemoAccess";
 import { useEffect, useState } from "react";
@@ -83,6 +85,7 @@ const roleNames: Record<Role, string> = {
 };
 const ALL: Role[] = ["superadmin", "director", "teacher", "guardian", "student"];
 const pageDescriptions: Record<string, string> = {
+ credit:"Adelanto, saldo a favor y aplicación de las licencias mensuales.", demoRequests:"Solicitudes recibidas desde la landing y su seguimiento.",
   care:"Cuidados y resumen diario para las familias.",gradebook:"Evaluaciones, promedios y libretas publicadas.",years:"Reinscripciones e historial por gestión.",onboarding:"Configura e importa tu comunidad por pasos.",
   subjects:"Organiza materias opcionales y sus docentes por aula.",
   assignments:"Publica tareas, recibe entregas y revisa trabajos.",
@@ -170,6 +173,8 @@ const nav: {
   { key: "cash", label: "Caja y cobros", icon: Wallet, roles: ["director", "teacher", "guardian"], group: "TU ESPACIO" },
   { key: "invoices", label: "Facturas", icon: BookOpen, roles: ["director", "guardian"], group: "TU ESPACIO" },
   { key: "activities", label: "Actividades y salidas", icon: CalendarDays, roles: COMMUNITY_ROLES, group: "COMUNIDAD" },
+  {key:"credit",label:"Crédito MiCole",icon:Wallet,roles:["superadmin","director"],group:"TU ESPACIO"},
+  {key:"demoRequests",label:"Solicitudes de demo",icon:Building2,roles:["superadmin"],group:"ADMINISTRACIÓN"},
   {
     key: "platform",
     label: "Facturación MiCole",
@@ -413,17 +418,20 @@ function Workspace({
   const access = studentAccess(student, store.data);
   const studentLocked = role === "student" && store.data.studentPortalAccess?.allowed === false;
   const locked = role === "guardian" && !access.allowed;
+  const startupLocked=liveMode&&role!=="superadmin"&&!identity.support&&school?.platformEnabled===false;
+  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers"]:role==="guardian"?["payments","cash","invoices","requests"]:["overview","requests"];
   const needsProfile =
     role === "guardian" && !!student && !student.profileComplete;
   const page = location.pathname.split("/")[2] || "overview";
   const navItems = nav.filter(
     (n) =>
       n.roles.includes(role) &&
+      (!startupLocked||startupAllowed.includes(n.key))&&
       (n.key !== "support" || identity.canSupport) &&
       (!locked || ["payments", "cash", "invoices"].includes(n.key)) &&
       (!needsProfile || ["payments", "cash", "invoices", "family"].includes(n.key)),
   );
-  const validPage = studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
+  const validPage = startupLocked ? (startupAllowed.includes(page)?page:role==="director"?"credit":startupAllowed[0]) : studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
     ? (["payments", "cash", "invoices"].includes(page) ? page : "payments")
     : needsProfile && !["payments", "cash", "invoices"].includes(page)
       ? "family"
@@ -908,6 +916,7 @@ function Workspace({
           </div>
         )}
         <main className="main-content">
+          {startupLocked&&validPage!=="credit"&&<div className="platform-startup-notice" role="status"><b>Crédito inicial pendiente de confirmación</b><p>Dirección debe completar el adelanto de Bs 500 para habilitar la institución. El importe se utilizará para cubrir licencias mensuales.</p></div>}
           {publicDemo && <details className="demo-tour"><summary>Qué puedes probar como {roleNames[role]}</summary><p>{role==="director"?"Crea aulas, inscribe un estudiante con su plan, registra un cobro y consulta los reportes. También puedes configurar materias, revisar tareas y publicar libretas.":role==="teacher"?"Explora tus aulas, publica una tarea, revisa una entrega y registra los cuidados del día. Las familias verán esos cambios en esta misma demo.":role==="guardian"?"Consulta a Sofía y Diego, sus tareas, agenda, cuidados y libretas. Prueba un permiso o un pago simulado; la información académica es de lectura.":"Consulta las tareas de Sofía, escribe una respuesta y entrégala. Luego cambia a Docente para revisar tu entrega."}</p><div className="demo-tour-links">{(role==="director"?[["students","Estudiantes"],["cash","Caja y cobros"],["gradebook","Libretas"],["reports","Reportes"]]:role==="teacher"?[["assignments","Tareas y entregas"],["care","Cuidados diarios"],["gradebook","Evaluación"]]:role==="guardian"?[["family","Mis hijos"],["calendar","Agenda"],["gradebook","Libretas"],["cash","Pagos"]]:[["assignments","Entregar una tarea"],["calendar","Agenda"]]).map(([key,label])=><button key={key} onClick={()=>go(key)}>{label}</button>)}</div></details>}
           {resetOpen && <section className="panel" role="alert"><h2>¿Restablecer los datos de la demo?</h2><p>Se borrarán tus cambios locales y volverán los ejemplos iniciales. Los datos de la plataforma real no se modifican.</p><div className="demo-reset-actions"><Button onClick={()=>{store.reset();setResetOpen(false);setModal(null);go("overview");setToast("Demo restablecida. Puedes empezar de nuevo.");}}>Sí, restablecer</Button><Button variant="secondary" onClick={()=>setResetOpen(false)}>Conservar mis pruebas</Button></div></section>}
           <div className="view-top">
@@ -1066,6 +1075,8 @@ function Workspace({
               {["institutionRequests", "audit"].includes(validPage) && (
                 <PlatformOperations page={validPage} {...props} />
               )}
+              {validPage === "credit" && <PlatformCreditPanel schoolId={role==="superadmin"?undefined:school?.id} schools={store.data.schools} store={store}/>}
+              {validPage === "demoRequests" && <DemoRequests {...props}/>}
               {validPage === "gallery" && <Gallery {...props} />}
               {validPage === "reports" && ["superadmin", "director"].includes(role) && <Reports {...props} />}
               {!school && !isPlatform && validPage !== "schools" && (

@@ -2,6 +2,8 @@ export type Role = "superadmin" | "director" | "teacher" | "guardian" | "student
 export type Status = "active" | "pending" | "inactive";
 export type ChargeStatus = "pending" | "paid" | "overdue" | "cancelled";
 export interface School {
+  platformEnabled?: boolean;
+  activationEnabled?: boolean;
   id: string;
   name: string;
   slug: string;
@@ -109,6 +111,8 @@ export interface Charge {
   academicRequestId?: string;
 }
 export interface PlatformCharge {
+  kind?: "activation" | "license" | "credit_topup";
+  creditApplied?: number;
   licenseCount?: number;
   unitAmount?: number;
   id: string;
@@ -154,6 +158,11 @@ export interface PaymentPlan {
   createdAt: string;
 }
 export interface FamilyRequest {
+  pickupFileId?: string;
+  pickupFileUrl?: string;
+  pickupVerifiedAt?: string;
+  pickupVerifiedBy?: string;
+  pickupVerificationNote?: string;
   id: string;
   schoolId: string;
   studentId: string;
@@ -350,7 +359,9 @@ export interface SubjectTeacher { id: string; schoolId: string; classSubjectId: 
 export interface Assignment { id: string; schoolId: string; classroomId: string; classSubjectId?: string; title: string; instructions: string; dueAt?: string; allowLate: boolean; maxScore: number; status: 'draft' | 'published' | 'closed'; createdBy: string; createdAt: string; updatedAt: string }
 export interface AssignmentSubmission { id: string; schoolId: string; assignmentId: string; studentId: string; body: string; status: 'draft' | 'submitted' | 'returned' | 'reviewed'; score?: number; feedback: string; submittedBy: string; submittedAt?: string; reviewedAt?: string; updatedAt: string; revision: number }
 export interface AssignmentFile { id: string; schoolId: string; submissionId: string; fileName: string; mimeType: string; sizeBytes: number; status: 'pending' | 'ready'; uploadedBy: string; createdAt: string }
+export interface DemoRequest {id:string;schoolName:string;contactName:string;email:string;phone:string;city:string;message:string;status:'pending'|'contacted'|'closed';notes:string;createdAt:string;reviewedAt?:string}
 export interface AppData {
+  demoRequests: DemoRequest[];
   subjectCatalog: SubjectCatalogItem[];
   subjects: SchoolSubject[];
   classSubjects: ClassSubject[];

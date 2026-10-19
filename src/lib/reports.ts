@@ -11,7 +11,7 @@ export interface ReportCharge {
   amount: number;
   paidAmount?: number;
   status: "pending" | "paid" | "overdue" | "cancelled";
-  kind: "tuition" | "license" | "activation";
+  kind: "tuition" | "license" | "activation" | "credit_topup";
   licenseCount?: number | null;
 }
 export interface ReportPayment {

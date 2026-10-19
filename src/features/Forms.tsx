@@ -1,3 +1,5 @@
+import { platformBalance } from "../lib/pricing";
+import { uploadPickupIdentity } from "./PickupIdentity";
 import {usePlatformTariffs} from './Pricing';
 import { BankQrDialog } from "./BankQr";
 import {subjectName,subjectOptions} from "../lib/learning";
@@ -249,6 +251,9 @@ export function WorkspaceModal({
   const [error, setError] = useState(""),
     [link, setLink] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pickupRequestId,setPickupRequestId]=useState(()=>uid());
+  const [pickupFile,setPickupFile]=useState<File|null>(null);
+  const [pickupAsset,setPickupAsset]=useState<{id:string;localUrl?:string}|null>(null);
   const needsTariffs=type==="plan"||(type==="student"&&!id);
   const tariffs=usePlatformTariffs(school?.id,needsTariffs);
   const frozenData = useRef(store.data);
@@ -514,8 +519,12 @@ export function WorkspaceModal({
         });
       if (type === "absence" || type === "pickup") {
         if (!student) throw new Error("Selecciona un hijo.");
+        let asset=pickupAsset;
+        if(type==="pickup"&&!asset){if(!pickupFile)throw new Error("Adjunta la foto del carnet de quien recogerá al niño.");asset=await uploadPickupIdentity(pickupRequestId,student.id,pickupFile);setPickupAsset(asset);}
         await store.save("requests", {
-          id: uid(),
+          id: type==="pickup"?pickupRequestId:uid(),
+          pickupFileId: asset?.id,
+          pickupFileUrl: asset?.localUrl,
           schoolId,
           studentId: student.id,
           type: type === "absence" ? "absence" : "pickup",
@@ -611,7 +620,7 @@ export function WorkspaceModal({
       if (type === "reset") store.reset();
       onSuccess(
         type === "student" && !id
-          ? `Inscripción creada. Activación de ${money(tariffs.rates.activationFee)} pendiente; ya puedes invitar a la familia.`
+          ? tariffs.rates.activationFee>0?`Inscripción creada. Activación de ${money(tariffs.rates.activationFee)} pendiente; ya puedes invitar a la familia.`:"Inscripción creada sin cobro de activación. Ya puedes completar la ficha familiar."
           : type === "invoice"
             ? "Solicitud de factura guardada para la institución."
             : "Cambios guardados correctamente.",
@@ -626,7 +635,7 @@ export function WorkspaceModal({
       setSubmitting(false);
     }
   }
-  if (type === "qr") return <BankQrDialog request={charge?{kind:data.platformCharges.some(c=>c.id===charge.id)?"platform":"school",schoolId:charge.schoolId,studentId:"studentId" in charge?charge.studentId:undefined,items:[{chargeId:charge.id,amount:charge.amount}]}:undefined} onClose={onClose} onChanged={()=>void store.refresh()}/>;
+  if (type === "qr") return <BankQrDialog request={charge?{kind:data.platformCharges.some(c=>c.id===charge.id)?"platform":"school",schoolId:charge.schoolId,studentId:"studentId" in charge?charge.studentId:undefined,items:[{chargeId:charge.id,amount:"dueDate" in charge?charge.amount:platformBalance(charge)}]}:undefined} onClose={onClose} onChanged={()=>void store.refresh()}/>;
   if (link)
     return (
       <Modal
@@ -1203,6 +1212,7 @@ export function WorkspaceModal({
           </Field>
           {type === "pickup" && (
             <>
+              <Field label="Foto del carnet de quien recogerá" name="pickupIdentityPhoto"><input name="pickupIdentityPhoto" type="file" accept="image/jpeg,image/png,image/webp" required onChange={e=>{setPickupFile(e.target.files?.[0]||null);setPickupAsset(null);setPickupRequestId(uid());}}/></Field><p className="muted">Adjunta el anverso legible, con foto, nombre y CI. Solo la familia y el personal autorizado podrán consultarlo.</p>
               <Field
                 label="Nombre de quien recogerá"
                 name="pickupName"

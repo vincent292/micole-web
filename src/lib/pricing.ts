@@ -3,12 +3,18 @@ import { liveMode } from "./supabase";
 export interface PlatformTariffs {
   schoolId?: string | null;
   activationFee: number;
+  activationEnabled?: boolean;
+  configuredActivationFee?: number;
+  initialCredit?: number;
   monthlyLicenseFee: number;
   inherited: boolean;
   updatedAt?: string;
 }
 export const defaultTariffs: PlatformTariffs = {
-  activationFee: 50,
+  activationFee: 0,
+  configuredActivationFee: 50,
+  activationEnabled: false,
+  initialCredit: 500,
   monthlyLicenseFee: 29,
   inherited: true,
 };
@@ -17,7 +23,7 @@ export function parseTariffs(value: unknown): PlatformTariffs {
   if (
     !row ||
     !Number.isFinite(Number(row.activationFee)) ||
-    Number(row.activationFee) <= 0 ||
+    Number(row.activationFee) < 0 ||
     !Number.isFinite(Number(row.monthlyLicenseFee)) ||
     Number(row.monthlyLicenseFee) <= 0
   )
@@ -57,3 +63,5 @@ export async function loadPublicTariffs() {
     );
   return parseTariffs(await response.json());
 }
+
+export const platformBalance=(charge:{amount:number;status:string;creditApplied?:number})=>["paid","cancelled"].includes(charge.status)?0:Math.max(0,Math.round((charge.amount-(charge.creditApplied||0))*100)/100);

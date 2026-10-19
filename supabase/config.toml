@@ -14,3 +14,6 @@ verify_jwt = false # Internal worker authenticates x-micole-worker-key; no user 
 
 [functions.bank-qr]
 verify_jwt = false # User JWT verified with auth.getUser; public links are exact-charge capabilities; worker uses its private key.
+
+[functions.demo-request]
+verify_jwt = false # Formulario público; valida origen, consentimiento y límites en el servidor.

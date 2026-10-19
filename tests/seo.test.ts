@@ -1,0 +1,9 @@
+import {describe,it,expect} from 'vitest';
+import {seoFiles,siteOrigin} from '../scripts/seo.mjs';
+const html='<!doctype html><html><head><title>Anterior</title><meta name="description" content="Anterior" /></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>';
+const meta={name:'MiCole',title:'MiCole | Colegios',description:'Agenda y comunicación familiar',image:'/brand/logo-horizontal.png'};
+describe('indexación pública y privacidad',()=>{
+ it('incluye solo la landing canónica en el sitemap y conserva los assets',()=>{const f=seoFiles(html,meta,{siteUrl:'https://micole.example',demo:false});expect(f.index).toContain('content="index, follow');expect(f.index).toContain('rel="canonical" href="https://micole.example/"');expect(f.index).toContain('application/ld+json');expect(f.sitemap).toContain('<loc>https://micole.example/</loc>');expect(f.sitemap).not.toMatch(/app|inscripcion|pago|login/);expect(f.robots).toContain('Sitemap: https://micole.example/sitemap.xml');expect(f.app).toContain('content="noindex, nofollow"');expect(f.app).not.toContain('canonical');expect(f.app).toContain('/assets/app.js');});
+ it('ninguna demo, preview o build sin dominio se indexa',()=>{for(const options of [{siteUrl:'https://micole.example',demo:true},{siteUrl:'https://micole.example',preview:true},{}]){const f=seoFiles(html,meta,options);expect(f.indexable).toBe(false);expect(f.index).toContain('noindex');expect(f.robots).toContain('Disallow: /');expect(f.sitemap).not.toContain('<loc>');expect(f.index).not.toContain('application/ld+json');}});
+ it('rechaza dominios con rutas, tokens o protocolos incorrectos',()=>{for(const value of ['http://micole.example','https://micole.example/app','https://micole.example/?token=privado','https://user:pass@micole.example','https://localhost'])expect(()=>siteOrigin(value)).toThrow();});
+});

@@ -1,3 +1,5 @@
+import { platformBalance } from "../lib/pricing";
+import { PickupIdentity } from "./PickupIdentity";
 import { publicDemo } from "../lib/demo-config";
 import {TariffSettings,ChargeAmountDialog,StudentFeesDialog,usePlatformTariffs} from './Pricing';
 import { PlatformBankDues, BankRegister } from "./BankQr";
@@ -581,7 +583,7 @@ export function Payments({
   const sum = (paid: boolean) =>
     usable
       .filter((c) => (c.status === "paid") === paid)
-      .reduce((a, c) => a + c.amount, 0);
+      .reduce((a, c) => a + (platform&&!paid?platformBalance(c):c.amount), 0);
   return (
     <>
       {platform&&<TariffSettings schools={store.data.schools}/>}
@@ -718,7 +720,7 @@ export function Payments({
                     </td>
                     <td>{"dueDate" in c ? dateLabel(c.dueDate) : c.period}</td>
                     <td>
-                      <b>{money(c.amount)}</b>{"paidAmount" in c && !!c.paidAmount && c.status !== "paid" && <small className="block">Abonado {money(c.paidAmount)} · Saldo {money(chargeBalance(c))}</small>}
+                      <b>{money(c.amount)}</b>{platform&&"creditApplied" in c&&!!c.creditApplied&&<small className="block">Crédito {money(c.creditApplied)} · Saldo {money(platformBalance(c))}</small>}{"paidAmount" in c && !!c.paidAmount && c.status !== "paid" && <small className="block">Abonado {money(c.paidAmount)} · Saldo {money(chargeBalance(c))}</small>}
                     </td>
                     <td>
                       <Badge
@@ -727,9 +729,9 @@ export function Payments({
                     </td>
                     <td>
                       <div className="table-actions">
-                        {['superadmin','director'].includes(role)&&!['paid','cancelled'].includes(c.status)&&<Button variant="ghost" onClick={()=>setAdjusted(c)}>Aumentar importe</Button>}
+                        {['superadmin','director'].includes(role)&&!['paid','cancelled'].includes(c.status)&&(!platform||((!('kind' in c)||c.kind!=='credit_topup')&&(!('creditApplied' in c)||!c.creditApplied)))&&<Button variant="ghost" onClick={()=>setAdjusted(c)}>Aumentar importe</Button>}
 
-                        {c.status !== "cancelled" && c.status !== "paid" && (
+                        {c.status !== "cancelled" && c.status !== "paid" && (!platform||((!("kind" in c)||c.kind!=="credit_topup")&&(!("creditApplied" in c)||!c.creditApplied))) && (
                           <Button
                             variant="secondary"
                             onClick={() =>
@@ -1130,6 +1132,7 @@ export function Community({
                       </span>
                     </div>
                   )}
+                  {r.type==="pickup"&&<PickupIdentity request={r} canVerify={canWrite} onChanged={()=>store.refresh()} saveLocal={request=>store.save("requests",request)}/>}
                   {r.response && (
                     <p className="response-text">Respuesta: {r.response}</p>
                   )}

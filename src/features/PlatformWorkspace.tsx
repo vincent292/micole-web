@@ -1,3 +1,4 @@
+import { platformBalance } from "../lib/pricing";
 import {TariffSettings} from './Pricing';
 import { TestWorkspace, type TestAccount } from "./TestWorkspace";
 import { PaymentConnection } from "./PaymentConnection";
@@ -78,7 +79,7 @@ export function PlatformOverview({ store, identity, go, open }: PageProps) {
         />
         <StatCard
           label="Por cobrar · MiCole"
-          value={money(pending.reduce((total, c) => total + c.amount, 0))}
+          value={money(pending.reduce((total, c) => total + platformBalance(c), 0))}
           icon={Wallet}
           tone="amber"
           footer={`${pending.length} cargos pendientes`}

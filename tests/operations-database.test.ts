@@ -1,3 +1,4 @@
+import {enableActivationFixture,fundInstitutionFixtures} from "./funded-institution-fixture";
 import {afterAll,afterEach,beforeAll,beforeEach,describe,expect,it} from 'vitest';
 import {PGlite} from '@electric-sql/pglite';
 import {readFileSync,readdirSync} from 'node:fs';
@@ -27,6 +28,7 @@ const checkout=(items:any[],receipt=id(90),method='cash',invoice:any={},reviewed
 beforeAll(async()=>{
  await db.exec(`create role authenticated;create role anon;create role service_role;create schema auth;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;grant execute on function auth.uid() to authenticated,anon;alter default privileges in schema public grant select,insert,update,delete on tables to authenticated,anon;`);
  const migrations=new URL('../supabase/migrations/',import.meta.url);for(const file of readdirSync(migrations).filter(f=>f.endsWith('.sql')).sort())await db.exec(readFileSync(new URL(file,migrations),'utf8').replace('create extension if not exists pgcrypto;',''));
+  await enableActivationFixture(db);
  await q("insert into aulanexo_private.platform_admin_allowlist(email) values('ops-owner@test.bo')");
  for(const [user,email]of[[owner,'ops-owner@test.bo'],[director,'ops-director@test.bo'],[teacher,'ops-teacher@test.bo'],[mother,'ops-mother@test.bo'],[father,'ops-father@test.bo'],[kid,'ops-kid@test.bo'],[stranger,'ops-stranger@test.bo']])await q('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[user,email]);
  await q("insert into schools(id,name,slug,status) values($1,'Colegio Operaciones','ops-one','active'),($2,'Otro colegio','ops-two','active')",[school,otherSchool]);
@@ -38,7 +40,7 @@ beforeAll(async()=>{
  await q("insert into platform_charges(school_id,student_id,concept,period,amount,status) values($1,$2,'Activación','2026-10',50,'paid')",[school,student]);
  }
 },30000);
-beforeEach(async()=>{await db.exec('begin');await acting(mother,()=>q('select workspace_identity()'));await acting(father,()=>q('select workspace_identity()'));});
+beforeEach(async()=>{await db.exec('begin');await fundInstitutionFixtures(db);await acting(mother,()=>q('select workspace_identity()'));await acting(father,()=>q('select workspace_identity()'));});
 afterEach(async()=>{await db.exec('rollback');});afterAll(async()=>{await db.close();});
 describe('operación conectada, cobros y permisos',()=>{
  it('mantiene el carnet y celular de Dirección fuera de schools y del directorio público',async()=>{

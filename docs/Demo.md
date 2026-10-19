@@ -2,7 +2,7 @@
 
 URL para compartir: **https://micole-demo.vercel.app/**
 
-En la landing real, **Solicitar demo** abre `/demo` y dirige a ese sitio.
+En la landing real, **Probar demo ahora** abre `/demo` y dirige a ese sitio. **Solicitar demo para mi institución** lleva al formulario comercial opcional; esas solicitudes llegan al panel del propietario, separadas de los datos ficticios de la demo.
 Acceso inmediato: no hay formulario comercial, registro real ni envío de correos.
 
 ## Credenciales públicas y ficticias

@@ -10,6 +10,7 @@ const env = {
   VITE_R2_ENABLED: "false",
   VITE_GOOGLE_MAPS_EMBED_KEY: "",
   VITE_DEMO_URL: "",
+  VITE_SITE_URL: "",
 };
 const result = spawnSync("npm", ["run", "build"], { stdio: "inherit", env });
 if (result.status !== 0) process.exit(result.status || 1);
@@ -20,10 +21,6 @@ writeFileSync(
     .replace(
       /<title>[^<]*<\/title>/,
       "<title>Demo MiCole · Explora tu comunidad</title>",
-    )
-    .replace(
-      "</head>",
-      '<meta name="robots" content="noindex,nofollow" /></head>',
     ),
 );
 console.log(

@@ -1,3 +1,4 @@
+import {enableActivationFixture,fundInstitutionFixtures} from "./funded-institution-fixture";
 import {
   afterAll,
   afterEach,
@@ -119,6 +120,7 @@ beforeAll(async () => {
         "",
       ),
     );
+  await enableActivationFixture(db);
   await q(
     "insert into aulanexo_private.platform_admin_allowlist(email) values('ops-owner@test.bo')",
   );
@@ -170,7 +172,7 @@ beforeAll(async () => {
   }
 }, 30000);
 beforeEach(async () => {
-  await db.exec("begin");
+  await db.exec("begin");await fundInstitutionFixtures(db);
   await q("insert into platform_admins(user_id) values($1) on conflict do nothing",[owner]);
   await acting(director, () =>
     q("select set_student_login($1,$2,true)", [child, "ops-kid@test.bo"]),
