@@ -41,6 +41,9 @@ async function publicFixture(page: Page, rows: AffiliateFixture[] = []) {
   await page.route(/^https:\/\/[^/]+\.supabase\.co\//, async (route) => {
     const request = route.request();
     state.calls.push(request);
+    if (new URL(request.url()).pathname === "/rest/v1/rpc/platform_tariffs") {
+      await route.fulfill({json:{activationFee:50,monthlyLicenseFee:29,inherited:true}});return;
+    }
     if (new URL(request.url()).pathname !== publicRpc) {
       state.forbidden.push(request.url());
       await route.fulfill({ status: 500, json: { message: "Unexpected private request on public landing" } });
@@ -56,9 +59,9 @@ async function assertPublicOnly(state: Awaited<ReturnType<typeof publicFixture>>
   expect(state.calls.length).toBeGreaterThan(0);
   expect(state.forbidden).toEqual([]);
   for (const request of state.calls) {
-    expect(new URL(request.url()).pathname).toBe(publicRpc);
+    expect([publicRpc,"/rest/v1/rpc/platform_tariffs"]).toContain(new URL(request.url()).pathname);
     expect(request.method()).toBe("POST");
-    expect(request.postDataJSON()).toEqual({});
+    expect(request.postDataJSON()).toEqual(new URL(request.url()).pathname===publicRpc?{}:{p_school_id:null});
     const headers = await request.allHeaders();
     expect(headers.apikey).toBe("public-test");
     expect(headers.authorization).toBeUndefined();
@@ -186,7 +189,7 @@ test.describe("preferencia de movimiento reducido", () => {
 test.describe("instituciones públicas conectadas", () => {
   test.use({ baseURL: liveUrl, reducedMotion: "reduce", hasTouch: true });
 
-  test("la lista vacía real conserva el CTA y consulta únicamente el RPC anónimo", async ({ page }) => {
+  test("la lista vacía real conserva el CTA y consulta únicamente los RPC públicos anónimos", async ({ page }) => {
     const state = await publicFixture(page);
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Tu institución puede ser la primera." })).toBeVisible();

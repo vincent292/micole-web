@@ -1,4 +1,7 @@
-import { lazy, Suspense } from "react";
+import "./demo.css";
+import { publicDemo, publicDemoUrl } from "./lib/demo-config";
+import { DemoAccess } from "./features/public/DemoAccess";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { Brand } from "./components/Brand";
 import { Landing } from "./features/public/Landing";
@@ -33,6 +36,8 @@ const legacyPages = new Set([
 ]);
 export default function App() {
   const location = useLocation();
+  if (publicDemo && ["/", "/demo", "/login"].includes(location.pathname)) return <DemoAccess />;
+  if (!publicDemo && location.pathname === "/demo") return <DemoRedirect />;
   if (location.pathname === "/") {
     if (
       location.hash.includes("access_token=") ||
@@ -93,4 +98,11 @@ export default function App() {
       </Link>
     </main>
   );
+}
+
+function DemoRedirect() {
+  const started=useRef(false);
+  const valid=/^https:\/\//.test(publicDemoUrl);
+  useEffect(()=>{if(valid&&!started.current){started.current=true;window.location.replace(publicDemoUrl);}},[valid]);
+  return <main className="loading-screen"><Brand/><h1>Demostración de MiCole</h1><p>Preparando el acceso inmediato…</p>{valid?<a className="btn btn-primary" href={publicDemoUrl}>Abrir demo</a>:<Link className="btn btn-primary" to="/">Volver a MiCole</Link>}</main>;
 }

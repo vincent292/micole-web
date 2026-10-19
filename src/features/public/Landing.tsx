@@ -12,7 +12,6 @@ import {
 import * as m from "motion/react-m";
 import { Link } from "react-router-dom";
 import {
-  ArrowDown,
   ArrowRight,
   Bell,
   BookOpen,
@@ -104,7 +103,7 @@ const questions = [
   ],
 ];
 export function Landing() {
-  const {rates,ready,error:tariffError}=usePlatformTariffs();
+  const {rates,ready,error:tariffError}=usePlatformTariffs(null,true,true);
   const [menu, setMenu] = useState(false);
   const reducedMotion = useReducedMotion() !== false;
   const { scrollYProgress } = useScroll();
@@ -154,6 +153,7 @@ export function Landing() {
                 <a href="#planes" onClick={() => setMenu(false)}>
                   Planes
                 </a>
+                <Link to="/demo" onClick={() => setMenu(false)}>Solicitar demo</Link>
                 <a href="#preguntas" onClick={() => setMenu(false)}>
                   Preguntas
                 </a>
@@ -200,9 +200,9 @@ export function Landing() {
                   >
                     Quiero MiCole en mi institución <ArrowRight size={19} />
                   </Link>
-                  <a href="#funciones" className="landing-secondary">
-                    Conocer MiCole <ArrowDown size={17} />
-                  </a>
+                  <Link to="/demo" className="landing-secondary">
+                    Solicitar demo <ArrowRight size={17} />
+                  </Link>
                 </m.div>
                 <m.div className="hero-reassurance" variants={itemVariants}>
                   <span>

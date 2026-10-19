@@ -37,3 +37,23 @@ export async function loadTariffs(schoolId?: string | null) {
       )
     : defaultTariffs;
 }
+
+// Public landing requests must not inherit Auth or an active support session.
+export async function loadPublicTariffs() {
+  if (!liveMode) return defaultTariffs;
+  const url = import.meta.env.VITE_SUPABASE_URL,
+    key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key)
+    throw new Error("No pudimos consultar las tarifas vigentes de MiCole.");
+  const response = await fetch(`${url.trim()}/rest/v1/rpc/platform_tariffs`, {
+    method: "POST",
+    credentials: "omit",
+    headers: { apikey: key.trim(), "Content-Type": "application/json" },
+    body: JSON.stringify({ p_school_id: null }),
+  });
+  if (!response.ok)
+    throw new Error(
+      "No pudimos consultar las tarifas vigentes de MiCole. Vuelve a intentar.",
+    );
+  return parseTariffs(await response.json());
+}

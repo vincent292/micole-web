@@ -1,3 +1,5 @@
+import { publicDemo, demoRole, setDemoRole, demoAccounts } from "./lib/demo-config";
+import { DemoAccess } from "./features/public/DemoAccess";
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -282,6 +284,7 @@ export default function WorkspaceApp() {
     auth.identity?.support?.id || "",
     auth.identity?.roles[0] === "student",
   );
+  if (publicDemo && !demoRole()) return <DemoAccess />;
   if (liveMode && auth.loading)
     return (
       <main className="loading-screen">
@@ -319,7 +322,7 @@ function Workspace({
 }) {
   const location = useLocation(),
     navigate = useNavigate();
-  const [role, setRole] = useState<Role>(liveIdentity?.roles[0] || "director");
+  const [role, setRole] = useState<Role>(liveIdentity?.roles[0] || (publicDemo ? demoRole() : null) || "director");
   const [schoolId, setSchoolId] = useState(
     liveIdentity?.support?.schoolId || "s1",
   );
@@ -330,15 +333,16 @@ function Workspace({
   const [modal, setModal] = useState<{ type: string; id?: string } | null>(
     null,
   );
+  const [resetOpen,setResetOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [noticeError, setNoticeError] = useState("");
   const [mobile, setMobile] = useState(false),
     [profile, setProfile] = useState(false),
     [notifications, setNotifications] = useState(false);
   const identity: Identity = liveIdentity || {
-    canSupport: true,
+    canSupport: !publicDemo,
     id: `demo-${role}`,
-    name:
+    name: publicDemo ? demoAccounts.find(a=>a.role===role)!.name :
       role === "director"
         ? "María Fernández"
         : role === "teacher"
@@ -346,8 +350,8 @@ function Workspace({
           : role === "guardian"
             ? "Daniela Martínez"
             : "Administrador",
-    email: role === "guardian" ? "daniela@example.com" : "demo@micole.local",
-    roles: ALL,
+    email: publicDemo ? demoAccounts.find(a=>a.role===role)!.email : role === "guardian" ? "daniela@example.com" : "demo@micole.local",
+    roles: publicDemo ? ALL.filter(r=>r!=="superadmin") : ALL,
     memberships: [],
     teacherIds:
       demoAccount?.role === "teacher"
@@ -361,7 +365,7 @@ function Workspace({
         [s.motherEmail || s.guardianEmail, s.fatherEmail].includes(
           demoAccount?.role === "guardian"
             ? demoAccount.email
-            : "daniela@example.com",
+            : publicDemo ? "familia@micole.test" : "daniela@example.com",
         ),
       )
       .map((s) => s.id),
@@ -834,6 +838,7 @@ function Workspace({
                     className={role === r ? "selected" : ""}
                     onClick={() => {
                       setRole(r);
+                      if(publicDemo) setDemoRole(r);
                       go("overview");
                     }}
                   >
@@ -862,11 +867,12 @@ function Workspace({
                   Cerrar sesión
                 </button>
               ) : (
-                <p>Datos de ejemplo guardados en este navegador.</p>
+                <><p>Datos de ejemplo guardados en este navegador.</p>{publicDemo&&<button onClick={()=>{setDemoRole(null);navigate("/login");}}><LogOut size={16}/>Salir de la demo</button>}</>
               )}
             </section>
           )}
         </header>
+        {publicDemo && <section className="public-demo-banner" aria-label="Controles de demostración"><div><b>Demo MiCole · Todo es ficticio</b><small>Cambios solo en este navegador. Los pagos y envíos se simulan. Utiliza datos de ejemplo.</small></div><div className="demo-banner-actions"><select aria-label="Rol de demostración" value={role} onChange={e=>{const next=e.target.value as Role;setDemoRole(next);setRole(next);setModal(null);go("overview");}}>{demoAccounts.map(a=><option key={a.role} value={a.role}>{a.label}</option>)}</select><Button variant="secondary" onClick={()=>setResetOpen(true)}>Restablecer demo</Button><Button variant="ghost" onClick={()=>{setDemoRole(null);navigate("/login");}}>Salir</Button></div></section>}
         {support && (
           <div
             className="support-banner"
@@ -902,6 +908,8 @@ function Workspace({
           </div>
         )}
         <main className="main-content">
+          {publicDemo && <details className="demo-tour"><summary>Qué puedes probar como {roleNames[role]}</summary><p>{role==="director"?"Crea aulas, inscribe un estudiante con su plan, registra un cobro y consulta los reportes. También puedes configurar materias, revisar tareas y publicar libretas.":role==="teacher"?"Explora tus aulas, publica una tarea, revisa una entrega y registra los cuidados del día. Las familias verán esos cambios en esta misma demo.":role==="guardian"?"Consulta a Sofía y Diego, sus tareas, agenda, cuidados y libretas. Prueba un permiso o un pago simulado; la información académica es de lectura.":"Consulta las tareas de Sofía, escribe una respuesta y entrégala. Luego cambia a Docente para revisar tu entrega."}</p><div className="demo-tour-links">{(role==="director"?[["students","Estudiantes"],["cash","Caja y cobros"],["gradebook","Libretas"],["reports","Reportes"]]:role==="teacher"?[["assignments","Tareas y entregas"],["care","Cuidados diarios"],["gradebook","Evaluación"]]:role==="guardian"?[["family","Mis hijos"],["calendar","Agenda"],["gradebook","Libretas"],["cash","Pagos"]]:[["assignments","Entregar una tarea"],["calendar","Agenda"]]).map(([key,label])=><button key={key} onClick={()=>go(key)}>{label}</button>)}</div></details>}
+          {resetOpen && <section className="panel" role="alert"><h2>¿Restablecer los datos de la demo?</h2><p>Se borrarán tus cambios locales y volverán los ejemplos iniciales. Los datos de la plataforma real no se modifican.</p><div className="demo-reset-actions"><Button onClick={()=>{store.reset();setResetOpen(false);setModal(null);go("overview");setToast("Demo restablecida. Puedes empezar de nuevo.");}}>Sí, restablecer</Button><Button variant="secondary" onClick={()=>setResetOpen(false)}>Conservar mis pruebas</Button></div></section>}
           <div className="view-top">
             <div>
               <div className="eyebrow">
@@ -1077,7 +1085,7 @@ function Workspace({
           <span>
             {liveMode
               ? "MiCole · Acceso protegido"
-              : "Entorno local · configura Supabase para compartir datos"}
+              : publicDemo ? "Demo local · datos ficticios" : "Entorno local · configura Supabase para compartir datos"}
           </span>
         </footer>
       </div>

@@ -12,6 +12,7 @@ import {
   SectionTitle,
 } from "../components/UI";
 import { rpc } from "../lib/repository";
+import { publicDemo } from "../lib/demo-config";
 import { liveMode } from "../lib/supabase";
 import { dateLabel, uid } from "../lib/format";
 import {
@@ -80,7 +81,7 @@ export function Subjects({
     setBusy(true);
     setError("");
     try {
-      if (!liveMode)
+      if (!liveMode && !publicDemo)
         throw new Error("Conecta Supabase para administrar las materias.");
       await rpc("configure_class_subject", {
         p_classroom_id: room.id,
@@ -594,7 +595,7 @@ function AcademicDialog({
     setBusy(true);
     setError("");
     try {
-      if (!liveMode)
+      if (!liveMode && !publicDemo)
         throw new Error("Conecta Supabase para guardar tareas y entregas.");
       if (dialog.kind === "assignment") {
         await rpc("save_assignment", {

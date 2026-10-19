@@ -1,4 +1,4 @@
-import { supabase, recoverExpiredSupport } from "./supabase";
+import { liveMode, supabase, recoverExpiredSupport } from "./supabase";
 import { initials } from "./format";
 import type { AppData, Collection, Identity } from "./types";
 
@@ -155,6 +155,10 @@ function client() {
   return supabase;
 }
 export async function rpc<T>(name: string, params: object): Promise<T> {
+  if (!liveMode) {
+    const { demoRpc } = await import("./demo");
+    return demoRpc<T>(name, params);
+  }
   const { data, error } = await client().rpc(name, params);
   if (error) {
     recoverExpiredSupport(error.message);

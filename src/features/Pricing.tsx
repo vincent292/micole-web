@@ -6,22 +6,23 @@ import { money } from "../lib/format";
 import {
   defaultTariffs,
   loadTariffs,
+  loadPublicTariffs,
   type PlatformTariffs,
 } from "../lib/pricing";
 import type { School, Student } from "../lib/types";
-export function usePlatformTariffs(schoolId?: string | null, enabled = true) {
+export function usePlatformTariffs(schoolId?: string | null, enabled = true, anonymous = false) {
   const [value, setValue] = useState<{
       scope: string;
       rates: PlatformTariffs;
     } | null>(null),
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0);
-  const scope = schoolId || "global";
+  const scope = anonymous ? "public" : schoolId || "global";
   useEffect(() => {
     if (!enabled) return;
     let active = true;
     setError("");
-    void loadTariffs(schoolId)
+    void (anonymous ? loadPublicTariffs() : loadTariffs(schoolId))
       .then((rates) => {
         if (active) setValue({ scope, rates });
       })
@@ -31,7 +32,7 @@ export function usePlatformTariffs(schoolId?: string | null, enabled = true) {
     return () => {
       active = false;
     };
-  }, [schoolId, scope, enabled, revision]);
+  }, [schoolId, scope, enabled, anonymous, revision]);
   useEffect(() => {
     const update = () => setRevision((v) => v + 1);
     window.addEventListener("micole:tariffs", update);

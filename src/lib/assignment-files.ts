@@ -1,7 +1,9 @@
+import { publicDemo } from "./demo-config";
+import { demoFile, saveDemoFile } from "./demo";
 import { supabase } from "./supabase";
 import { rpc } from "./repository";
 export const assignmentFilesEnabled =
-  import.meta.env.VITE_R2_ENABLED === "true";
+  publicDemo || import.meta.env.VITE_R2_ENABLED === "true";
 async function call(body: object) {
   if (!supabase) throw new Error("Inicia sesión para continuar.");
   const { data, error } = await supabase.functions.invoke("r2-media", { body });
@@ -33,6 +35,7 @@ export async function uploadAssignmentFile(
     p_body: body,
     p_submit: false,
   });
+  if(publicDemo) { await saveDemoFile(submission,file); return; }
   const prepared = await call({
     action: "assignment_upload",
     submissionId: submission,
@@ -50,6 +53,7 @@ export async function uploadAssignmentFile(
   await call({ action: "assignment_finalize", assetId: prepared.id });
 }
 export async function openAssignmentFile(id: string) {
+  if(publicDemo) {const url=demoFile(id);if(!url)throw new Error("Este archivo solo está disponible en el navegador donde se adjuntó.");const response=await fetch(url);const blob=await response.blob();window.open(URL.createObjectURL(blob),"_blank","noopener,noreferrer");return;}
   const { url } = await call({ action: "assignment_download", assetId: id });
   window.open(url, "_blank", "noopener,noreferrer");
 }

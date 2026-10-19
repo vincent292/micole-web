@@ -1,3 +1,4 @@
+import {publicDemo} from '../lib/demo-config';
 import { BankQrDialog, BankRegister } from "./BankQr";
 import { useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -78,12 +79,12 @@ export function Collections({store,school,role,students,student}:PageProps) {
      if(liveMode)await rpc('checkout_school_payment',{p_receipt_id:dialog.id,p_student_id:childId,p_items:dialog.items,p_method:method,p_reference:text('reference'),p_invoice:invoice,p_qr_reviewed:f.get('qrReviewed')==='on'});
      else{
       for(const item of dialog.items){const charge=visible.find(c=>c.id===item.chargeId)!;const paidAmount=Math.round(((charge.paidAmount||0)+item.amount)*100)/100;await store.save('charges',{...charge,paidAmount,status:paidAmount>=charge.amount?'paid':'pending',paidAt:paidAmount>=charge.amount?today():undefined});}
-      await store.save('schoolReceipts',{id:dialog.id,schoolId:school!.id,studentId:childId,total:dialog.items.reduce((n,i)=>n+i.amount,0),paymentMethod:method,reference:text('reference'),verificationSource:'manual',recordedBy:'demo-director',createdAt:new Date().toISOString()});
+      await store.save('schoolReceipts',{id:dialog.id,schoolId:school!.id,studentId:childId,total:dialog.items.reduce((n,i)=>n+i.amount,0),paymentMethod:method,reference:text('reference'),verificationSource:'manual',recordedBy:'demo-director',createdAt:new Date().toISOString(),items:dialog.items.map(i=>({...i,concept:visible.find(c=>c.id===i.chargeId)!.concept}))});
       if(wantsInvoice)await store.save('invoiceRequests',{id:uid(),schoolId:school!.id,studentId:childId,receiptId:dialog.id,legalName:text('invoiceName'),nitCi:text('invoiceNit'),phone:text('invoicePhone'),amount:dialog.items.reduce((n,i)=>n+i.amount,0),status:'pending',invoiceNumber:'',createdAt:today()});
      }
      await store.refresh();setSelected({});setNotice('Cobro registrado y recibo generado. Los saldos se actualizaron.');setDialog(null);
     }else if(dialog.type==='link'){
-     if(!liveMode)throw new Error('Los enlaces compartidos requieren el entorno conectado de Supabase.');
+     if(!liveMode&&!publicDemo)throw new Error('Los enlaces compartidos requieren el entorno conectado de Supabase.');
      const token=await rpc<string>('create_payment_link',{p_student_id:childId,p_items:dialog.items});setPaymentLink(`${locationOrigin()}/pago/${token}`);
     }else{
      if(liveMode)await rpc('set_activity_participation',{p_request_id:dialog.requestId,p_student_id:childId,p_participating:false,p_reason:text('reason')});else{for(const charge of visible.filter(c=>c.academicRequestId===dialog.requestId))await store.save('charges',{...charge,status:'cancelled'});}
@@ -100,8 +101,8 @@ export function Collections({store,school,role,students,student}:PageProps) {
      {role==='director'&&<><label className="check-field"><input type="checkbox" checked={wantsInvoice} onChange={e=>setWantsInvoice(e.target.checked)}/> Solicita factura</label>{wantsInvoice&&<InvoiceFields defaults={selectedInvoiceCharge}/>}</>}
      <p className="soft-note">Se registrará el importe recibido y se generará un recibo. Las facturas se preparan para emisión manual por Dirección.</p>
     </>:<>
-     <p>El enlace vence en 48 horas. Compartir por WhatsApp abre el mensaje para que tú lo envíes.</p>
-     {paymentLink&&<><Field label="Enlace para compartir" name="paymentLink"><input value={paymentLink} readOnly/></Field><Button variant="secondary" icon={Copy} onClick={()=>{void navigator.clipboard.writeText(paymentLink).then(()=>setNotice('Enlace copiado.')).catch(()=>setError('No pudimos copiar. Selecciona el enlace y cópialo.'));}}>Copiar enlace</Button><Field label="Celular destinatario" name="recipient"><input type="tel" value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="+591 70000000"/></Field><Button icon={Send} onClick={()=>{try{window.open(whatsappLink(recipient,`Pago de ${school?.name}: ${money(dialog.items.reduce((n,i)=>n+i.amount,0))}. Revisa las cuotas aquí: ${paymentLink}`),'_blank','noopener,noreferrer');}catch(e){setError((e as Error).message);}}}>Abrir WhatsApp para enviar</Button><p className="message info">Este enlace permite generar el QR con la cuenta Baneco de la institución. El banco confirma el pago y se actualizan los saldos automáticamente.</p></>}
+     <p>{publicDemo?'El enlace de demo solo funciona en este navegador. No lo envíes a familias reales.':'El enlace vence en 48 horas. Compartir por WhatsApp abre el mensaje para que tú lo envíes.'}</p>
+     {paymentLink&&<><Field label="Enlace para compartir" name="paymentLink"><input value={paymentLink} readOnly/></Field><Button variant="secondary" icon={Copy} onClick={()=>{void navigator.clipboard.writeText(paymentLink).then(()=>setNotice('Enlace copiado.')).catch(()=>setError('No pudimos copiar. Selecciona el enlace y cópialo.'));}}>Copiar enlace</Button><Field label="Celular destinatario" name="recipient"><input type="tel" value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="+591 70000000"/></Field><Button disabled={publicDemo} icon={Send} onClick={()=>{try{window.open(whatsappLink(recipient,`Pago de ${school?.name}: ${money(dialog.items.reduce((n,i)=>n+i.amount,0))}. Revisa las cuotas aquí: ${paymentLink}`),'_blank','noopener,noreferrer');}catch(e){setError((e as Error).message);}}}>Abrir WhatsApp para enviar</Button><p className="message info">Este enlace permite generar el QR con la cuenta Baneco de la institución. El banco confirma el pago y se actualizan los saldos automáticamente.</p></>}
     </>}
    </>}
   </Modal>}

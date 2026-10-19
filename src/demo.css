@@ -1,0 +1,318 @@
+.demo-access {
+  min-height: 100dvh;
+  background:
+    radial-gradient(ellipse at 8% 20%, #e9efff, transparent 60%), #f8faff;
+  padding: 28px max(24px, calc((100vw - 1180px) / 2));
+  color: #263238;
+}
+.demo-access > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.demo-access > header .brand-logo {
+  max-width: 170px;
+}
+.demo-access-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 72px;
+  align-items: center;
+  padding: 65px 0 40px;
+}
+.demo-intro h1 {
+  font-family: Poppins, Inter, sans-serif;
+  font-size: clamp(36px, 4vw, 56px);
+  letter-spacing: -2px;
+  line-height: 1.16;
+  margin: 22px 0;
+}
+.demo-intro h1 span {
+  color: #3d6ef7;
+}
+.demo-intro > p {
+  font-size: 18px;
+  line-height: 1.7;
+  max-width: 480px;
+}
+.demo-highlights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 12px;
+  margin: 32px 0;
+}
+.demo-highlights span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.demo-highlights svg {
+  width: 22px;
+  flex: none;
+  color: #3d6ef7;
+}
+.demo-local-note {
+  border-left: 3px solid #54d2a0;
+  padding: 14px 18px;
+  background: #fff;
+  border-radius: 0 12px 12px 0;
+}
+.demo-local-note p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.demo-login-card {
+  padding: 30px;
+  box-shadow: 0 12px 45px #26323809;
+}
+.demo-login-card h2 {
+  font-size: 25px;
+  margin: 0 0 10px;
+  font-family: Poppins, Inter, sans-serif;
+}
+.demo-login-card > p,
+.demo-login-card > small {
+  color: #56636a;
+  line-height: 1.65;
+}
+.demo-login-card > small {
+  display: block;
+  margin-top: 20px;
+}
+.demo-accounts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 22px 0;
+}
+.demo-accounts button {
+  background: #fff;
+  border: 1px solid #d9e2f0;
+  border-radius: 12px;
+  text-align: left;
+  padding: 12px;
+  cursor: pointer;
+  color: #263238;
+  min-width: 0;
+}
+.demo-accounts button.selected {
+  border-color: #3d6ef7;
+  background: #eef3ff;
+  box-shadow: 0 0 0 1px #3d6ef7;
+}
+.demo-accounts strong,
+.demo-accounts small {
+  display: block;
+}
+.demo-accounts small {
+  font-size: 11px;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+.demo-login-card form .btn {
+  width: 100%;
+}
+.demo-password {
+  font-size: 12px;
+  line-height: 1.8;
+  background: #f8faff;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.demo-password code {
+  font-size: 13px;
+  color: #263238;
+  font-weight: 700;
+}
+.demo-password button {
+  display: block;
+}
+.demo-access footer {
+  font-size: 12px;
+  color: #56636a;
+  padding: 25px 0;
+}
+.public-demo-banner {
+  background: #eff3ff;
+  border-bottom: 1px solid #d8e3ff;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #263238;
+}
+.public-demo-banner b,
+.public-demo-banner small {
+  display: block;
+}
+.public-demo-banner small {
+  font-size: 12px;
+  margin-top: 4px;
+  max-width: 570px;
+  line-height: 1.5;
+}
+.demo-banner-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.demo-banner-actions select {
+  width: auto;
+  min-width: 125px;
+  padding: 9px;
+  border-radius: 9px;
+  background: #fff;
+  border: 1px solid #ced7e6;
+  font-size: 13px;
+}
+.demo-banner-actions .btn {
+  padding: 9px 12px;
+  font-size: 12px;
+}
+.demo-tour {
+  margin-bottom: 22px;
+  background: #fff;
+  border: 1px solid #dce5f4;
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+.demo-tour summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+.demo-tour p {
+  font-size: 13px;
+  color: #56636a;
+  line-height: 1.6;
+}
+.demo-tour-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.demo-tour-links button {
+  border: 1px solid #dce5f4;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 8px 12px;
+  color: #3d6ef7;
+  cursor: pointer;
+}
+.demo-payment-symbol {
+  width: 160px;
+  height: 130px;
+  margin: 12px auto;
+  display: grid;
+  place-content: center;
+  background: repeating-linear-gradient(
+    45deg,
+    #edf2ff,
+    #edf2ff 8px,
+    #fff 8px,
+    #fff 16px
+  );
+  border: 2px dashed #3d6ef7;
+  border-radius: 16px;
+  text-align: center;
+  color: #3d6ef7;
+}
+.demo-payment-symbol svg {
+  margin: 0 auto 8px;
+}
+.demo-payment-symbol b {
+  font-size: 12px;
+}
+.demo-reset-actions {
+  display: flex;
+  gap: 12px;
+}
+.public-demo-banner select:focus-visible,
+.demo-accounts button:focus-visible {
+  outline: 3px solid #ffc857;
+  outline-offset: 3px;
+}
+@media (max-width: 1000px) {
+  .demo-access-grid {
+    gap: 28px;
+    padding-top: 35px;
+  }
+  .public-demo-banner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .demo-highlights {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .demo-access {
+    padding: 20px 18px;
+  }
+  .demo-access-grid {
+    grid-template-columns: 1fr;
+    padding-top: 30px;
+    gap: 24px;
+  }
+  .demo-intro h1 {
+    font-size: 38px;
+    margin: 14px 0;
+  }
+  .demo-intro > p {
+    font-size: 16px;
+  }
+  .demo-highlights {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .demo-highlights span {
+    font-size: 12px;
+  }
+  .demo-login-card {
+    padding: 22px 18px;
+  }
+  .public-demo-banner {
+    padding: 12px 18px;
+  }
+  .demo-banner-actions {
+    width: 100%;
+    gap: 8px;
+  }
+  .demo-banner-actions select {
+    flex: 1;
+  }
+  .demo-access > header .text-button {
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .demo-login-card {
+    animation: demo-enter 0.4s ease-out;
+  }
+  .demo-accounts button {
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .demo-accounts button:hover {
+    background: #f1f5ff;
+  }
+  @keyframes demo-enter {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

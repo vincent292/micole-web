@@ -1,5 +1,7 @@
 import { authenticationError, authenticationReturnError } from "./authErrors";
 import { createClient } from "@supabase/supabase-js";
+import { publicDemo } from "./demo-config";
+export const liveMode = !publicDemo && import.meta.env.VITE_APP_MODE === "live";
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 export const supportStorageKey = "micole_support_session";
@@ -17,7 +19,7 @@ export function recoverExpiredSupport(message: string) {
   }
 }
 function configure() {
-  if (!url || !key) return { client: null, error: "" };
+  if (!liveMode || !url || !key) return { client: null, error: "" };
   try {
     return {
       client: createClient(url.trim(), key.trim(), {
@@ -60,7 +62,7 @@ export const authReturnIssue = authenticationReturnError(window.location.search,
 const configuration = configure();
 export const supabase = configuration.client;
 export const supabaseConfigurationError = configuration.error;
-export const liveMode = import.meta.env.VITE_APP_MODE === "live";
+
 export async function signInGoogle() {
   if (!supabase)
     throw new Error(

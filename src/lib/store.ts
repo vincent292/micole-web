@@ -1,3 +1,5 @@
+import { publicDemo } from "./demo-config";
+import { readDemoData, writeDemoData, resetDemo, subscribeDemo } from "./demo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { realtimeCollections } from "./realtime";
 import { seed } from "./seed";
@@ -19,6 +21,7 @@ import type {
 const KEY = "aulanexo_demo_v2";
 const clone = <T>(value: T): T => structuredClone(value);
 function read(): AppData {
+  if (publicDemo) return readDemoData();
   try {
     const serialized =
       localStorage.getItem(KEY) || localStorage.getItem("aulanexo_demo_v1");
@@ -63,7 +66,8 @@ export function useAppStore(
   const refreshSequence = useRef(0);
   const fullRefreshes = useRef(0);
   const refresh = useCallback(async (collections?: Collection[]) => {
-    if (!liveMode || !userId) return;
+    if (!liveMode) { if (publicDemo) setData(readDemoData()); return; }
+    if (!userId) return;
     const sequence = ++refreshSequence.current;
     const partial = !student && loadedScopeRef.current === scope && fullRefreshes.current === 0 ? collections : undefined;
     if (!partial) fullRefreshes.current++;
@@ -98,7 +102,8 @@ export function useAppStore(
   useEffect(() => {
     if (!liveMode) {
       try {
-        localStorage.setItem(KEY, JSON.stringify(data));
+        if (publicDemo) writeDemoData(data);
+        else localStorage.setItem(KEY, JSON.stringify(data));
       } catch {
         setError(
           "No hay espacio para guardar. Exporta tus datos antes de continuar.",
@@ -106,6 +111,9 @@ export function useAppStore(
       }
     }
   }, [data]);
+  useEffect(() => {
+    if (publicDemo) return subscribeDemo(() => setData(readDemoData()));
+  }, []);
   useEffect(() => {
     if (!liveMode || !userId || !supabase) return;
     let pending = false;
@@ -159,7 +167,7 @@ export function useAppStore(
       if (liveMode) {
         await remote();
         await refresh();
-      } else setData((prev) => local(prev));
+      } else setData((prev) => { const next=local(prev); if(publicDemo) writeDemoData(next); return next; });
     } finally {
       inflight.current = false;
       setBusy(false);
@@ -691,7 +699,7 @@ export function useAppStore(
     );
   }
   function reset() {
-    if (!liveMode) setData(clone(seed));
+    if (!liveMode) setData(publicDemo ? resetDemo() : clone(seed));
   }
   const ready = !liveMode || loadedScope === scope;
   return {

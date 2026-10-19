@@ -82,3 +82,10 @@ test("rutas previas se conservan y una ruta inexistente tiene regreso al inicio"
   await page.getByRole("link", { name: "Volver al inicio" }).click();
   await expect(page).toHaveURL("/");
 });
+test('Solicitar demo abre el sitio aislado sin pedir una cuenta real', async ({page}) => {
+  await page.route('https://micole-demo.vercel.app/**', route => route.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>Acceso público a la demo</h1>'}));
+  await page.goto('/');
+  await page.getByRole('link',{name:'Solicitar demo',exact:true}).last().click();
+  await expect(page).toHaveURL('https://micole-demo.vercel.app/');
+  await expect(page.getByRole('heading',{name:'Acceso público a la demo'})).toBeVisible();
+});

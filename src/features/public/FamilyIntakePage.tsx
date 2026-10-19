@@ -1,3 +1,5 @@
+import { publicDemo } from "../../lib/demo-config";
+import { demoDataKey } from "../../lib/demo";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -15,7 +17,7 @@ interface Context {
   status: string;
   expiresAt: string;
 }
-const localKey = "aulanexo_demo_v2";
+const localKey = publicDemo ? demoDataKey : "aulanexo_demo_v2";
 let anonymous: SupabaseClient | null = null;
 async function publicCall<T>(name: string, params: object): Promise<T> {
   if (!anonymous)

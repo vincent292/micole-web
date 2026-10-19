@@ -1,3 +1,4 @@
+import {publicDemo} from '../lib/demo-config';
 import {useEffect,useState} from 'react';
 import {LockKeyhole} from 'lucide-react';
 import {Button,Field,SectionTitle,Badge} from '../components/UI';
@@ -15,6 +16,7 @@ export function PaymentConnection({schoolId}:{schoolId?:string}){
   try{if(action==='check')await bankAction({action:'check_connection',schoolId});else await rpc('set_baneco_enabled',{p_school_id:schoolId||null,p_enabled:action==='enable'});await reload();setNotice(action==='check'?'Baneco aceptó la autenticación. Ya puedes habilitar los cobros.':action==='enable'?'Cobros QR habilitados para esta cuenta.':'Nuevos QR deshabilitados. Los pagos anteriores conservan su verificación.');}
   catch(e){setError(e instanceof Error?e.message:'No se pudo actualizar la cuenta.');await reload().catch(()=>{});}finally{setBusy(false);}
  }
+ if(publicDemo)return <section className="panel payment-connection"><SectionTitle title="Conexión bancaria de demostración" subtitle="Los cobros de esta demo se simulan sin contactar a Baneco."/><p>En tu institución real, Dirección configura y comprueba su propia cuenta. No ingreses claves bancarias en esta demo.</p><Badge status="active" label="Simulación disponible"/></section>;
  return <section className="panel payment-connection"><SectionTitle title={schoolId?'Cuenta Baneco de la institución':'Cuenta Baneco de MiCole'} subtitle={schoolId?'Las mensualidades y actividades se cobran en esta cuenta.':'Las activaciones y licencias de MiCole se cobran en tu cuenta.'}/>
   <p className="soft-note"><LockKeyhole size={18}/> Credenciales cifradas en el servidor. No se vuelven a mostrar ni se entregan a las familias.</p>
   {error&&<p className="message error" role="alert">{error}</p>}{notice&&<p className="message info" role="status">{notice}</p>}

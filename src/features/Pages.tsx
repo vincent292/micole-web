@@ -1,3 +1,4 @@
+import { publicDemo } from "../lib/demo-config";
 import {TariffSettings,ChargeAmountDialog,StudentFeesDialog,usePlatformTariffs} from './Pricing';
 import { PlatformBankDues, BankRegister } from "./BankQr";
 import { learningDay } from "../lib/learning";
@@ -1432,7 +1433,7 @@ export function Settings({ store, school, role, open, act }: PageProps) {
             Editar identidad
           </Button>
         </section>
-        <section className="panel">
+        {publicDemo ? <section className="panel"><SectionTitle title="Tu espacio de demostración" subtitle="Prueba MiCole con datos ficticios."/><p>Inscripciones, actividades y archivos se conservan solo en este navegador. Los pagos y recibos son simulados. No necesitas conectar cuentas bancarias, correo ni almacenamiento.</p><p className="muted">Utiliza «Restablecer demo» para volver a los ejemplos iniciales.</p></section> : (        <section className="panel">
           <SectionTitle
             title="Conexiones"
             subtitle="Servicios de tu plataforma"
@@ -1468,6 +1469,7 @@ export function Settings({ store, school, role, open, act }: PageProps) {
             app nunca almacena claves privadas.
           </p>
         </section>
+)}
         <section className="panel">
           <SectionTitle
             title="Accesos de tu comunidad"
