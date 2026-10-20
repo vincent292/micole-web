@@ -23,3 +23,11 @@ No consulta expedientes, notas, datos bancarios ni archivos. No guarda conversac
 Publicación: aplicar `npm run supabase:migrate:sites`, desplegar `guide-assistant` y publicar web/demo. Android usa el mismo backend; los cambios de código no generan un APK.
 
 Referencias: [JWT y cabeceras en Edge Functions](https://supabase.com/docs/guides/functions/auth-headers), [respuestas estructuradas de Gemini](https://ai.google.dev/gemini-api/docs/generate-content/structured-output).
+
+## Dominio de producción y archivos
+
+Supabase permite `https://www.micole.click` y `https://micole.click` en `APP_ORIGINS`, conservando los dominios anteriores. El asistente mantiene `verify_jwt = true`.
+
+La política CORS del bucket privado R2 también debe permitir el dominio nuevo. Si la clave S3 devuelve `AccessDenied` al consultar su configuración, abre Cloudflare → R2 → bucket privado → Settings → CORS policy y agrega los dos dominios a las reglas existentes. Como referencia, `docs/r2-cors.json` contiene la configuración de la aplicación. Conserva otras reglas que utilices; no actives acceso público al bucket.
+
+Para un bucket público de logos o identidad institucional, usa `docs/r2-public-cors.json`, que solo permite lectura. Esta configuración es independiente de la política del bucket privado.
