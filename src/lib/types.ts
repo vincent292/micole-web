@@ -1,7 +1,11 @@
+import type { AdmissionDetails } from "./admission";
 export type Role = "superadmin" | "director" | "teacher" | "guardian" | "student";
 export type Status = "active" | "pending" | "inactive";
 export type ChargeStatus = "pending" | "paid" | "overdue" | "cancelled";
 export interface School {
+  institutionId?: string;
+  siteName?: string;
+  educationLevels?: string[];
   platformEnabled?: boolean;
   activationEnabled?: boolean;
   id: string;
@@ -51,6 +55,7 @@ export interface Teacher {
   userId?: string;
 }
 export interface Student {
+  admissionDetails?: AdmissionDetails;
   id: string;
   schoolId: string;
   classroomId: string;
@@ -124,6 +129,15 @@ export interface PlatformCharge {
   status: ChargeStatus;
 }
 export interface Announcement {
+  category?: "general"|"academic"|"grades"|"health"|"pickup";
+  requiresAcknowledgment?: boolean;
+  remindHourly?: boolean;
+  urgent?: boolean;
+  targeted?: boolean;
+  targetStudentIds?: string[];
+  createdBy?: string;
+  revokedAt?: string;
+  contentHash?: string;
   id: string;
   schoolId: string;
   title: string;
@@ -177,6 +191,7 @@ export interface FamilyRequest {
   createdAt: string;
 }
 export interface CalendarEvent {
+  endDate?: string;
   id: string;
   schoolId: string;
   classroomId: string;
@@ -243,6 +258,7 @@ export interface InstitutionRequest {
   createdAt: string;
 }
 export interface Notification {
+  alertType?: string;
   id: string;
   userId: string;
   schoolId?: string;
@@ -278,6 +294,7 @@ export interface AuditEvent {
   createdAt: string;
 }
 export interface CareProfile {
+  admissionDetails?: AdmissionDetails;
   allergies: string;
   foodRestrictions: string;
   emergencyContact: string;
@@ -339,11 +356,12 @@ export interface ActivityParticipation {
 }
 export interface SchoolReceipt {
  id: string; schoolId: string; studentId: string; total: number;
- paymentMethod: "cash" | "transfer" | "qr"; reference: string;
+ paymentMethod: "cash" | "transfer" | "qr" | "deposit"; reference: string;
  items?: { chargeId: string; concept: string; amount: number }[];
  verificationSource: "manual" | "provider"; recordedBy: string; createdAt: string;
 }
 export interface InvoiceRequest {
+ files?:{id:string;fileName:string;mimeType:string}[];
  id: string; schoolId: string; studentId: string; receiptId: string;
  legalName: string; nitCi: string; phone: string; amount: number;
  status: "pending" | "issued"; invoiceNumber: string; issuedAt?: string; createdAt: string;

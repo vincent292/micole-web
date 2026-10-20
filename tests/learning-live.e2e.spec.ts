@@ -621,10 +621,7 @@ test("docente publica una tarea ligada a aula, materia y fecha de entrega", asyn
   await d
     .getByLabel("Instrucciones", { exact: true })
     .fill("Explica cómo resuelves cada problema.");
-  await d
-    .getByRole("navigation", { name: "Secciones del formulario" })
-    .getByRole("button", { name: /Entrega y publicación$/ })
-    .click();
+  await d.getByRole("button",{name:"Siguiente",exact:true}).click();
   await d
     .getByLabel("Fecha límite (opcional)", { exact: true })
     .fill("2030-12-01");
@@ -744,7 +741,7 @@ for (const width of [390, 768, 1280])
       .fill("Institución con nombre completo");
     await showFormSection(page, "NIT");
     await d.getByLabel("NIT (opcional)").fill("123456789");
-    const button = d.getByRole("button", { name: "Guardar", exact: true }),
+    const button = d.getByRole("button", { name: /^(Guardar|Siguiente)$/ }).last(),
       box = await button.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.y + box!.height).toBeLessThanOrEqual(780);
@@ -760,15 +757,16 @@ for (const width of [390, 768, 1280])
     await d.screenshot({
       path: `/private/tmp/micole-academics/form-web-${width}.png`,
     });
-    await button.click();
+    for(let i=0;i<10 && await d.getByRole("button",{name:"Siguiente",exact:true}).count();i++) await d.getByRole("button",{name:"Siguiente",exact:true}).click();
+    await d.getByRole("button",{name:"Guardar",exact:true}).click();
     await expect(d).toHaveCount(0);
     expect(calls.find((c) => c.name === "save_school")?.body.p_school.nit).toBe(
       "123456789",
     );
   });
 
-test('Guardar lleva a una sección con datos obligatorios pendientes sin perder el texto',async({page})=>{
- const {calls,state}=await setup(page,'teacher');seedLearning(state);await page.goto('/app/assignments');await page.getByRole('button',{name:'Nueva tarea',exact:true}).click();const d=page.getByRole('dialog');await d.getByLabel('Título',{exact:false}).fill('Una tarea con texto conservado');await d.getByLabel('Instrucciones',{exact:true}).fill('La materia sigue pendiente de seleccionar.');await d.getByRole('navigation',{name:'Secciones del formulario'}).getByRole('button',{name:/Entrega y publicación$/}).click();await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect(d.getByRole('combobox',{name:'Materia',exact:true})).toBeVisible();await expect(d.getByLabel('Título',{exact:false})).toHaveValue('Una tarea con texto conservado');expect(calls.some(c=>c.name==='save_assignment')).toBe(false);
+test('Siguiente impide saltar datos obligatorios sin perder el texto',async({page})=>{
+ const {calls,state}=await setup(page,'teacher');seedLearning(state);await page.goto('/app/assignments');await page.getByRole('button',{name:'Nueva tarea',exact:true}).click();const d=page.getByRole('dialog');await d.getByLabel('Título',{exact:false}).fill('Una tarea con texto conservado');await d.getByLabel('Instrucciones',{exact:true}).fill('La materia sigue pendiente de seleccionar.');await d.getByRole('button',{name:'Siguiente',exact:true}).click();await expect(d.getByRole('button',{name:'Guardar',exact:true})).toHaveCount(0);await expect(d.getByRole('combobox',{name:'Materia',exact:true})).toBeVisible();await expect(d.getByLabel('Título',{exact:false})).toHaveValue('Una tarea con texto conservado');expect(calls.some(c=>c.name==='save_assignment')).toBe(false);
 });
 
 test('las notas se registran con la materia asignada y no solo con un texto libre',async({page})=>{
@@ -780,9 +778,9 @@ test('cuidados registra comida y conserva la nota al cambiar de sección a 390px
  await page.setViewportSize({width:390,height:844});const {calls}=await setup(page,'teacher');await page.goto('/app/care');
  await page.getByRole('button',{name:'Registrar cuidado',exact:true}).click();const d=page.getByRole('dialog');
  await d.getByLabel('Alimento',{exact:false}).fill('Sopa de verduras');
- await d.getByRole('navigation',{name:'Secciones del formulario'}).getByRole('button',{name:/Más detalles$/}).click();await d.getByLabel('Observaciones',{exact:true}).fill('Comió con tranquilidad y pidió agua.');
+ await d.getByRole('button',{name:'Siguiente',exact:true}).click();await d.getByLabel('Observaciones',{exact:true}).fill('Comió con tranquilidad y pidió agua.');
  await d.getByRole('navigation',{name:'Secciones del formulario'}).getByRole('button',{name:/Datos principales$/}).click();await expect(d.getByLabel('Alimento',{exact:false})).toHaveValue('Sopa de verduras');
- const box=await d.getByRole('button',{name:'Guardar',exact:true}).boundingBox();expect(box!.y+box!.height).toBeLessThanOrEqual(844);
+ await d.getByRole('button',{name:'Siguiente',exact:true}).click();const box=await d.getByRole('button',{name:'Guardar',exact:true}).boundingBox();expect(box!.y+box!.height).toBeLessThanOrEqual(844);
  await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect.poll(()=>calls.some(c=>c.name==='save_care_record')).toBe(true);
  expect(calls.find(c=>c.name==='save_care_record')?.body.p_record).toMatchObject({kind:'meal',food:'Sopa de verduras',note:'Comió con tranquilidad y pidió agua.'});
  await expect(page.getByText('Sopa de verduras · Todo',{exact:true})).toBeVisible();
@@ -809,5 +807,5 @@ test('requisitos configurables permiten inscripción con solo padre y CI opciona
  const {state}=await setup(page);state.admissionSettings=[{school_id:schoolId,family_policy:'father',child_ci_required:false,require_annual_materials:false}];
  await page.goto('/app/students');await page.getByRole('button',{name:'Inscribir estudiante',exact:true}).click();const d=page.getByRole('dialog');
  await expect(d.getByLabel('Número de CI del niño',{exact:true})).not.toHaveAttribute('required','');
- await showFormSection(page,'Madre y padre');await expect(d.getByLabel('Nombre completo de la madre',{exact:true})).not.toHaveAttribute('required','');await expect(d.getByLabel('Correo del padre',{exact:false})).toHaveAttribute('required','');
+ await d.getByLabel('Nombres').fill('Ejemplo');await d.getByLabel('Apellidos').fill('Familia');await d.getByLabel('Fecha de nacimiento').fill('2020-01-01');await d.getByLabel('Aula',{exact:false}).selectOption(roomId);await showFormSection(page,'Madre y padre');await expect(d.getByLabel('Nombre completo de la madre',{exact:true})).not.toHaveAttribute('required','');await expect(d.getByLabel('Correo del padre',{exact:false})).toHaveAttribute('required','');
 });

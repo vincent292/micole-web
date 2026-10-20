@@ -20,6 +20,7 @@ import {
   authProviders,
   signInEmail,
 } from "../../lib/supabase";
+import { demoEntryUrl, isDemoEmail } from "../../lib/demo-config";
 import type { useIdentity } from "../../lib/auth";
 import type { AppStore } from "../../lib/store";
 export function AuthPage({
@@ -120,6 +121,18 @@ export function AuthPage({
                 ? "Ingresa para solicitar acceso para tu institución."
                 : "Accede con el correo que tu colegio tiene vinculado a tu cuenta."}
           </p>
+          {!invitation && !auth.signedIn && (
+            <div className="soft-note" style={{ marginBottom: 20 }}>
+              <b>¿Quieres conocer MiCole?</b>
+              <p>
+                La demo tiene datos ficticios y acceso inmediato, sin confirmar
+                correos.
+              </p>
+              <a className="btn btn-secondary full" href={demoEntryUrl()}>
+                Entrar a la demo <ArrowRight size={17} />
+              </a>
+            </div>
+          )}
           {(auth.error || notice || supabaseConfigurationError) && (
             <div className="message error" role="alert">
               {auth.error || notice || supabaseConfigurationError}
@@ -234,6 +247,10 @@ export function AuthPage({
                         onSubmit={async (e) => {
                           e.preventDefault();
                           if (busy) return;
+                          if (isDemoEmail(email)) {
+                            window.location.assign(demoEntryUrl(email));
+                            return;
+                          }
                           setBusy(true);
                           setNotice("");
                           try {
@@ -309,7 +326,10 @@ function InstitutionOnboarding({
   store: AppStore;
 }) {
   const identity = auth.identity!;
-  const [wantsSchool, setWantsSchool] = useState(new URLSearchParams(location.search).get("intent") === "school" || sessionStorage.getItem("micole_school_intent") === "1");
+  const [wantsSchool, setWantsSchool] = useState(
+    new URLSearchParams(location.search).get("intent") === "school" ||
+      sessionStorage.getItem("micole_school_intent") === "1",
+  );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const request = store.data.institutionRequests
@@ -335,13 +355,39 @@ function InstitutionOnboarding({
         </Button>
       </div>
     );
-  if (!request && !wantsSchool) return <div className="institution-onboarding">
-    <div className="account-chip"><CheckCircle2 size={17} />{identity.email}</div>
-    <p>Dirección debe registrar este mismo correo en tu acceso. Si eres madre o padre, tus hijos se vincularán automáticamente. Si eres estudiante, tu colegio debe habilitar tu acceso opcional.</p>
-    <Button className="full" onClick={() => { void auth.refresh(); }}>Comprobar mi acceso</Button>
-    <p className="auth-hint">Si recibiste una invitación para el equipo docente, abre el enlace usando esta cuenta.</p>
-    <Button className="full" variant="ghost" onClick={() => setWantsSchool(true)}>Quiero incorporar mi institución</Button>
-  </div>;
+  if (!request && !wantsSchool)
+    return (
+      <div className="institution-onboarding">
+        <div className="account-chip">
+          <CheckCircle2 size={17} />
+          {identity.email}
+        </div>
+        <p>
+          Dirección debe registrar este mismo correo en tu acceso. Si eres madre
+          o padre, tus hijos se vincularán automáticamente. Si eres estudiante,
+          tu colegio debe habilitar tu acceso opcional.
+        </p>
+        <Button
+          className="full"
+          onClick={() => {
+            void auth.refresh();
+          }}
+        >
+          Comprobar mi acceso
+        </Button>
+        <p className="auth-hint">
+          Si recibiste una invitación para el equipo docente, abre el enlace
+          usando esta cuenta.
+        </p>
+        <Button
+          className="full"
+          variant="ghost"
+          onClick={() => setWantsSchool(true)}
+        >
+          Quiero incorporar mi institución
+        </Button>
+      </div>
+    );
   return (
     <div className="institution-onboarding">
       <div className="account-chip">

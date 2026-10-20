@@ -96,6 +96,7 @@ function readExtras(data = readDemoData()): Extras {
   }
   return extra;
 }
+export function readDemoWorkspace() { return readExtras().workspace; }
 export function writeDemoData(data: AppData, notify = false) {
   try {
     localStorage.setItem(demoDataKey, JSON.stringify(data));
@@ -125,6 +126,8 @@ export function subscribeDemo(listener: () => void) {
 export function resetDemo() {
   const data = makeDemoSeed();
   localStorage.removeItem(extraKey);
+  localStorage.removeItem("micole_public_demo_features_v1");
+  localStorage.removeItem("micole_public_demo_sites_v1");
   writeDemoData(data, true);
   return data;
 }
@@ -163,6 +166,10 @@ function requireStaff(director = false) {
     );
 }
 export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
+  const sites = await import("./demo-sites");
+  if(sites.siteOperations.includes(name)) return sites.demoSiteRpc(name,parameters) as Promise<T>;
+  const feature = await import("./demo-features");
+  if(feature.demoFeatureOperations.includes(name)) return feature.demoFeatureRpc(name,parameters) as Promise<T>;
   const p = parameters as Record<string, any>,
     data = readDemoData(),
     extra = readExtras(data),

@@ -13,7 +13,7 @@ import type { ReportFilters, ReportSnapshot } from "../lib/reports";
 type Tab = "summary" | "charges" | "payments" | "debtors";
 type TableRow = { key: string; cells: (string | number)[]; status?: string; studentId?: string };
 const statusNames: Record<string, string> = { pending: "Pendiente", overdue: "Vencido", paid: "Pagado", cancelled: "Anulado" };
-const methodNames = { cash: "Efectivo", transfer: "Transferencia", qr: "QR" };
+const methodNames = { cash: "Efectivo", transfer: "Transferencia", qr: "QR", deposit:"Depósito bancario" };
 
 export function Reports({ store, school, role, identity }: PageProps) {
   const platform = role === "superadmin";

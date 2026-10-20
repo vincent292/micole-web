@@ -1,0 +1,136 @@
+.document-import {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.import-controls {
+  display: grid;
+  gap: 14px;
+}
+.import-controls .btn {
+  justify-self: start;
+}
+.import-kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.import-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.55;
+  font-size: 14px;
+}
+.import-check input {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  accent-color: #3d6ef7;
+}
+.import-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 20px;
+  align-items: start;
+}
+.import-original {
+  position: sticky;
+  top: 20px;
+  max-height: 82dvh;
+  overflow: auto;
+  min-width: 0;
+}
+.import-original img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+.import-original iframe {
+  width: 100%;
+  height: 65dvh;
+  border: 1px solid #e3eaf6;
+  border-radius: 10px;
+}
+.import-original summary {
+  padding: 12px 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.import-original a {
+  display: inline-block;
+  margin-top: 10px;
+  color: #315ad2;
+}
+.import-review {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.import-item {
+  border: 1px solid #e3eaf6;
+  background: #f8faff;
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+.import-source {
+  color: #667a90;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.admission-extra .form-grid {
+  align-items: start;
+}
+.admission-extra details {
+  border: 1px solid #e3eaf6;
+  padding: 14px;
+  border-radius: 12px;
+}
+.admission-extra summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.admission-extra details > .form-grid {
+  margin-top: 14px;
+}
+.admission-instructions {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+  max-height: 280px;
+  overflow: auto;
+}
+.emergency-summary {
+  border-left: 4px solid #3d6ef7;
+  padding: 14px;
+  background: #f8faff;
+}
+.emergency-summary a {
+  color: #315ad2;
+}
+@media (max-width: 900px) {
+  .import-comparison {
+    grid-template-columns: 1fr;
+  }
+  .import-original {
+    position: static;
+    max-height: 45dvh;
+  }
+  .import-original iframe {
+    height: 38dvh;
+  }
+}
+@media (max-width: 520px) {
+  .import-kind .btn {
+    width: 100%;
+  }
+  .import-controls .btn {
+    justify-self: stretch;
+  }
+  .import-item {
+    padding: 12px;
+  }
+}

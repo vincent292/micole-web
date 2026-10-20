@@ -12,14 +12,17 @@ import { Button, Field } from "../../components/UI";
 import { demoAccounts, demoLogin, demoPassword } from "../../lib/demo-config";
 export function DemoAccess() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState<string>(demoAccounts[0].email),
-    [password, setPassword] = useState(""),
+  const requested = new URLSearchParams(window.location.search).get("perfil");
+  const initial =
+    demoAccounts.find((a) => a.role === requested) || demoAccounts[0];
+  const [email, setEmail] = useState<string>(initial.email),
+    [password, setPassword] = useState(demoPassword),
     [error, setError] = useState("");
   return (
     <main className="demo-access">
       <header>
         <Brand />
-        <a href="https://micole-web.vercel.app/" className="text-button">
+        <a href="https://www.micole.click/" className="text-button">
           Conocer MiCole
         </a>
       </header>
@@ -59,9 +62,10 @@ export function DemoAccess() {
           </div>
         </section>
         <section className="panel demo-login-card">
-          <h2>Solicitar demo</h2>
+          <h2>Entrar a la demo</h2>
           <p>
-            Ya tienes acceso. Elige un perfil y usa las credenciales de ejemplo.
+            Elige un perfil y entra. Las credenciales están listas; no recibirás
+            ningún correo de confirmación.
           </p>
           <div
             className="demo-accounts"
@@ -75,6 +79,7 @@ export function DemoAccess() {
                 key={account.role}
                 onClick={() => {
                   setEmail(account.email);
+                  setPassword(demoPassword);
                   setError("");
                 }}
               >

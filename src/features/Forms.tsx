@@ -1,3 +1,4 @@
+import {noticeCategories, type NoticeCategory} from '../lib/announcements';
 import { platformBalance } from "../lib/pricing";
 import { uploadPickupIdentity } from "./PickupIdentity";
 import {usePlatformTariffs} from './Pricing';
@@ -245,6 +246,12 @@ export function WorkspaceModal({
   onClose: () => void;
   onSuccess: (message: string) => void;
 }) {
+  const [noticeRoom,setNoticeRoom]=useState(role==='teacher'?store.data.classrooms.find(c=>c.schoolId===school?.id&&c.teacherIds.some(id=>identity.teacherIds.includes(id)))?.id||'':'');
+  const [noticeAudience,setNoticeAudience]=useState('families');
+  const [noticeCategory,setNoticeCategory]=useState<NoticeCategory>('general');
+  const [noticeRequired,setNoticeRequired]=useState(false),[noticeHourly,setNoticeHourly]=useState(false);
+  const [noticeSearch,setNoticeSearch]=useState('');
+  const [noticeTargets,setNoticeTargets]=useState<string[]>([]);
   const [admissionRoomId, setAdmissionRoomId] = useState(id ? store.data.students.find(s => s.id === id)?.classroomId || "" : "");
   const [gradeStudentId,setGradeStudentId]=useState(student?.id||students[0]?.id||"");
   const [planStudentId, setPlanStudentId] = useState(student?.id || "");
@@ -473,6 +480,13 @@ export function WorkspaceModal({
           content: val("content"),
           classroomId: val("classroomId"),
           audience: val("audience") as "all" | "staff" | "families",
+          category: noticeCategory,
+          requiresAcknowledgment:noticeRequired,
+          remindHourly:noticeHourly,
+          urgent:f.urgent==='on'&&['health','pickup'].includes(noticeCategory),
+          targetStudentIds:noticeRoom&&noticeAudience!=='staff'?noticeTargets:[],
+          targeted:!!noticeTargets.length,
+          createdBy:identity.id,
           createdAt,
         });
       if (type === "entry" && val("studentId").startsWith("class:"))
@@ -500,6 +514,7 @@ export function WorkspaceModal({
           title: val("title"),
           description: val("description"),
           date: val("date"),
+          endDate: val("endDate"),
           type:
             type === "materials"
               ? "materials"
@@ -1035,32 +1050,20 @@ export function WorkspaceModal({
       )}
       {type === "announcement" && (
         <>
-          <Field label="Título" name="title" required />
-          <Field label="Aula destinataria" name="classroomId">
-            <select
-              name="classroomId"
-              defaultValue={role === "teacher" ? rooms[0]?.id : ""}
-            >
-              {role !== "teacher" && (
-                <option value="">Toda la institución</option>
-              )}
-              {rooms.map((c) => (
-                <option value={c.id} key={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Para quién" name="audience">
-            <select name="audience">
-              <option value="all">Toda la comunidad</option>
-              <option value="families">Familias</option>
-              <option value="staff">Equipo docente</option>
-            </select>
-          </Field>
-          <Field label="Comunicado" name="content">
-            <textarea name="content" rows={5} required maxLength={10000} />
-          </Field>
+          <FormSection title="Mensaje">
+          <Field label="Título" name="title" required><input name="title" required maxLength={200}/></Field>
+          <Field label="Tipo de aviso" name="category"><select name="category" value={noticeCategory} onChange={e=>setNoticeCategory(e.target.value as NoticeCategory)}>{Object.entries(noticeCategories).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></Field>
+          <Field label="Comunicado" name="content"><textarea name="content" rows={5} required maxLength={10000}/></Field>
+          </FormSection>
+          <FormSection title="Destinatarios">
+          <Field label="Aula destinataria" name="classroomId"><select name="classroomId" value={noticeRoom} required={role==='teacher'} onChange={e=>{setNoticeRoom(e.target.value);setNoticeTargets([]);setNoticeSearch('');}}>{role!=='teacher'&&<option value="">Toda la institución</option>}{rooms.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
+          <Field label="Para quién" name="audience"><select name="audience" value={noticeAudience} onChange={e=>{setNoticeAudience(e.target.value);setNoticeTargets([]);}}><option value="families">Familias</option><option value="all">Toda la comunidad</option><option value="staff">Equipo docente</option></select></Field>
+          {noticeRoom&&noticeAudience!=='staff'&&<><p className="muted">Sin selección se envía a todas las familias del aula. Al elegir niños, solo sus padres recibirán el aviso{noticeAudience==='all'?' junto al equipo del aula':''}.</p><Field label="Buscar niño" name="noticeSearch"><input value={noticeSearch} onChange={e=>setNoticeSearch(e.target.value)} placeholder="Nombre o apellido"/></Field><div className="notice-targets">{students.filter(s=>s.status==='active'&&s.classroomId===noticeRoom&&fullName(s).toLowerCase().includes(noticeSearch.toLowerCase())).map(s=><label key={s.id}><input type="checkbox" checked={noticeTargets.includes(s.id)} onChange={e=>setNoticeTargets(old=>e.target.checked?[...old,s.id]:old.filter(id=>id!==s.id))}/>{fullName(s)}</label>)}</div><small>{noticeTargets.length?`${noticeTargets.length} niños seleccionados`:'Todas las familias del aula'}</small></>}
+          </FormSection>
+          <FormSection title="Confirmación y recordatorios">
+          <div className="notice-flags"><label><input type="checkbox" checked={noticeRequired} onChange={e=>{setNoticeRequired(e.target.checked);if(e.target.checked)setNoticeHourly(true);}}/> Exigir confirmación: «Estoy de acuerdo»</label><label><input type="checkbox" checked={noticeHourly} onChange={e=>setNoticeHourly(e.target.checked)}/> Recordar cada hora hasta {noticeRequired?'que confirme':'que lo lea'}</label>{['health','pickup'].includes(noticeCategory)&&<label><input key={noticeCategory} type="checkbox" name="urgent" defaultChecked/> Urgente: puede notificarse durante el descanso</label>}</div>
+          <div className="soft-note">Descanso de 22:00 a 07:00 (Bolivia), salvo urgencias de salud o recojo. Los avisos obligatorios, de salud y de recojo estarán disponibles incluso con pagos pendientes. Una vez publicado, puedes retirarlo y crear una nueva versión.</div>
+          </FormSection>
         </>
       )}
       {type === "entry" && (
@@ -1124,6 +1127,7 @@ export function WorkspaceModal({
               required
               defaultValue={editEvent?.date || today()}
             />
+            <Field label="Fecha final (opcional)" name="endDate" type="date" defaultValue={editEvent?.endDate}/>
             <Field label="Aula" name="classroomId">
               <select
                 name="classroomId"

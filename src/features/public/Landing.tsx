@@ -202,7 +202,7 @@ export function Landing() {
                     Solicitar demo para mi institución <ArrowRight size={19} />
                   </a>
                   <Link to="/demo" className="landing-secondary">
-                    Probar demo ahora <ArrowRight size={17} />
+                    Entrar a la demo <ArrowRight size={17} />
                   </Link>
                 </m.div>
                 <m.div className="hero-reassurance" variants={itemVariants}>

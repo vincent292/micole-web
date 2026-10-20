@@ -188,6 +188,7 @@ export function Modal({
   onSubmit,
   submitLabel = "Guardar",
   submitDisabled = false,
+  dismissible = true,
   busy = false,
   error = "",
 }: {
@@ -198,18 +199,44 @@ export function Modal({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   submitLabel?: string;
   submitDisabled?: boolean;
+  dismissible?: boolean;
   busy?: boolean;
   error?: string;
 }) {
   const [sections,setSections]=useState<{id:string;label:string}[]>([]);
   const [selected,setSelected]=useState('');
+  const [reached,setReached]=useState(0);
   const register=useCallback((id:string,label:string)=>{setSections(old=>old.some(s=>s.id===id)?old:[...old,{id,label}]);return ()=>setSections(old=>old.filter(s=>s.id!==id));},[]);
   const active=sections.some(s=>s.id===selected)?selected:sections[0]?.id||'';
   const index=sections.findIndex(s=>s.id===active);
   const body=useRef<HTMLDivElement>(null);
+  const form=useRef<HTMLFormElement>(null);
   const navigate=(id:string)=>{setSelected(id);body.current?.scrollTo({top:0});};
+  const validate = (step: number) => {
+    const node = sections[step] && form.current?.querySelector<HTMLElement>(`[data-form-section="${sections[step].id}"]`);
+    const controls = [...(node || form.current)?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea") || []];
+    const invalid = controls.find(input => input.willValidate && !input.checkValidity());
+    if(!invalid) return true;
+    if(sections[step]) flushSync(()=>setSelected(sections[step].id));
+    requestAnimationFrame(()=>{invalid.focus();invalid.reportValidity();});
+    return false;
+  };
+  const forward = (next: number) => {
+    for(let i=0;i<next;i++) if(!validate(i)) return;
+    setReached(n=>Math.max(n,next));navigate(sections[next].id);
+  };
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();if(busy || submitDisabled) return;
+    if(sections.length>1 && index<sections.length-1){forward(index+1);return;}
+    if(sections.length>1 && reached<sections.length-1) return;
+    if(sections.length){for(let i=0;i<sections.length;i++)if(!validate(i))return;}
+    else if(!validate(0))return;
+    onSubmit(event);
+  };
   const dialog = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
+  const dismissRef=useRef(dismissible);
+  dismissRef.current=dismissible;
   const busyRef = useRef(busy);
   closeRef.current = onClose;
   busyRef.current = busy;
@@ -219,10 +246,10 @@ export function Modal({
       ...(dialog.current?.querySelectorAll<HTMLElement>(
         "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]",
       ) || []),
-    ];
+    ].filter(node=>node.getClientRects().length>0);
     focusable()[1]?.focus({ preventScroll: true });
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busyRef.current) closeRef.current();
+      if (e.key === "Escape" && dismissRef.current && !busyRef.current) closeRef.current();
       if (e.key === "Tab") {
         const items = focusable();
         const first = items[0],
@@ -250,7 +277,7 @@ export function Modal({
     <div
       className="modal-backdrop"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) onClose();
+        if (e.target === e.currentTarget && dismissible && !busy) onClose();
       }}
     >
       <div
@@ -265,7 +292,7 @@ export function Modal({
             <h2>{title}</h2>
             {subtitle && <p>{subtitle}</p>}
           </div>
-          <button
+          {dismissible && <button
             type="button"
             className="icon-button"
             disabled={busy}
@@ -273,37 +300,33 @@ export function Modal({
             onClick={onClose}
           >
             <X size={20} />
-          </button>
+          </button>}
         </div>
-        {sections.length>1 && <nav className="form-step-nav" aria-label="Secciones del formulario">{sections.map((section,i)=><button key={section.id} type="button" disabled={busy} aria-current={active===section.id?'step':undefined} onClick={()=>navigate(section.id)}><span>{i+1}</span>{section.label}</button>)}</nav>}
-        <form onSubmit={onSubmit} onInvalidCapture={event=>{
-          const input=event.target as HTMLElement,id=input.closest<HTMLElement>('[data-form-section]')?.dataset.formSection;
-          if(id && id!==active) flushSync(()=>setSelected(id));
-          requestAnimationFrame(()=>input.focus({preventScroll:false}));
-        }}>
-          <fieldset disabled={busy}>
-            <div className="modal-content" ref={body}>
+        {sections.length>1 && <nav className="form-step-nav" aria-label="Secciones del formulario">{sections.map((section,i)=><button key={section.id} type="button" disabled={busy || i>reached} aria-current={active===section.id?'step':undefined} onClick={()=>i>index?forward(i):navigate(section.id)}><span>{i+1}</span>{section.label}</button>)}</nav>}
+        <form ref={form} noValidate onSubmit={submit}>
+            <div className="modal-content" ref={body} tabIndex={0} aria-label="Contenido del formulario">
+              <fieldset disabled={busy}>
               <FormNavigation.Provider value={{active,register}}>{children}</FormNavigation.Provider>
               {error && (
                 <div className="message error" role="alert">
                   {error}
                 </div>
               )}
+              </fieldset>
             </div>
             <div className="modal-footer">
-              {sections.length>1 && <div className="form-step-controls"><small>{index+1} de {sections.length}</small><Button variant="ghost" disabled={busy||index<=0} onClick={()=>navigate(sections[index-1].id)}>Anterior</Button><Button variant="ghost" disabled={busy||index>=sections.length-1} onClick={()=>navigate(sections[index+1].id)}>Siguiente</Button></div>}
-              <Button variant="secondary" onClick={onClose}>
+              {sections.length>1 && <div className="form-step-controls"><small>{index+1} de {sections.length}</small><Button variant="ghost" disabled={busy||index<=0} onClick={()=>navigate(sections[index-1].id)}>Anterior</Button>{index<sections.length-1 && <Button variant="primary" disabled={busy} onClick={()=>forward(index+1)}>Siguiente</Button>}</div>}
+              {dismissible && <Button variant="secondary" disabled={busy} onClick={onClose}>
                 Cancelar
-              </Button>
-              <Button
+              </Button>}
+              {(sections.length<=1 || index===sections.length-1) && <Button
                 type="submit"
                 disabled={busy || submitDisabled}
                 icon={busy ? LoaderCircle : undefined}
               >
                 {busy ? "Guardando…" : submitLabel}
-              </Button>
+              </Button>}
             </div>
-          </fieldset>
         </form>
       </div>
     </div>

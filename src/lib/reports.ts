@@ -22,7 +22,7 @@ export interface ReportPayment {
   concept: string;
   date: string;
   amount: number;
-  method: "cash" | "transfer" | "qr";
+  method: "cash" | "transfer" | "qr" | "deposit";
   reference: string;
 }
 export interface ReportSnapshot {
@@ -89,7 +89,7 @@ export function validReportScope(value: ReportSnapshot, scope: ReportSnapshot["s
   const students = new Set(value.students.map((s) => s.id));
   if (scope === "school" && value.students.some((s) => (filters.studentId && s.id !== filters.studentId) || (filters.classroomId && s.classroomId !== filters.classroomId))) return false;
   const allowed = (row: { schoolId: string; studentId?: string; amount: number; date: string; concept: string }) => schools.has(row.schoolId) && (scope === "platform" || (!!row.studentId && students.has(row.studentId))) && Number.isFinite(row.amount) && row.amount >= 0 && typeof row.concept === "string" && !validateReportRange(row.date, row.date) && row.date >= filters.from && row.date <= filters.to;
-  return value.charges.every((c) => allowed(c) && ["paid", "pending", "overdue", "cancelled"].includes(c.status)) && value.payments.every((p) => allowed(p) && ["cash", "transfer", "qr"].includes(p.method));
+  return value.charges.every((c) => allowed(c) && ["paid", "pending", "overdue", "cancelled"].includes(c.status)) && value.payments.every((p) => allowed(p) && ["cash", "transfer", "qr", "deposit"].includes(p.method));
 }
 export function csvContent(headers: string[], rows: (string | number)[][]) {
   const cell = (value: string | number) => {

@@ -1,3 +1,4 @@
+import type { AdmissionTemplate } from "../../lib/admission";
 import { publicDemo } from "../../lib/demo-config";
 import { demoDataKey } from "../../lib/demo";
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ import { CareFields, readCareProfile } from "../../components/CareFields";
 import { liveMode } from "../../lib/supabase";
 import type { AppData, CareProfile } from "../../lib/types";
 interface Context {
+  template?: AdmissionTemplate;
   schoolName: string;
   logoUrl?: string;
   childName: string;
@@ -68,6 +70,7 @@ function localContext(token: string): {
       recipient: form.recipient,
       status: form.status,
       expiresAt: form.expiresAt,
+      template: (form as unknown as {templateSnapshot?:AdmissionTemplate}).templateSnapshot,
     },
   };
 }
@@ -205,7 +208,7 @@ export function FamilyIntakePage() {
                 }}
               >
                 <fieldset disabled={busy}>
-                  <CareFields />
+                  <CareFields template={context.template}/>
                   <label className="intake-confirmation">
                     <input type="checkbox" required /> Confirmo que revisé los
                     datos y que están completos.

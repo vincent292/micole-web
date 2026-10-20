@@ -1,3 +1,4 @@
+import {ContentSeen} from '../components/ContentSeen';
 import { useState, type FormEvent } from "react";
 import { Plus, Heart, Download, ArrowRight, CheckCircle2 } from "lucide-react";
 import {
@@ -648,6 +649,7 @@ function ReportCards({
           first = group[0].content;
         return (
           <section className="panel printable-card" key={key}>
+            {group.map(c=><ContentSeen key={c.id} kind="report_card" id={c.id}><span>{c.content.termName}</span></ContentSeen>)}
             <SectionTitle
               title={first.studentName}
               subtitle={`${first.schoolName} · ${first.classroomName} · Gestión ${first.year}`}

@@ -131,6 +131,7 @@ export function toRow(table: Collection, item: object) {
     result[column] =
       value === "" &&
       [
+        "endDate",
         "classroomId",
         "studentId",
         "teacherId",
@@ -281,6 +282,7 @@ export async function saveRow<K extends Collection>(
     await rpc("save_student", { p_student: toRow(table, item) });
     return;
   }
+  if (table === "announcements") { await rpc("save_announcement", {p_notice:toRow(table,item)});return; }
   if (table === "schools") {
     await rpc("save_school", { p_school: toRow(table, item) });
     return;

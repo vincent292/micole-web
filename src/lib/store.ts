@@ -613,6 +613,7 @@ export function useAppStore(
         : student.fatherEmail;
     if (!email)
       throw new Error("Registra primero el correo de ese responsable.");
+    const demoTemplate = publicDemo ? await rpc("demo_admission_template",{p_school_id:student.schoolId,p_year:current.current.classrooms.find(c=>c.id===student.classroomId)?.academicYear||Number(today().slice(0,4))}) : undefined;
     let token = (uid() + uid()).replace(/-/g, "");
     await run(
       async () => {
@@ -636,6 +637,7 @@ export function useAppStore(
             studentId,
             recipient,
             recipientEmail: email,
+            templateSnapshot: publicDemo ? demoTemplate : JSON.parse(localStorage.getItem(`micole-template:${student.schoolId}:${current.current.classrooms.find(c=>c.id===student.classroomId)?.academicYear||Number(today().slice(0,4))}`)||"{}"),
             status: "open",
             token,
             createdAt: new Date().toISOString(),

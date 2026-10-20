@@ -280,3 +280,51 @@ it("una build pública nunca inicializa Supabase aunque reciba variables de prod
   expect(fetch).not.toHaveBeenCalled();
   vi.unstubAllEnvs();
 });
+
+
+describe("funciones nuevas en demo, sin servicios externos", () => {
+ it("conserva lecturas y aceptación personal al cambiar de rol y reporta padres pendientes", async()=>{
+  const d=readDemoData();d.announcements.push({id:"mandatory-local",schoolId:"s1",classroomId:"c1",audience:"families",createdBy:"demo-teacher",title:"Salida de ejemplo",content:"Confirmación ficticia",createdAt:new Date().toISOString(),targeted:true,targetStudentIds:["a1"],requiresAcknowledgment:true});writeDemoData(d);
+  setDemoRole("guardian");
+  expect((await demoRpc<any[]>("pending_announcements",{p_school_id:"s1"})).map(n=>n.id)).toContain("mandatory-local");
+  const read=await demoRpc<any>("read_announcement",{p_id:"mandatory-local",p_agree:false});expect(read.readAt).toBeTruthy();expect(read.acknowledgedAt).toBeUndefined();
+  await expect(demoRpc("announcement_report",{p_id:"mandatory-local"})).rejects.toThrow("Solo Dirección");
+  await demoRpc("read_announcement",{p_id:"mandatory-local",p_agree:true});
+  setDemoRole("teacher");
+  const rows=await demoRpc<any[]>("announcement_report",{p_id:"mandatory-local"});
+  expect(rows.find(r=>r.email==='familia@micole.test')).toMatchObject({children:['Sofía Martínez'],accountPending:false,acknowledgedAt:expect.any(String)});
+  expect(rows.find(r=>r.email==='padre1@micole.test')).toMatchObject({accountPending:true});
+  expect(rows).toHaveLength(2);expect(fetch).not.toHaveBeenCalled();
+ });
+ it("muestra cuotas, saldos y recibos por hijo y protege los otros perfiles",async()=>{
+  setDemoRole('guardian');const r=await demoRpc<any>('student_account_statement',{p_student_id:'a1'});
+  expect(r.charges).toHaveLength(2);expect(r.receipts[0].reference).toBe('DEMO-001');expect(r.invoices[0].files).toEqual([]);
+  await expect(demoRpc('student_account_statement',{p_student_id:'a2'})).rejects.toThrow('perfil');
+  setDemoRole('teacher');await expect(demoRpc('student_account_statement',{p_student_id:'a1'})).rejects.toThrow('perfil');expect(fetch).not.toHaveBeenCalled();
+ });
+ it("registra consultas visibles una vez y las mantiene para el reporte del docente",async()=>{
+  setDemoRole('guardian');const p={p_id:'one-view',p_kind:'grade',p_content_id:'demo-grade',p_action:'open'};
+  await demoRpc('record_content_view',p);await demoRpc('record_content_view',p);
+  setDemoRole('teacher');const r=await demoRpc<any>('content_view_report',{p_kind:'grade',p_limit:50});
+  expect(r.total).toBe(1);expect(r.rows[0]).toMatchObject({studentId:'a1',viewerRole:'guardian',kind:'grade',contentHash:expect.stringMatching(/^[0-9a-f]{64}$/)});
+  localStorage.setItem('unrelated-site-key','preserve');resetDemo();expect((await demoRpc<any>('content_view_report',{})).total).toBe(0);expect(localStorage.getItem('unrelated-site-key')).toBe('preserve');
+ });
+ it("no aplica depósitos declarados sin adjunto y revisión de Dirección",async()=>{
+  const params={p_id:'proof-local',p_student_id:'a2',p_items:[{chargeId:'p2',amount:210}],p_method:'deposit',p_reference:'DEMO-REF',p_paid_on:'2026-10-20'};
+  await demoRpc('create_payment_submission',params);
+  await expect(demoRpc('submit_payment_submission',{p_id:'proof-local'})).rejects.toThrow('Adjunta');
+  expect(readDemoData().charges.find(c=>c.id==='p2')?.paidAmount).toBe(0);
+  expect((await demoRpc<any>('financial_support_register',{p_school_id:'s1',p_student_id:'a2'})).submissions).toHaveLength(0);
+  expect(fetch).not.toHaveBeenCalled();
+ });
+ it("prepara una interpretación explícitamente simulada y publica la plantilla local con revisión",async()=>{
+  const {sampleDocumentDraft}=await import('../src/lib/demo-features');const draft=sampleDocumentDraft(2026,'form');expect(draft.warnings[0]).toContain('SIMULADA');expect(fetch).not.toHaveBeenCalled();
+  await demoRpc('save_admission_template',{p_school_id:'s1',p_year:2026,p_expected_revision:0,p_template:{title:draft.title,academicYear:2026,fields:draft.fields,instructions:draft.instructions}});
+  const template=await demoRpc<any>('demo_admission_template',{p_school_id:'s1',p_year:2026});expect(template.fields).toHaveLength(2);expect(template.revision).toBe(1);
+  await expect(demoRpc('save_admission_template',{p_school_id:'s1',p_year:2026,p_expected_revision:0,p_template:template})).rejects.toThrow('cambió');
+  resetDemo();expect(await demoRpc('demo_admission_template',{p_school_id:'s1',p_year:2026})).toBeNull();
+ });
+});
+it('el acceso real rechaza correos ficticios antes de enviar un OTP',async()=>{
+ const {signInEmail}=await import('../src/lib/supabase');await expect(signInEmail(' Direccion@MiCole.test ')).rejects.toThrow('correo ficticio');expect(fetch).not.toHaveBeenCalled();
+});

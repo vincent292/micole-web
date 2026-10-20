@@ -1,3 +1,4 @@
+import {financialDocumentMatches} from './financial-document.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from 'npm:@aws-sdk/client-s3@3';
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3';
@@ -25,6 +26,37 @@ Deno.serve(async (req: Request) => {
     const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID'), secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY');
     if (!account || !bucket || !accessKeyId || !secretAccessKey) throw new Error('Cloudflare R2 todavía no está configurado.');
     const s3 = new S3Client({ region: 'auto', endpoint: `https://${account}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey }, requestChecksumCalculation: 'WHEN_REQUIRED' });
+    if(body.action==='financial_download'){
+      const {data:allowed}=await db.rpc('may_read_financial_file',{p_id:body.assetId});
+      if(allowed!==true)return reply({error:'No tienes acceso a este documento financiero.'},403);
+      const {data:file,error}=await db.from('financial_files').select('id,object_key,mime_type,file_name,kind').eq('id',body.assetId).eq('status','ready').single();
+      if(error||!file)return reply({error:'El documento no está disponible.'},403);
+      if(file.kind==='invoice'){
+       const {error:historyError}=await db.rpc('record_content_view',{p_id:body.eventId||crypto.randomUUID(),p_kind:'invoice',p_content_id:file.id,p_client:body.client==='android'?'android':'web',p_action:'download'});
+       if(historyError)return reply({error:'No se pudo registrar la descarga. Vuelve a intentar.'},400);
+      }
+      const url=await getSignedUrl(s3,new GetObjectCommand({Bucket:bucket,Key:file.object_key,ResponseContentType:file.mime_type,ResponseContentDisposition:`attachment; filename*=UTF-8''${encodeURIComponent(file.file_name)}`}),{expiresIn:300});return reply({url,fileName:file.file_name});
+    }
+    if(body.action==='financial_upload'){
+      const {data:file,error}=await db.rpc('reserve_financial_file',{p_kind:body.kind,p_parent_id:body.parentId,p_file_name:body.fileName,p_mime_type:body.mimeType,p_size:body.size});
+      if(error||!file)return reply({error:error?.message||'No puedes adjuntar este documento.'},403);
+      const url=await getSignedUrl(s3,new PutObjectCommand({Bucket:bucket,Key:file.objectKey,ContentType:body.mimeType,ContentLength:body.size}),{expiresIn:120});return reply({...file,url});
+    }
+    if(body.action==='financial_finalize'){
+      const {data:file,error}=await db.rpc('financial_file_for_upload',{p_id:body.assetId});
+      if(error||!file)return reply({error:error?.message||'Esta carga no está autorizada.'},403);
+      const head=await s3.send(new HeadObjectCommand({Bucket:bucket,Key:file.staging_key}));
+      if(head.ContentLength!==file.size_bytes||head.ContentType!==file.mime_type)return reply({error:'El documento no coincide con la carga autorizada.'},400);
+      const object=await s3.send(new GetObjectCommand({Bucket:bucket,Key:file.staging_key,IfMatch:head.ETag}));const bytes=await object.Body!.transformToByteArray();
+      if(bytes.length!==file.size_bytes||!financialDocumentMatches(bytes,file.mime_type))return reply({error:'Adjunta un PDF, JPG, PNG o WebP válido.'},400);
+      const ext=file.mime_type==='application/pdf'?'pdf':file.mime_type==='image/jpeg'?'jpg':file.mime_type==='image/png'?'png':'webp';
+      const finalKey=`${file.school_id}/finance/ready/${file.id}/${crypto.randomUUID()}.${ext}`;
+      await s3.send(new PutObjectCommand({Bucket:bucket,Key:finalKey,Body:bytes,ContentType:file.mime_type}));
+      const server=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+      const {data:finished,error:finishError}=await server.rpc('finish_financial_file',{p_id:file.id,p_size:bytes.length,p_mime_type:file.mime_type,p_object_key:finalKey});
+      if(finishError||finished!==true){await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:finalKey})).catch(()=>{});return reply({error:'No se pudo confirmar el documento. Revisa el estado antes de volver a intentar.'},400);}
+      await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:file.staging_key})).catch(()=>{});return reply({id:file.id});
+    }
     if (body.action === 'pickup_download') {
       const {data:permitted}=await db.rpc('may_read_pickup_identity',{p_file_id:body.assetId});
       if(permitted!==true)return reply({error:'No tienes acceso al carnet de esta autorización.'},403);

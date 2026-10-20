@@ -1,3 +1,4 @@
+import { admissionRows } from "../lib/admission";
 import { useState } from "react";
 import { Copy, MessageCircle, Link as LinkIcon } from "lucide-react";
 import { Badge, Button, Field, Modal } from "../components/UI";
@@ -171,6 +172,7 @@ export function FamilyIntakeModal({
                         <b>{String(f.profile![key])}</b>
                       </div>
                     ))}
+                  {admissionRows(f.profile.admissionDetails).map(([label,value])=><div key={label}><small>{label}</small><b>{value}</b></div>)}
                 </div>
                 <div className="action-group">
                   <Button

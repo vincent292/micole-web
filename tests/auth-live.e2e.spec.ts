@@ -29,3 +29,13 @@ test('una cuenta confirmada sin vínculo escolar recibe indicaciones de acceso',
  await expect(page.getByRole('button',{name:'Solicitar incorporación'})).toHaveCount(0);
  await page.getByRole('button',{name:'Quiero incorporar mi institución'}).click();await expect(page.getByRole('button',{name:'Solicitar incorporación'})).toBeVisible();
 });
+
+for(const scenario of ['enlace','correo'])test(`el acceso ${scenario} abre la demo sin enviar OTP`,async({page})=>{
+ const otp:string[]=[];page.on('request',r=>{if(r.url().includes('/auth/v1/otp'))otp.push(r.url());});
+ await page.route('**/auth/v1/settings',r=>r.fulfill({json:{external:{email:true,google:true}}}));
+ await page.route('https://micole-demo.vercel.app/**',r=>r.fulfill({contentType:'text/html',body:'<h1>Acceso local a la demo</h1>'}));
+ await page.goto('/login');
+ if(scenario==='enlace')await page.getByRole('link',{name:'Entrar a la demo'}).click();
+ else{await page.getByLabel('Tu correo',{exact:true}).fill('direccion@micole.test');await page.getByRole('button',{name:'Enviar enlace de acceso',exact:true}).click();}
+ await expect(page).toHaveURL(scenario==='correo'?'https://micole-demo.vercel.app/?perfil=director':'https://micole-demo.vercel.app/');expect(otp).toEqual([]);
+});

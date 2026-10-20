@@ -1,0 +1,558 @@
+import { test, expect, type Page, type WebSocketRoute } from "@playwright/test";
+const id = (n: number) =>
+  `ca000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const [
+  userId,
+  schoolId,
+  roomId,
+  otherRoomId,
+  studentId,
+  otherStudentId,
+  teacherId,
+] = [1, 20, 30, 31, 40, 41, 50].map(id);
+const date = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/La_Paz",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
+test.use({ baseURL: "http://localhost:4174", reducedMotion: "reduce" });
+async function setup(page: Page, role = "director") {
+  const calls: { name: string; body: any }[] = [];
+  const state = {
+    school: {
+      id: schoolId,
+      name: "Colegio Operaciones",
+      slug: "operaciones",
+      city: "La Paz",
+      status: "active",
+      brand_color: "#3D6EF7",
+      director_name: "Directora",
+      address: "Av. Arce",
+      banner_url: "",
+      maps_url: "",
+    },
+    rooms: [
+      {
+        id: roomId,
+        school_id: schoolId,
+        name: "Primero A",
+        level: "Primaria",
+        academic_year: 2026,
+        schedule: "08:00 – 12:00",
+        start_time: "08:00:00",
+        end_time: "12:00:00",
+        weekdays: [1, 2, 3, 4, 5],
+        capacity: 20,
+        monthly_fee: 400,
+        active: true,
+      },
+      {
+        id: otherRoomId,
+        school_id: schoolId,
+        name: "Primero B",
+        level: "Primaria",
+        academic_year: 2026,
+        schedule: "08:00 – 12:00",
+        start_time: "08:00:00",
+        end_time: "12:00:00",
+        weekdays: [1, 2, 3, 4, 5],
+        capacity: 20,
+        monthly_fee: 450,
+        active: true,
+      },
+    ],
+    students: [
+      {
+        id: studentId,
+        school_id: schoolId,
+        classroom_id: roomId,
+        first_name: "Lucía",
+        last_name: "Prueba",
+        birth_date: "2020-01-01",
+        status: "active",
+        enrolled_at: date,
+        profile_complete: true,
+        monthly_fee: 400,
+        mother_name: "Madre",
+        mother_email: "madre@example.invalid",
+        mother_phone: "70000000",
+        father_name: "Padre",
+        father_email: "padre@example.invalid",
+      },
+      {
+        id: otherStudentId,
+        school_id: schoolId,
+        classroom_id: otherRoomId,
+        first_name: "Mateo",
+        last_name: "Prueba",
+        birth_date: "2020-01-01",
+        status: "active",
+        enrolled_at: date,
+        profile_complete: true,
+        monthly_fee: 450,
+        mother_name: "Madre",
+        mother_email: "madre@example.invalid",
+        father_name: "Padre",
+        father_email: "padre@example.invalid",
+      },
+    ],
+    charges: [
+      {
+        id: id(100),
+        school_id: schoolId,
+        student_id: studentId,
+        concept: "Mensualidad octubre",
+        due_date: date,
+        period: date.slice(0, 7),
+        amount: 100,
+        paid_amount: 0,
+        minimum_access_ratio: 0.5,
+        status: "pending",
+      },
+      {
+        id: id(101),
+        school_id: schoolId,
+        student_id: studentId,
+        concept: "Mensualidad noviembre",
+        due_date: "2026-11-10",
+        period: "2026-11",
+        amount: 100,
+        paid_amount: 0,
+        minimum_access_ratio: 1,
+        status: "pending",
+      },
+    ] as any[],
+    receipts: [] as any[],
+    invoices: [] as any[],
+    requests: [] as any[],
+    events: [] as any[],
+    notices: [] as any[],
+    contact: { directorIdentity: "1234567 LP", directorPhone: "70000000" },
+  };
+  const user = {
+    id: userId,
+    email: `${role}@example.invalid`,
+    aud: "authenticated",
+    role: "authenticated",
+    user_metadata: { full_name: "Cuenta Operaciones" },
+    app_metadata: { provider: "email" },
+    created_at: new Date().toISOString(),
+  };
+  const seconds = Math.floor(Date.now() / 1000);
+  const jwt = `${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from(JSON.stringify({ sub: userId, exp: seconds + 3600, iat: seconds, aud: "authenticated", role: "authenticated" })).toString("base64url")}.test`;
+  await page.addInitScript(
+    ({ user, jwt, seconds }) =>
+      localStorage.setItem(
+        "sb-micole-test-auth-token",
+        JSON.stringify({
+          access_token: jwt,
+          refresh_token: "test",
+          expires_at: seconds + 3600,
+          expires_in: 3600,
+          token_type: "bearer",
+          user,
+        }),
+      ),
+    { user, jwt, seconds },
+  );
+  let socket: WebSocketRoute | undefined,
+    topic = "",
+    joinRef = "";
+  await page.routeWebSocket("**/realtime/v1/websocket*", (ws) => {
+    socket = ws;
+    ws.onMessage((raw) => {
+      const frame = JSON.parse(String(raw));
+      const message = Array.isArray(frame)
+        ? {
+            join_ref: frame[0],
+            ref: frame[1],
+            topic: frame[2],
+            event: frame[3],
+            payload: frame[4],
+          }
+        : frame;
+      if (message.event === "phx_join") {
+        topic = message.topic;
+        joinRef = message.join_ref;
+        ws.send(
+          JSON.stringify([
+            message.join_ref,
+            message.ref,
+            topic,
+            "phx_reply",
+            {
+              status: "ok",
+              response: {
+                postgres_changes: [
+                  {
+                    id: 1,
+                    event: "*",
+                    schema: "public",
+                    table: "workspace_signals",
+                  },
+                ],
+              },
+            },
+          ]),
+        );
+      }
+      if (message.event === "heartbeat")
+        ws.send(
+          JSON.stringify([
+            message.join_ref,
+            message.ref,
+            message.topic,
+            "phx_reply",
+            { status: "ok", response: {} },
+          ]),
+        );
+    });
+  });
+  const signal = (changedTable = "students") =>
+    socket?.send(
+      JSON.stringify([
+        joinRef,
+        null,
+        topic,
+        "postgres_changes",
+        {
+          ids: [1],
+          data: {
+            schema: "public",
+            table: "workspace_signals",
+            type: "UPDATE",
+            columns: [
+              { name: "school_id", type: "uuid" },
+              { name: "revision", type: "int8" },
+              { name: "changed_at", type: "timestamptz" },
+            ],
+            commit_timestamp: new Date().toISOString(),
+            record: {
+              school_id: schoolId,
+              revision: 2,
+              changed_table: changedTable,
+              changed_at: new Date().toISOString(),
+            },
+            old_record: { school_id: schoolId },
+            errors: null,
+          },
+        },
+      ]),
+    );
+  await page.route("**/auth/v1/**", (route) =>
+    route.fulfill({
+      json: route.request().url().includes("/settings")
+        ? { external: { email: true, google: true } }
+        : user,
+    }),
+  );
+  await page.route("**/rest/v1/**", async (route) => {
+    const req = route.request(),
+      name = new URL(req.url()).pathname.split("/").at(-1)!;
+    let body: any;
+    try {
+      body = req.postDataJSON();
+    } catch {
+      body = null;
+    }
+    calls.push({ name, body });
+    let json: unknown = [];
+    if (name === "platform_tariffs")
+      json = { activationFee: 50, monthlyLicenseFee: 29, inherited: true };
+    else if (name === "workspace_identity")
+      json = {
+        id: userId,
+        email: user.email,
+        name: "Cuenta Operaciones",
+        roles: [role],
+        memberships: [{ schoolId, role }],
+        teacherIds: role === "teacher" ? [teacherId] : [],
+        guardianStudentIds: role === "guardian" ? [studentId] : [],
+      };
+    else if (name === "schools") json = [state.school];
+    else if (name === "students") json = state.students;
+    else if (name === "classrooms") json = state.rooms;
+    else if (name === "teachers")
+      json = [
+        {
+          id: teacherId,
+          school_id: schoolId,
+          name: "Profesora Prueba",
+          email: "profesora@example.invalid",
+          status: "active",
+          specialty: "Titular",
+        },
+      ];
+    else if (name === "teacher_classrooms")
+      json = [{ classroom_id: roomId, teacher_id: teacherId }];
+    else if (name === "school_charges") json = state.charges;
+    else if (name === "platform_charges")
+      json = state.students.map((s, i) => ({
+        id: id(120 + i),
+        school_id: schoolId,
+        student_id: s.id,
+        concept: "Activación",
+        period: date.slice(0, 7),
+        amount: 50,
+        status: "paid",
+      }));
+    else if (name === "finance_register")
+      json = { receipts: state.receipts, invoices: state.invoices };
+    else if (name === "academic_requests") json = state.requests;
+    else if (name === "calendar_events") json = state.events;
+    else if (name === "announcements") json = state.notices;
+    else if (name === "institution_private_contact") json = state.contact;
+    else if (name === "payment_connection_status")
+      json = {
+        provider: "",
+        accountReference: "",
+        environment: "test",
+        credentialsStored: false,
+        integrationReady: false,
+      };
+    else if (name === "save_school") {
+      Object.assign(
+        state.school,
+        Object.fromEntries(
+          Object.entries(body.p_school).filter(
+            ([key]) => !["director_identity", "director_phone"].includes(key),
+          ),
+        ),
+      );
+      state.contact = {
+        directorIdentity: body.p_school.director_identity,
+        directorPhone: body.p_school.director_phone,
+      };
+      json = null;
+    } else if (name === "save_classroom") {
+      Object.assign(
+        state.rooms.find((r) => r.id === body.p_room.id)!,
+        body.p_room,
+      );
+      json = null;
+    } else if (name === "enroll_student_with_plan") {
+      state.students.push(body.p_student);
+      json = null;
+    } else if (name === "save_academic_request") {
+      state.requests.push({
+        ...body.p_request,
+        status: "pending",
+        created_at: date,
+        review_note: "",
+      });
+      json = body.p_request.id;
+    } else if (name === "review_academic_request") {
+      const request = state.requests.find((r) => r.id === body.p_id)!;
+      request.status = body.p_approve ? "approved" : "rejected";
+      if (body.p_approve) {
+        state.events.push({
+          id: request.id,
+          school_id: schoolId,
+          classroom_id: request.classroom_id,
+          title: request.title,
+          description: request.details,
+          event_date: request.event_date,
+          type: "materials",
+        });
+        state.notices.push({
+          id: request.id,
+          school_id: schoolId,
+          classroom_id: request.classroom_id,
+          title: request.title,
+          content: request.details,
+          audience: "families",
+          created_at: date,
+        });
+      }
+      json = null;
+    } else if (name === "checkout_school_payment") {
+      if (!state.receipts.some((r) => r.id === body.p_receipt_id)) {
+        let total = 0;
+        for (const item of body.p_items) {
+          const charge = state.charges.find((c) => c.id === item.chargeId)!;
+          charge.paid_amount += item.amount;
+          if (charge.paid_amount >= charge.amount) charge.status = "paid";
+          total += item.amount;
+        }
+        state.receipts.push({
+          id: body.p_receipt_id,
+          school_id: schoolId,
+          student_id: body.p_student_id,
+          total,
+          payment_method: body.p_method,
+          reference: body.p_reference,
+          verification_source: "manual",
+          recorded_by: userId,
+          created_at: new Date().toISOString(),
+        });
+        if (body.p_invoice?.invoiceName)
+          state.invoices.push({
+            id: id(200),
+            school_id: schoolId,
+            student_id: studentId,
+            receipt_id: body.p_receipt_id,
+            legal_name: body.p_invoice.invoiceName,
+            nit_ci: body.p_invoice.invoiceNit,
+            phone: body.p_invoice.invoicePhone,
+            amount: total,
+            status: "pending",
+            invoice_number: "",
+            created_at: new Date().toISOString(),
+          });
+      }
+      json = body.p_receipt_id;
+    } else if (name === "mark_invoice_issued") {
+      Object.assign(
+        state.invoices.find((i) => i.id === body.p_id),
+        { status: "issued", invoice_number: body.p_number },
+      );
+      json = null;
+    } else if (name === "create_payment_link") json = "a".repeat(64);
+    else if (name === "withdraw_student") {
+      Object.assign(
+        state.students.find((s) => s.id === body.p_student_id)!,
+        { status: "inactive", withdrawal_reason: body.p_reason },
+      );
+      json = null;
+    }
+    await route.fulfill({ json });
+  });
+  return { state, calls, signal, ready: () => !!topic };
+}
+
+const noticeId = id(1800);
+async function inboxFixture(page: Page, required = true) {
+  const context = await setup(page, "guardian");
+  context.state.charges.forEach((c) =>
+    Object.assign(c, {
+      due_date: "2020-01-01",
+      status: "overdue",
+      paid_amount: 0,
+    }),
+  );
+  const n = {
+    id: noticeId,
+    schoolId,
+    classroomId: roomId,
+    title: "Aviso personal de salud",
+    content: "Indicaciones privadas para la familia de prueba.",
+    audience: "families",
+    category: "health",
+    requiresAcknowledgment: required,
+    remindHourly: true,
+    urgent: true,
+    createdAt: date,
+    canManage: false,
+    canAcknowledge: true,
+    readAt: null as string | null,
+    acknowledgedAt: null as string | null,
+  };
+  const reads: boolean[] = [];
+  await page.route("**/rpc/pending_announcements", (route) =>
+    route.fulfill({
+      json: required ? (!n.acknowledgedAt ? [n] : []) : !n.readAt ? [n] : [],
+    }),
+  );
+  await page.route("**/rpc/announcement_view", (route) =>
+    route.fulfill({ json: n }),
+  );
+  await page.route("**/rpc/read_announcement", (route) => {
+    const agree = route.request().postDataJSON().p_agree;
+    reads.push(agree);
+    n.readAt = date;
+    if (agree) n.acknowledgedAt = date;
+    return route.fulfill({ json: n });
+  });
+  return { ...context, n, reads };
+}
+for (const width of [390, 768, 1440])
+  test(`aviso obligatorio ${width}px: deuda, lectura y aceptación personal`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const { reads } = await inboxFixture(page);
+    await page.goto("/app/payments");
+    const dialog = page.getByRole("dialog", {
+      name: "Aviso personal de salud",
+    });
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Confirmar: estoy de acuerdo" }),
+    ).toBeDisabled();
+    expect(reads).toEqual([false]);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Cerrar", exact: true }),
+    ).toHaveCount(0);
+    await dialog
+      .getByRole("checkbox", { name: "He leído el aviso y estoy de acuerdo." })
+      .check();
+    await page.screenshot({
+      path: `/private/tmp/micole-notice-work/mandatory-${width}.png`,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await dialog
+      .getByRole("button", { name: "Confirmar: estoy de acuerdo" })
+      .click();
+    await expect(dialog).toHaveCount(0);
+    expect(reads).toEqual([false, true]);
+    await expect(page).toHaveURL(/payments/);
+  });
+test("aviso opcional registra lectura sin inventar consentimiento", async ({
+  page,
+}) => {
+  const { reads } = await inboxFixture(page, false);
+  await page.goto("/app/payments");
+  const dialog = page.getByRole("dialog", { name: "Aviso personal de salud" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("checkbox")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cerrar aviso" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(reads).toEqual([false]);
+});
+test("dirección publica para un niño y conserva el borrador al llegar cambios", async ({
+  page,
+}) => {
+  const { calls, signal, ready } = await setup(page);
+  await page.route("**/rpc/save_announcement", (r) => {
+    calls.push({ name: "save_announcement", body: r.request().postDataJSON() });
+    return r.fulfill({ json: noticeId });
+  });
+  await page.goto("/app/announcements");
+  await page.getByRole("button", { name: "Nuevo comunicado" }).click();
+  const d = page.getByRole("dialog");
+  await d.getByLabel("Título").fill("Salud del curso");
+  await d
+    .getByLabel("Comunicado", { exact: true })
+    .fill("Indicaciones para la familia.");
+  await d.getByLabel("Tipo de aviso").selectOption("health");
+  await expect.poll(ready).toBe(true);
+  signal("announcements");
+  await page.waitForTimeout(500);
+  await expect(d.getByLabel("Título")).toHaveValue("Salud del curso");
+  await d.getByRole("button", { name: "Siguiente", exact:true }).click();
+  await d.getByLabel("Aula destinataria").selectOption(roomId);
+  await d.getByRole("checkbox", { name: "Lucía Prueba" }).check();
+  await d.getByRole("button", { name: "Siguiente", exact:true }).click();
+  await d.getByRole("checkbox", { name: /Exigir confirmación/ }).check();
+  await expect(
+    d.getByRole("checkbox", { name: /Recordar cada hora/ }),
+  ).toBeChecked();
+  await d.getByRole("button", { name: "Guardar" }).click();
+  await expect(d).toHaveCount(0);
+  const body = calls.find((c) => c.name === "save_announcement")!.body.p_notice;
+  expect(body).toMatchObject({
+    target_student_ids: [studentId],
+    requires_acknowledgment: true,
+    remind_hourly: true,
+    urgent: true,
+    category: "health",
+    classroom_id: roomId,
+  });
+});

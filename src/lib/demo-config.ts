@@ -30,6 +30,17 @@ export const demoAccounts = [
     name: "Sofía · Demo",
   },
 ] as const;
+export function isDemoEmail(email: string) {
+  return /@micole\.test$/i.test(email.trim());
+}
+export function demoEntryUrl(email?: string) {
+  const url = new URL(publicDemoUrl);
+  const account = demoAccounts.find(
+    (a) => a.email === email?.trim().toLowerCase(),
+  );
+  if (account) url.searchParams.set("perfil", account.role);
+  return url.href;
+}
 const sessionKey = "micole_public_demo_session";
 export function demoRole(): Role | null {
   try {

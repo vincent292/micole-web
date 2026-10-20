@@ -1,3 +1,13 @@
+import { DirectorAssistant } from "./features/DirectorAssistant";
+import { guideActions } from "./lib/assistant";
+import { InstitutionSites } from "./features/InstitutionSites";
+import { siteLabel,schoolGroup } from "./lib/sites";
+import {ViewHistory,ContentAreaTracker} from './features/ViewHistory';
+import {AnnouncementGate,AlertIcon} from './features/Announcements';
+import {isAnnouncementNotice} from './lib/announcements';
+import {openAnnouncement} from './lib/announcementEvents';
+import { StudentEmergency } from "./features/StudentEmergency";
+import { DocumentImports } from "./features/DocumentImports";
 import { PlatformCreditPanel } from "./features/PlatformCredit";
 import { DemoRequests } from "./features/DemoRequests";
 import { publicDemo, demoRole, setDemoRole, demoAccounts } from "./lib/demo-config";
@@ -85,6 +95,7 @@ const roleNames: Record<Role, string> = {
 };
 const ALL: Role[] = ["superadmin", "director", "teacher", "guardian", "student"];
 const pageDescriptions: Record<string, string> = {
+ viewHistory:"Registro de consultas y descargas por persona y estudiante.",
  credit:"Adelanto, saldo a favor y aplicación de las licencias mensuales.", demoRequests:"Solicitudes recibidas desde la landing y su seguimiento.",
   care:"Cuidados y resumen diario para las familias.",gradebook:"Evaluaciones, promedios y libretas publicadas.",years:"Reinscripciones e historial por gestión.",onboarding:"Configura e importa tu comunidad por pasos.",
   subjects:"Organiza materias opcionales y sus docentes por aula.",
@@ -170,6 +181,7 @@ const nav: {
     roles: ["director", "guardian"],
     group: "TU ESPACIO",
   },
+  { key:"viewHistory",label:"Historial de consultas",icon:BookOpen,roles:["director","teacher"],group:"ADMINISTRACIÓN" },
   { key: "cash", label: "Caja y cobros", icon: Wallet, roles: ["director", "teacher", "guardian"], group: "TU ESPACIO" },
   { key: "invoices", label: "Facturas", icon: BookOpen, roles: ["director", "guardian"], group: "TU ESPACIO" },
   { key: "activities", label: "Actividades y salidas", icon: CalendarDays, roles: COMMUNITY_ROLES, group: "COMUNIDAD" },
@@ -192,6 +204,9 @@ const nav: {
   {key:"care",label:"Cuidados diarios",icon:Heart,roles:COMMUNITY_ROLES,group:"COMUNIDAD"},
   {key:"gradebook",label:"Evaluación y libretas",icon:GraduationCap,roles:COMMUNITY_ROLES,group:"COMUNIDAD"},
   {key:"years",label:"Gestiones e historial",icon:BookOpen,roles:COMMUNITY_ROLES,group:"ADMINISTRACIÓN"},
+  {key:"sites",label:"Sedes y sucursales",icon:Building2,roles:["director"],group:"ADMINISTRACIÓN"},
+  {key:"admissionForms",label:"Formulario de inscripción",icon:BookOpen,roles:["director"],group:"ADMINISTRACIÓN"},
+  {key:"calendarImport",label:"Importar calendario",icon:CalendarDays,roles:["director"],group:"COMUNIDAD"},
   {key:"onboarding",label:"Preparar institución",icon:ListChecks,roles:["director"],group:"ADMINISTRACIÓN"},
   {key:"subjects",label:"Materias",icon:BookOpen,roles:["director","teacher","guardian","student"],group:"COMUNIDAD"},
   {key:"assignments",label:"Tareas y entregas",icon:ListChecks,roles:["director","teacher","guardian","student"],group:"COMUNIDAD"},
@@ -328,9 +343,11 @@ function Workspace({
   const location = useLocation(),
     navigate = useNavigate();
   const [role, setRole] = useState<Role>(liveIdentity?.roles[0] || (publicDemo ? demoRole() : null) || "director");
-  const [schoolId, setSchoolId] = useState(
-    liveIdentity?.support?.schoolId || "s1",
+  const siteSelectionKey=`micole_selected_site:${liveIdentity?.id||"local"}:${role}`;
+  const [schoolId, setSelectedSchoolId] = useState(
+    liveIdentity?.support?.schoolId || sessionStorage.getItem(siteSelectionKey) || "s1",
   );
+  const setSchoolId=(id:string)=>{sessionStorage.setItem(siteSelectionKey,id);setSelectedSchoolId(id);};
   const [demoSupport, setDemoSupport] = useState<SupportSession | null>(null);
   const [supportBusy, setSupportBusy] = useState(false);
   const [demoAccount, setDemoAccount] = useState<SupportAccount | null>(null);
@@ -419,10 +436,11 @@ function Workspace({
   const studentLocked = role === "student" && store.data.studentPortalAccess?.allowed === false;
   const locked = role === "guardian" && !access.allowed;
   const startupLocked=liveMode&&role!=="superadmin"&&!identity.support&&school?.platformEnabled===false;
-  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers"]:role==="guardian"?["payments","cash","invoices","requests"]:["overview","requests"];
+  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["payments","cash","invoices","requests"]:["overview","requests"];
   const needsProfile =
     role === "guardian" && !!student && !student.profileComplete;
-  const page = location.pathname.split("/")[2] || "overview";
+  const requestedPage = location.pathname.split("/")[2] || "overview";
+  const page = requestedPage === "imports" ? "admissionForms" : requestedPage;
   const navItems = nav.filter(
     (n) =>
       n.roles.includes(role) &&
@@ -441,13 +459,13 @@ function Workspace({
   const announcements = store.data.announcements.filter(
     (a) =>
       a.schoolId === school?.id &&
-      (!a.classroomId ||
+      (!a.classroomId || a.createdBy===identity.id ||
         role === "director" ||
         role === "superadmin" ||
         students.some((s) => s.classroomId === a.classroomId)) &&
       (role === "superadmin" ||
         role === "director" ||
-        a.audience === "all" ||
+        a.createdBy===identity.id || a.audience === "all" ||
         a.audience === (["guardian", "student"].includes(role) ? "families" : "staff")),
   );
   const visibleNotifications = store.data.notifications.filter(
@@ -458,7 +476,7 @@ function Workspace({
         role === "director" ||
         students.some((s) => s.id === n.studentId)) &&
       (navItems.some((item) => item.key === n.target) ||
-        (locked && n.kind === "payment")),
+        (locked && n.kind === "payment") || isAnnouncementNotice(n.kind)),
   );
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length;
   const go = (next: string) => {
@@ -646,11 +664,7 @@ function Workspace({
                   setStudentId("");
                 }}
               >
-                {availableSchools.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
+                {[...new Set(availableSchools.map(schoolGroup))].map(root=><optgroup key={root} label={availableSchools.find(s=>s.id===root)?.name||availableSchools.find(s=>schoolGroup(s)===root)?.name}>{availableSchools.filter(s=>schoolGroup(s)===root).map(s=><option key={s.id} value={s.id}>{siteLabel(s)}</option>)}</optgroup>)}
               </select>
               {!availableSchools.length && <b>MiCole</b>}
             </div>
@@ -663,7 +677,7 @@ function Workspace({
                 <div key={group}>
                   <div className="sidebar-label">{group}</div>
                   {navItems
-                    .filter((n) => n.group === group)
+                    .filter((n) => n.group === group && n.key!=="calendarImport")
                     .map((n) => (
                       <button
                         key={n.key}
@@ -794,12 +808,13 @@ function Workspace({
                         await store.readNotification(n.id);
                         if (role === "guardian" && n.studentId)
                           setStudentId(n.studentId);
-                        go(locked ? "payments" : n.target);
+                        if(isAnnouncementNotice(n.kind)){setNotifications(false);openAnnouncement(n.sourceId);}
+                        else go(locked ? "payments" : n.target);
                       }, "");
                     }}
                   >
                     <span className="row-icon">
-                      <Bell size={18} />
+                      <AlertIcon notice={n} size={18}/>
                     </span>
                     <span>
                       <b>{n.title}</b>
@@ -917,7 +932,7 @@ function Workspace({
         )}
         <main className="main-content">
           {startupLocked&&validPage!=="credit"&&<div className="platform-startup-notice" role="status"><b>Crédito inicial pendiente de confirmación</b><p>Dirección debe completar el adelanto de Bs 500 para habilitar la institución. El importe se utilizará para cubrir licencias mensuales.</p></div>}
-          {publicDemo && <details className="demo-tour"><summary>Qué puedes probar como {roleNames[role]}</summary><p>{role==="director"?"Crea aulas, inscribe un estudiante con su plan, registra un cobro y consulta los reportes. También puedes configurar materias, revisar tareas y publicar libretas.":role==="teacher"?"Explora tus aulas, publica una tarea, revisa una entrega y registra los cuidados del día. Las familias verán esos cambios en esta misma demo.":role==="guardian"?"Consulta a Sofía y Diego, sus tareas, agenda, cuidados y libretas. Prueba un permiso o un pago simulado; la información académica es de lectura.":"Consulta las tareas de Sofía, escribe una respuesta y entrégala. Luego cambia a Docente para revisar tu entrega."}</p><div className="demo-tour-links">{(role==="director"?[["students","Estudiantes"],["cash","Caja y cobros"],["gradebook","Libretas"],["reports","Reportes"]]:role==="teacher"?[["assignments","Tareas y entregas"],["care","Cuidados diarios"],["gradebook","Evaluación"]]:role==="guardian"?[["family","Mis hijos"],["calendar","Agenda"],["gradebook","Libretas"],["cash","Pagos"]]:[["assignments","Entregar una tarea"],["calendar","Agenda"]]).map(([key,label])=><button key={key} onClick={()=>go(key)}>{label}</button>)}</div></details>}
+          {publicDemo && <details className="demo-tour"><summary>Qué puedes probar como {roleNames[role]}</summary><p>{role==="director"?"Crea aulas, inscribe un estudiante con su plan, registra un cobro y consulta los reportes. También puedes probar avisos con confirmación, formularios de inscripción, importación de calendarios, facturas e historial de consultas.":role==="teacher"?"Explora tus aulas, publica una tarea, revisa una entrega y registra los cuidados del día. Publica un aviso obligatorio y cambia a Familia para aceptarlo; al volver podrás ver el reporte de confirmaciones.":role==="guardian"?"Consulta a Sofía y Diego, sus tareas, agenda, cuidados y libretas. Prueba un permiso o un pago simulado; la información académica es de lectura.":"Consulta las tareas de Sofía, escribe una respuesta y entrégala. Luego cambia a Docente para revisar tu entrega."}</p><div className="demo-tour-links">{(role==="director"?[["students","Estudiantes"],["cash","Caja y cobros"],["announcements","Avisos y confirmaciones"],["sites","Sedes"],["admissionForms","Ficha de inscripción"],["calendarImport","Calendario anual"],["invoices","Facturas"],["viewHistory","Historial de consultas"],["reports","Reportes"]]:role==="teacher"?[["assignments","Tareas y entregas"],["announcements","Avisos y confirmaciones"],["care","Cuidados diarios"],["gradebook","Evaluación"],["viewHistory","Historial de consultas"]]:role==="guardian"?[["family","Mis hijos"],["calendar","Agenda"],["gradebook","Libretas"],["cash","Pagos"]]:[["assignments","Entregar una tarea"],["calendar","Agenda"]]).map(([key,label])=><button key={key} onClick={()=>go(key)}>{label}</button>)}</div></details>}
           {resetOpen && <section className="panel" role="alert"><h2>¿Restablecer los datos de la demo?</h2><p>Se borrarán tus cambios locales y volverán los ejemplos iniciales. Los datos de la plataforma real no se modifican.</p><div className="demo-reset-actions"><Button onClick={()=>{store.reset();setResetOpen(false);setModal(null);go("overview");setToast("Demo restablecida. Puedes empezar de nuevo.");}}>Sí, restablecer</Button><Button variant="secondary" onClick={()=>setResetOpen(false)}>Conservar mis pruebas</Button></div></section>}
           <div className="view-top">
             <div>
@@ -1062,6 +1077,8 @@ function Workspace({
               {validPage === "care" && <Care key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "gradebook" && <Gradebook key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "years" && <Years key={`${school?.id}-${student?.id}`} {...props} />}
+              {validPage === "sites" && <InstitutionSites {...props} onIdentityChanged={refreshIdentity} onChoose={id=>{setSchoolId(id);setStudentId("");go("overview");}}/>}
+              {["admissionForms","calendarImport"].includes(validPage) && <DocumentImports key={`${school?.id}:${validPage}`} {...props} documentKind={validPage==="admissionForms"?"form":"calendar"}/>}
               {validPage === "onboarding" && <Onboarding {...props} />}
               {validPage === "subjects" && <Subjects key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "assignments" && <Assignments key={`${school?.id}-${student?.id}`} {...props} />}
@@ -1078,6 +1095,8 @@ function Workspace({
               {validPage === "credit" && <PlatformCreditPanel schoolId={role==="superadmin"?undefined:school?.id} schools={store.data.schools} store={store}/>}
               {validPage === "demoRequests" && <DemoRequests {...props}/>}
               {validPage === "gallery" && <Gallery {...props} />}
+              <ContentAreaTracker key={`${role}:${school?.id}:${student?.id}:${validPage}`} page={validPage} studentId={student?.id} enabled={["guardian","student"].includes(role)&&!locked&&!studentLocked&&!needsProfile}/>
+              {validPage==='viewHistory'&&<ViewHistory {...props}/>}
               {validPage === "reports" && ["superadmin", "director"].includes(role) && <Reports {...props} />}
               {!school && !isPlatform && validPage !== "schools" && (
                 <div className="soft-note">
@@ -1100,7 +1119,10 @@ function Workspace({
           </span>
         </footer>
       </div>
+      <AnnouncementGate key={`${identity.id}:${identity.support?.id||''}:${role}:${school?.id||''}`} identity={identity} role={role} schoolId={school?.id} store={store}/>
+      {role==="director" && school && !modal && <DirectorAssistant key={school.id} schoolId={school.id} onAction={id=>{const action=guideActions[id];if("page" in action)go(action.page);else open(action.form);}}/>}
       {modal?.type === "studentLogin" && <StudentLoginModal {...props} id={modal.id} onClose={() => setModal(null)} /> }
+      {modal?.type === "emergency" && <StudentEmergency student={store.data.students.find(s=>s.id===modal.id)} onClose={()=>setModal(null)}/>}
       {modal?.type === "intake" && (
         <FamilyIntakeModal
           {...props}
@@ -1115,7 +1137,7 @@ function Workspace({
           onClose={() => setModal(null)}
         />
       )}
-      {modal && !["intake", "documents", "studentLogin"].includes(modal.type) && (
+      {modal && !["intake", "documents", "studentLogin", "emergency"].includes(modal.type) && (
         <WorkspaceModal
           key={`${modal.type}-${modal.id}`}
           type={modal.type}

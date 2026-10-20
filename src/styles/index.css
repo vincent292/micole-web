@@ -5020,7 +5020,7 @@ tr:hover td {
 .modal { width:min(860px,100%); max-height:calc(100dvh - 32px); display:flex; flex-direction:column; overflow:hidden; }
 .modal-head { flex-shrink:0; padding:18px 24px; }
 .modal-head h2 { margin-bottom:3px; }
-.modal > form,.modal > form > fieldset { display:flex;flex-direction:column;min-height:0;overflow:hidden; }
+.modal > form { display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;flex:1 1 auto; }
 .modal-content { overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:20px 24px;gap:14px; }
 .modal-footer { flex-shrink:0;padding:12px 24px;flex-wrap:wrap; }
 .form-step-nav { display:flex;gap:6px;padding:10px 20px;overflow-x:auto;flex-shrink:0;border-bottom:1px solid #E3EAF6;scrollbar-width:thin; }
@@ -5057,7 +5057,10 @@ tr:hover td {
 .academic-submission {background:#F8FAFF;border:1px solid #E3EAF6;border-radius:14px;padding:16px;display:grid;gap:10px;}
 .preserve-lines {white-space:pre-wrap;overflow-wrap:anywhere;}
 
-.modal > form,.modal > form > fieldset,.modal-content {flex:1;}
+.modal-content {flex:1 1 auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;}
+.modal-content > fieldset {display:flex;flex-direction:column;gap:14px;flex:none;min-height:min-content;}
+.form-step-nav button:disabled {opacity:.45;cursor:not-allowed;}
+.modal-content:focus-visible {outline:2px solid #3D6EF7;outline-offset:-3px;}
 .form-section-body > .field:has(input[name=name]) {grid-column:1/-1;}
 
 .test-access-page{display:grid;gap:20px}.test-mode-tabs{display:flex;gap:12px;flex-wrap:wrap}.test-workspace{display:grid;gap:18px;max-width:860px}.test-workspace .support-form{display:grid;gap:18px}.test-workspace .soft-note{margin:0}.test-workspace>.btn{justify-self:start}@media(max-width:600px){.test-mode-tabs>.btn{flex:1 1 100%}.test-workspace{padding:18px}}

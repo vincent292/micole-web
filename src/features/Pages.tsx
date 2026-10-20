@@ -1,3 +1,9 @@
+import {ContentSeen} from '../components/ContentSeen';
+import {openAnnouncement} from '../lib/announcementEvents';
+import {noticeCategories} from '../lib/announcements';
+import {AlertIcon} from './Announcements';
+import { admissionRows } from "../lib/admission";
+import { expandCalendarEvents } from "../lib/documentImport";
 import { platformBalance } from "../lib/pricing";
 import { PickupIdentity } from "./PickupIdentity";
 import { publicDemo } from "../lib/demo-config";
@@ -274,6 +280,7 @@ export function Directory({
                     </td>
                     <td>
                       <div className="table-actions">
+                        <button className="mini-btn" onClick={()=>open("emergency",s)}>Emergencias</button>
                         {canEdit && (
                           <>
                             <button
@@ -905,14 +912,15 @@ export function Community({
   if (page === "announcements") {
     const announcements = data.announcements.filter(
       (a) =>
-        a.schoolId === schoolId &&
-        (!a.classroomId ||
+        a.schoolId === schoolId && !a.revokedAt &&
+        (!a.targetStudentIds?.length || !["guardian","student"].includes(role) || !!student&&a.targetStudentIds.includes(student.id)) &&
+        (!a.classroomId || a.createdBy===identity.id ||
           role === "director" ||
           role === "superadmin" ||
           (role === "guardian" || role === "student" ? student?.classroomId === a.classroomId : students.some((s) => s.classroomId === a.classroomId))) &&
         (role === "director" ||
           role === "superadmin" ||
-          a.audience === "all" ||
+          a.createdBy===identity.id || a.audience === "all" ||
           a.audience === (["guardian", "student"].includes(role) ? "families" : "staff")),
     );
     return (
@@ -936,7 +944,7 @@ export function Community({
               <article key={a.id} className="entity-card announcement-card">
                 <div className="entity-top">
                   <span className="row-icon">
-                    <Megaphone size={22} />
+                    <AlertIcon notice={{alertType:a.category==='general'?'announcement':a.category}} size={22}/>
                   </span>
                   <Badge
                     status={a.audience}
@@ -949,9 +957,9 @@ export function Community({
                   />
                 </div>
                 <h3>{a.title}</h3>
-                <p>{a.content}</p>
+                <small>{noticeCategories[a.category||'general']}{a.requiresAcknowledgment?' · Confirmación requerida':''}</small><p>{role!=='student'&&a.content.length>250?a.content.slice(0,250)+'…':a.content}</p>
                 <div className="entity-footer">
-                  <small>{dateLabel(a.createdAt)}</small>
+                  <small>{dateLabel(a.createdAt)}</small>{role!=='student'&&<Button variant="secondary" onClick={()=>openAnnouncement(a.id)}>{canWrite?'Ver aviso y lecturas':'Leer aviso'}</Button>}
                 </div>
               </article>
             ))}
@@ -990,7 +998,7 @@ export function Community({
         description: fullName(s),
         type: "birthday",
       }));
-    const agenda = (page === "calendar" ? [...events, ...birthdays, ...taskDates] : events)
+    const agenda = (page === "calendar" ? [...expandCalendarEvents(events,month), ...birthdays, ...taskDates] : events)
       .filter((e) => e.date.startsWith(month))
       .sort((a, b) => a.date.localeCompare(b.date));
     return (
@@ -1007,7 +1015,7 @@ export function Community({
               : "Eventos, tareas y cumpleaños. Para que no se nos escape nada."
           }
           action={
-            canWrite && (
+            canWrite && (<div className="action-group">{role==="director"&&page==="calendar"&&<Button variant="secondary" onClick={()=>go("calendarImport")}>Importar calendario</Button>}
               <Button
                 icon={Plus}
                 onClick={() =>
@@ -1015,7 +1023,7 @@ export function Community({
                 }
               >
                 {page === "materials" ? "Nueva lista" : "Agregar evento"}
-              </Button>
+              </Button></div>
             )
           }
         />
@@ -1063,7 +1071,7 @@ export function Community({
                   className="icon-button"
                   title="Editar evento"
                   onClick={() =>
-                    open(e.type === "materials" ? "materials" : "event", e)
+                    open(e.type === "materials" ? "materials" : "event", {id:e.id.split(":")[0]})
                   }
                 >
                   <Pencil size={17} />
@@ -1271,7 +1279,7 @@ export function Community({
         />
         <div className="card-grid">
           {grades.map((g) => (
-            <article className="entity-card" key={g.id}>
+            <ContentSeen kind="grade" id={g.id} key={`${g.id}:${g.score}:${g.recommendation}`}><article className="entity-card">
               <div className="entity-top">
                 <span className="row-icon">
                   <BookOpen size={20} />
@@ -1285,7 +1293,7 @@ export function Community({
               </p>
               <p>{g.recommendation}</p>
               <small>{dateLabel(g.createdAt)}</small>
-            </article>
+            </article></ContentSeen>
           ))}
         </div>
         {!grades.length && (
@@ -1345,6 +1353,7 @@ export function Family({ student, store, open }: PageProps) {
         </div>
         <div className="detail-grid">
           {[
+            ...admissionRows(student.admissionDetails),
             ["Nacimiento", dateLabel(student.birthDate)],
             ["Madre", student.motherName || student.guardianName],
             ["Padre", student.fatherName || "Pendiente"],

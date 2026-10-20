@@ -1,3 +1,4 @@
+import {ContentSeen} from '../components/ContentSeen';
 import { useEffect, useState } from "react";
 import { ImagePlus, Images } from "lucide-react";
 import { Button, Empty, Field, SectionTitle } from "../components/UI";
@@ -223,7 +224,7 @@ export function Gallery({
 }
 function Photo({ asset, name }: { asset: MediaAsset; name: string }) {
   const [url, setUrl] = useState(asset.localUrl || ""),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),[loaded,setLoaded]=useState(false);
   useEffect(() => {
     let active = true;
     if (!liveMode) return;
@@ -239,9 +240,9 @@ function Photo({ asset, name }: { asset: MediaAsset; name: string }) {
     };
   }, [asset.id]);
   return (
-    <article className="photo-card">
+    <ContentSeen kind="media" id={asset.id} enabled={loaded}><article className="photo-card">
       {url ? (
-        <img src={url} alt={asset.caption} loading="lazy" />
+        <img src={url} alt={asset.caption} loading="lazy" onLoad={()=>setLoaded(true)}/>
       ) : (
         <div className="photo-placeholder">{error || "Cargando imagen…"}</div>
       )}
@@ -251,6 +252,6 @@ function Photo({ asset, name }: { asset: MediaAsset; name: string }) {
           {name} · {dateLabel(asset.createdAt)}
         </p>
       </div>
-    </article>
+    </article></ContentSeen>
   );
 }

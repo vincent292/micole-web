@@ -1,6 +1,6 @@
 import { authenticationError, authenticationReturnError } from "./authErrors";
 import { createClient } from "@supabase/supabase-js";
-import { publicDemo } from "./demo-config";
+import { publicDemo, isDemoEmail } from "./demo-config";
 export const liveMode = !publicDemo && import.meta.env.VITE_APP_MODE === "live";
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -90,6 +90,7 @@ export async function authProviders() {
   };
 }
 export async function signInEmail(email: string) {
+  if (isDemoEmail(email)) throw new Error("Este es un correo ficticio. Usa Entrar a la demo; no requiere correo de confirmación.");
   if (!supabase)
     throw new Error("La conexión de MiCole todavía no está configurada.");
   const { error } = await supabase.auth.signInWithOtp({

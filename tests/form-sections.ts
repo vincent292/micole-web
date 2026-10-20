@@ -43,6 +43,13 @@ export async function showFormSection(page: Page, label: string) {
     title = "Datos generales";
   if (title) {
     const button = nav.getByRole("button", { name: new RegExp(title + "$") });
-    if (await button.count()) await button.click();
+    if (await button.count()) {
+      for(let i=0;await button.isDisabled() && i<12;i++){
+        const before=await nav.locator('[aria-current="step"]').innerText();
+        await page.getByRole('dialog').getByRole('button',{name:'Siguiente',exact:true}).click();
+        if(await nav.locator('[aria-current="step"]').innerText()===before) throw new Error('Completa el paso actual antes de abrir '+title);
+      }
+      await button.click();
+    }
   }
 }
