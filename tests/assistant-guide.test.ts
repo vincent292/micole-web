@@ -1,5 +1,34 @@
-import {it,expect} from 'vitest';
-import {localGuideReply,normalizeGuideReply,guideActions} from '../supabase/functions/_shared/assistant-guide';
-it('explica las sedes y su crédito independiente con acciones existentes',()=>{const r=localGuideReply('¿Cómo agrego otra sede o sucursal?');expect(r.answer).toContain('sede');expect(r.actions).toContain('sites');expect(r.steps.join(' ')).toContain('directora');});
-it('solo permite acciones que abren formularios o páginas conocidos',()=>{const r=normalizeGuideReply({answer:'Guía',steps:['Revisa los datos'],actions:['new_announcement','execute_sql','https://external.example','new_announcement']});expect(r.actions).toEqual(['new_announcement']);expect(guideActions[r.actions[0]]).toHaveProperty('form','announcement');});
-it('rechaza respuestas incompletas y no finge haber guardado datos',()=>{expect(()=>normalizeGuideReply({answer:'',steps:[],actions:[]})).toThrow();const r=localGuideReply('¿Cómo puedo publicar un comunicado obligatorio?');expect(r.steps.join(' ')).toContain('tres pasos');expect(r.actions).toContain('new_announcement');});
+import { it, expect } from "vitest";
+import {
+  localGuideReply,
+  normalizeGuideReply,
+  guideActions,
+} from "../supabase/functions/_shared/assistant-guide";
+it("explica las sedes y su crédito independiente con acciones existentes", () => {
+  const r = localGuideReply("¿Cómo agrego otra sede o sucursal?");
+  expect(r.answer).toContain("sede");
+  expect(r.actions).toContain("sites");
+  expect(r.steps.join(" ")).toContain("directora");
+});
+it("solo permite acciones que abren formularios o páginas conocidos", () => {
+  const r = normalizeGuideReply({
+    answer: "Guía",
+    steps: ["Revisa los datos"],
+    actions: [
+      "new_announcement",
+      "execute_sql",
+      "https://external.example",
+      "new_announcement",
+    ],
+  });
+  expect(r.actions).toEqual(["new_announcement"]);
+  expect(guideActions[r.actions[0]]).toHaveProperty("form", "announcement");
+});
+it("rechaza respuestas incompletas y no finge haber guardado datos", () => {
+  expect(() =>
+    normalizeGuideReply({ answer: "", steps: [], actions: [] }),
+  ).toThrow();
+  const r = localGuideReply("¿Cómo puedo publicar un comunicado obligatorio?");
+  expect(r.steps.join(" ")).toContain("tres pasos");
+  expect(r.actions).toContain("new_announcement");
+});

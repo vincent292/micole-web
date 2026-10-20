@@ -160,56 +160,269 @@ afterAll(async () => {
   await db.close();
 });
 
-const branch=id(70),second=id(71);
-const createSite=(sid=branch)=>acting(director,()=>q('select save_institution_site($1,$2::jsonb) as id',[school,JSON.stringify({id:sid,siteName:'Sede Norte',city:'Cochabamba',address:'Av. Demo',educationLevels:['Guardería','Inicial']})]));
-describe('sedes, permisos e integración del asistente',()=>{
- it('crea una sucursal dentro de la institución con crédito y cobro inicial independientes',async()=>{
-  await createSite();const row=(await q('select institution_id,site_name,education_levels,platform_enabled from schools where id=$1',[branch])).rows[0];expect(row).toMatchObject({institution_id:school,site_name:'Sede Norte',education_levels:['Guardería','Inicial'],platform_enabled:false});
-  expect((await q("select count(*)::int as n from platform_charges where school_id=$1 and kind='credit_topup' and amount=500",[branch])).rows[0].n).toBe(1);
-  expect((await q('select initial_paid_at from aulanexo_private.platform_credit_accounts where school_id=$1',[branch])).rows[0].initial_paid_at).toBeNull();
-  const directory=(await as(director,()=>q('select institution_sites($1) as value',[school]))).rows[0].value;expect(directory.billing).toBe('per_site');expect(directory.sites).toHaveLength(2);
- });
- it('una responsable de sucursal no ve ni escribe en la sede principal, otras sucursales u otra institución',async()=>{
-  await createSite();await createSite(second);
-  await acting(director,()=>q('select set_site_director($1,$2,true)',[branch,'ops-stranger@test.bo']));
-  const own=(await as(stranger,()=>q('select id from schools'))).rows;expect(own.map(v=>v.id)).toEqual([branch]);
-  const directory=(await as(stranger,()=>q('select institution_sites($1) as value',[branch]))).rows[0].value;expect(directory.canManage).toBe(false);expect(directory.sites).toHaveLength(1);
-  await expect(as(stranger,()=>q('select save_institution_site($1,$2::jsonb)',[branch,JSON.stringify({siteName:'Ajena',educationLevels:['Primaria']})]))).rejects.toThrow('Dirección de la institución');
-  await expect(as(stranger,()=>q('select reserve_document_analysis($1)',[school]))).rejects.toThrow('Solo Dirección');
-  await expect(as(stranger,()=>q('select reserve_assistant_request($1)',[second]))).rejects.toThrow('Solo Dirección');
-  await expect(as(stranger,()=>q('select set_site_director($1,$2,true)',[second,'ops-stranger@test.bo']))).rejects.toThrow('Dirección de la institución');
- });
- it('sincroniza la Dirección principal y permite revocar el acceso exclusivo de una sucursal',async()=>{
-  await createSite();await acting(director,()=>q('select set_site_director($1,$2,true)',[branch,'ops-stranger@test.bo']));
-  await acting(director,()=>q('select set_site_director($1,$2,false)',[branch,'ops-stranger@test.bo']));expect((await as(stranger,()=>q('select id from schools'))).rows).toHaveLength(0);
-  await q("update school_memberships set active=false where school_id=$1 and user_id=$2 and role='director'",[school,director]);
-  expect((await q('select active,institution_inherited from school_memberships where school_id=$1 and user_id=$2',[branch,director])).rows[0]).toMatchObject({active:false,institution_inherited:true});
- });
- it('genera invitación para una responsable sin cuenta y bloquea reasignaciones a otra institución',async()=>{
-  await createSite();const result=(await acting(director,()=>q('select set_site_director($1,$2,true) as value',[branch,'nueva-sede@example.invalid']))).rows[0].value;expect(result.token).toMatch(/^[a-f0-9]{64}$/);
-  expect((await q('select role,school_id,email from invitations where email=$1',['nueva-sede@example.invalid'])).rows[0]).toMatchObject({role:'director',school_id:branch});
-  await expect(acting(director,()=>q('select save_institution_site($1,$2::jsonb)',[school,JSON.stringify({id:otherSchool,siteName:'Otra',educationLevels:['Primaria']})]))).rejects.toThrow('otra institución');
- });
- it('autoriza el asistente solo para Dirección de la sede y aplica un límite',async()=>{
-  for(const user of [teacher,mother,kid,owner,stranger])await expect(as(user,()=>q('select reserve_assistant_request($1)',[school]))).rejects.toThrow();
-  for(let i=0;i<30;i++)await acting(director,()=>q('select reserve_assistant_request($1)',[school]));
-  await expect(as(director,()=>q('select reserve_assistant_request($1)',[school]))).rejects.toThrow('límite');
-  expect((await q('select count(*)::int as n from aulanexo_private.assistant_usage')).rows[0].n).toBe(30);
- });
- it('permite cambiar de sede en pruebas del propietario solo dentro de la misma institución',async()=>{
-  await acting(owner,()=>q('select set_test_institution($1,true)',[school]));
-  await acting(owner,()=>q('select set_test_institution($1,true)',[otherSchool]));
-  const session=(await acting(owner,()=>q("select start_test_session($1,'director') as value",[school]))).rows[0].value.id;
-  await acting(owner,()=>q('select save_institution_site($1,$2::jsonb)',[school,JSON.stringify({id:branch,siteName:'Sede de prueba',educationLevels:['Primaria']})]),session);
-  await acting(owner,()=>q('select switch_test_site($1)',[branch]),session);
-  const identity=(await as(owner,()=>q('select workspace_identity() as value'),session)).rows[0].value;
-  expect(identity.support.schoolId).toBe(branch);
-  await expect(as(owner,()=>q('select switch_test_site($1)',[otherSchool]),session)).rejects.toThrow('no pertenece');
- });
- it('un calendario de una sucursal solo se publica allí',async()=>{
-  await createSite();await fundInstitutionFixtures(db);await acting(director,()=>q('select set_site_director($1,$2,true)',[branch,'ops-stranger@test.bo']));
-  await acting(stranger,()=>q('select confirm_calendar_import($1,$2,2026,null,$3,$4::jsonb)',[id(80),branch,'a'.repeat(64),JSON.stringify([{title:'Solo sucursal',date:'2026-10-25',endDate:'',description:'Ejemplo',source:'PDF'}])]));
-  expect((await q('select school_id from calendar_events where title=$1',['Solo sucursal'])).rows.map(r=>r.school_id)).toEqual([branch]);
-  await expect(as(stranger,()=>q('select confirm_calendar_import($1,$2,2026,null,$3,$4::jsonb)',[id(81),school,'b'.repeat(64),JSON.stringify([{title:'Ajeno',date:'2026-10-25',endDate:'',description:'Ejemplo',source:'PDF'}])]))).rejects.toThrow();
- });
+const branch = id(70),
+  second = id(71);
+const createSite = (sid = branch) =>
+  acting(director, () =>
+    q("select save_institution_site($1,$2::jsonb) as id", [
+      school,
+      JSON.stringify({
+        id: sid,
+        siteName: "Sede Norte",
+        city: "Cochabamba",
+        address: "Av. Demo",
+        educationLevels: ["Guardería", "Inicial"],
+      }),
+    ]),
+  );
+describe("sedes, permisos e integración del asistente", () => {
+  it("crea una sucursal dentro de la institución con crédito y cobro inicial independientes", async () => {
+    await createSite();
+    const row = (
+      await q(
+        "select institution_id,site_name,education_levels,platform_enabled from schools where id=$1",
+        [branch],
+      )
+    ).rows[0];
+    expect(row).toMatchObject({
+      institution_id: school,
+      site_name: "Sede Norte",
+      education_levels: ["Guardería", "Inicial"],
+      platform_enabled: false,
+    });
+    expect(
+      (
+        await q(
+          "select count(*)::int as n from platform_charges where school_id=$1 and kind='credit_topup' and amount=500",
+          [branch],
+        )
+      ).rows[0].n,
+    ).toBe(1);
+    expect(
+      (
+        await q(
+          "select initial_paid_at from aulanexo_private.platform_credit_accounts where school_id=$1",
+          [branch],
+        )
+      ).rows[0].initial_paid_at,
+    ).toBeNull();
+    const directory = (
+      await as(director, () =>
+        q("select institution_sites($1) as value", [school]),
+      )
+    ).rows[0].value;
+    expect(directory.billing).toBe("per_site");
+    expect(directory.sites).toHaveLength(2);
+  });
+  it("una responsable de sucursal no ve ni escribe en la sede principal, otras sucursales u otra institución", async () => {
+    await createSite();
+    await createSite(second);
+    await acting(director, () =>
+      q("select set_site_director($1,$2,true)", [
+        branch,
+        "ops-stranger@test.bo",
+      ]),
+    );
+    const own = (await as(stranger, () => q("select id from schools"))).rows;
+    expect(own.map((v) => v.id)).toEqual([branch]);
+    const directory = (
+      await as(stranger, () =>
+        q("select institution_sites($1) as value", [branch]),
+      )
+    ).rows[0].value;
+    expect(directory.canManage).toBe(false);
+    expect(directory.sites).toHaveLength(1);
+    await expect(
+      as(stranger, () =>
+        q("select save_institution_site($1,$2::jsonb)", [
+          branch,
+          JSON.stringify({ siteName: "Ajena", educationLevels: ["Primaria"] }),
+        ]),
+      ),
+    ).rejects.toThrow("Dirección de la institución");
+    await expect(
+      as(stranger, () => q("select reserve_document_analysis($1)", [school])),
+    ).rejects.toThrow("Solo Dirección");
+    await expect(
+      as(stranger, () => q("select reserve_assistant_request($1)", [second])),
+    ).rejects.toThrow("Solo Dirección");
+    await expect(
+      as(stranger, () =>
+        q("select set_site_director($1,$2,true)", [
+          second,
+          "ops-stranger@test.bo",
+        ]),
+      ),
+    ).rejects.toThrow("Dirección de la institución");
+  });
+  it("sincroniza la Dirección principal y permite revocar el acceso exclusivo de una sucursal", async () => {
+    await createSite();
+    await acting(director, () =>
+      q("select set_site_director($1,$2,true)", [
+        branch,
+        "ops-stranger@test.bo",
+      ]),
+    );
+    await acting(director, () =>
+      q("select set_site_director($1,$2,false)", [
+        branch,
+        "ops-stranger@test.bo",
+      ]),
+    );
+    expect(
+      (await as(stranger, () => q("select id from schools"))).rows,
+    ).toHaveLength(0);
+    await q(
+      "update school_memberships set active=false where school_id=$1 and user_id=$2 and role='director'",
+      [school, director],
+    );
+    expect(
+      (
+        await q(
+          "select active,institution_inherited from school_memberships where school_id=$1 and user_id=$2",
+          [branch, director],
+        )
+      ).rows[0],
+    ).toMatchObject({ active: false, institution_inherited: true });
+  });
+  it("genera invitación para una responsable sin cuenta y bloquea reasignaciones a otra institución", async () => {
+    await createSite();
+    const result = (
+      await acting(director, () =>
+        q("select set_site_director($1,$2,true) as value", [
+          branch,
+          "nueva-sede@example.invalid",
+        ]),
+      )
+    ).rows[0].value;
+    expect(result.token).toMatch(/^[a-f0-9]{64}$/);
+    expect(
+      (
+        await q("select role,school_id,email from invitations where email=$1", [
+          "nueva-sede@example.invalid",
+        ])
+      ).rows[0],
+    ).toMatchObject({ role: "director", school_id: branch });
+    await expect(
+      acting(director, () =>
+        q("select save_institution_site($1,$2::jsonb)", [
+          school,
+          JSON.stringify({
+            id: otherSchool,
+            siteName: "Otra",
+            educationLevels: ["Primaria"],
+          }),
+        ]),
+      ),
+    ).rejects.toThrow("otra institución");
+  });
+  it("autoriza el asistente solo para Dirección de la sede y aplica un límite", async () => {
+    for (const user of [teacher, mother, kid, owner, stranger])
+      await expect(
+        as(user, () => q("select reserve_assistant_request($1)", [school])),
+      ).rejects.toThrow();
+    for (let i = 0; i < 30; i++)
+      await acting(director, () =>
+        q("select reserve_assistant_request($1)", [school]),
+      );
+    await expect(
+      as(director, () => q("select reserve_assistant_request($1)", [school])),
+    ).rejects.toThrow("límite");
+    expect(
+      (
+        await q(
+          "select count(*)::int as n from aulanexo_private.assistant_usage",
+        )
+      ).rows[0].n,
+    ).toBe(30);
+  });
+  it("permite cambiar de sede en pruebas del propietario solo dentro de la misma institución", async () => {
+    await acting(owner, () =>
+      q("select set_test_institution($1,true)", [school]),
+    );
+    await acting(owner, () =>
+      q("select set_test_institution($1,true)", [otherSchool]),
+    );
+    const session = (
+      await acting(owner, () =>
+        q("select start_test_session($1,'director') as value", [school]),
+      )
+    ).rows[0].value.id;
+    await acting(
+      owner,
+      () =>
+        q("select save_institution_site($1,$2::jsonb)", [
+          school,
+          JSON.stringify({
+            id: branch,
+            siteName: "Sede de prueba",
+            educationLevels: ["Primaria"],
+          }),
+        ]),
+      session,
+    );
+    await acting(
+      owner,
+      () => q("select switch_test_site($1)", [branch]),
+      session,
+    );
+    const identity = (
+      await as(owner, () => q("select workspace_identity() as value"), session)
+    ).rows[0].value;
+    expect(identity.support.schoolId).toBe(branch);
+    await expect(
+      as(owner, () => q("select switch_test_site($1)", [otherSchool]), session),
+    ).rejects.toThrow("no pertenece");
+  });
+  it("un calendario de una sucursal solo se publica allí", async () => {
+    await createSite();
+    await fundInstitutionFixtures(db);
+    await acting(director, () =>
+      q("select set_site_director($1,$2,true)", [
+        branch,
+        "ops-stranger@test.bo",
+      ]),
+    );
+    await acting(stranger, () =>
+      q("select confirm_calendar_import($1,$2,2026,null,$3,$4::jsonb)", [
+        id(80),
+        branch,
+        "a".repeat(64),
+        JSON.stringify([
+          {
+            title: "Solo sucursal",
+            date: "2026-10-25",
+            endDate: "",
+            description: "Ejemplo",
+            source: "PDF",
+          },
+        ]),
+      ]),
+    );
+    expect(
+      (
+        await q("select school_id from calendar_events where title=$1", [
+          "Solo sucursal",
+        ])
+      ).rows.map((r) => r.school_id),
+    ).toEqual([branch]);
+    await expect(
+      as(stranger, () =>
+        q("select confirm_calendar_import($1,$2,2026,null,$3,$4::jsonb)", [
+          id(81),
+          school,
+          "b".repeat(64),
+          JSON.stringify([
+            {
+              title: "Ajeno",
+              date: "2026-10-25",
+              endDate: "",
+              description: "Ejemplo",
+              source: "PDF",
+            },
+          ]),
+        ]),
+      ),
+    ).rejects.toThrow();
+  });
 });
