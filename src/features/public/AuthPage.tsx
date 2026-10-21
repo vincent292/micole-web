@@ -125,8 +125,8 @@ export function AuthPage({
             <div className="soft-note" style={{ marginBottom: 20 }}>
               <b>¿Quieres conocer MiCole?</b>
               <p>
-                La demo tiene datos ficticios y acceso inmediato, sin confirmar
-                correos.
+                Si ya recibiste tus credenciales, entra a la demo privada con
+                datos ficticios.
               </p>
               <a className="btn btn-secondary full" href={demoEntryUrl()}>
                 Entrar a la demo <ArrowRight size={17} />

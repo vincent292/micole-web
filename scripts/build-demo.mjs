@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+import { prepareDemoOutput } from "./prepare-demo-output.mjs";
 // Explicit overrides: .env.local / production settings cannot connect this build.
 const env = {
   ...process.env,
@@ -17,12 +18,12 @@ if (result.status !== 0) process.exit(result.status || 1);
 const file = new URL("../dist/index.html", import.meta.url);
 writeFileSync(
   file,
-  readFileSync(file, "utf8")
-    .replace(
-      /<title>[^<]*<\/title>/,
-      "<title>Demo MiCole · Explora tu comunidad</title>",
-    ),
+  readFileSync(file, "utf8").replace(
+    /<title>[^<]*<\/title>/,
+    "<title>Demo MiCole · Explora tu comunidad</title>",
+  ),
 );
 console.log(
   "Demo aislada compilada en dist/. Publicar únicamente en el proyecto de demostración.",
 );
+prepareDemoOutput();

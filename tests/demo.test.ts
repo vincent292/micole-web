@@ -7,10 +7,8 @@ import {
   demoDataKey,
 } from "../src/lib/demo";
 import {
-  demoLogin,
   demoRole,
   setDemoRole,
-  demoPassword,
 } from "../src/lib/demo-config";
 function storage() {
   const values = new Map<string, string>();
@@ -39,10 +37,8 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("demostración comercial aislada", () => {
-  it("acepta solo credenciales públicas de ejemplo y conserva el rol", () => {
-    expect(() => demoLogin("persona@gmail.com", demoPassword)).toThrow();
-    expect(() => demoLogin("direccion@micole.test", "otra")).toThrow();
-    expect(demoLogin(" Familia@MiCole.test ", demoPassword)).toBe("guardian");
+  it("conserva solo perfiles de demostración en esta pestaña", () => {
+    setDemoRole("guardian");
     expect(demoRole()).toBe("guardian");
     setDemoRole(null);
     expect(demoRole()).toBeNull();
@@ -327,4 +323,18 @@ describe("funciones nuevas en demo, sin servicios externos", () => {
 });
 it('el acceso real rechaza correos ficticios antes de enviar un OTP',async()=>{
  const {signInEmail}=await import('../src/lib/supabase');await expect(signInEmail(' Direccion@MiCole.test ')).rejects.toThrow('correo ficticio');expect(fetch).not.toHaveBeenCalled();
+});
+
+it("filtra las consultas por el día de Bolivia después de medianoche UTC", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-10-21T00:15:00Z"));
+    setDemoRole("guardian");
+    await demoRpc("record_content_view", {p_id:"bolivia-night-view",p_kind:"grade",p_content_id:"demo-grade"});
+    setDemoRole("director");
+    const current = await demoRpc<any>("content_view_report", {p_from:"2026-10-20",p_to:"2026-10-20"});
+    expect(current.total).toBe(1);
+    const next = await demoRpc<any>("content_view_report", {p_from:"2026-10-21",p_to:"2026-10-21"});
+    expect(next.total).toBe(0);
+  } finally { vi.useRealTimers(); }
 });

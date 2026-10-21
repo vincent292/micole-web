@@ -32,7 +32,7 @@ export function DemoContact() {
           guarderías.
         </p>
         <Link className="landing-secondary" to="/demo">
-          ¿Prefieres explorar por tu cuenta? Probar demo{" "}
+          ¿Ya tienes credenciales? Entrar a la demo{" "}
           <ArrowRight size={17} />
         </Link>
       </div>
@@ -151,8 +151,8 @@ export function DemoContact() {
               {busy ? "Enviando solicitud…" : "Solicitar demostración guiada"}
             </Button>
             <small>
-              Tus datos se usarán para responder a esta solicitud. La demo de
-              acceso inmediato sigue disponible sin registrarte.
+              Tus datos se usarán para responder a esta solicitud y coordinar
+              tu acceso a la demostración.
             </small>
           </form>
         )}

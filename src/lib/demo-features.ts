@@ -550,14 +550,16 @@ export async function demoFeatureRpc(
         throw new Error("El historial corresponde a Dirección o Docente.");
       const ids = children().map((s) => s.id),
         list = state.views
-          .filter(
-            (v) =>
-              ids.includes(v.studentId) &&
+          .filter((v) => {
+            const day = new Intl.DateTimeFormat("en-CA", {
+              timeZone: "America/La_Paz", year: "numeric", month: "2-digit", day: "2-digit",
+            }).format(new Date(v.viewedAt));
+            return ids.includes(v.studentId) &&
               (!p.p_student_id || v.studentId === p.p_student_id) &&
               (!p.p_kind || v.kind === p.p_kind) &&
-              (!p.p_from || v.viewedAt.slice(0, 10) >= p.p_from) &&
-              (!p.p_to || v.viewedAt.slice(0, 10) <= p.p_to),
-          )
+              (!p.p_from || day >= p.p_from) &&
+              (!p.p_to || day <= p.p_to);
+          })
           .reverse();
       return {
         total: list.length,

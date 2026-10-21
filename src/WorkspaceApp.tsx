@@ -10,7 +10,7 @@ import { StudentEmergency } from "./features/StudentEmergency";
 import { DocumentImports } from "./features/DocumentImports";
 import { PlatformCreditPanel } from "./features/PlatformCredit";
 import { DemoRequests } from "./features/DemoRequests";
-import { publicDemo, demoRole, setDemoRole, demoAccounts } from "./lib/demo-config";
+import { publicDemo, demoRole, setDemoRole, demoAccounts, logoutDemo } from "./lib/demo-config";
 import { DemoAccess } from "./features/public/DemoAccess";
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -890,12 +890,12 @@ function Workspace({
                   Cerrar sesión
                 </button>
               ) : (
-                <><p>Datos de ejemplo guardados en este navegador.</p>{publicDemo&&<button onClick={()=>{setDemoRole(null);navigate("/login");}}><LogOut size={16}/>Salir de la demo</button>}</>
+                <><p>Datos de ejemplo guardados en este navegador.</p>{publicDemo&&<button onClick={()=>{void logoutDemo().catch(e=>setNoticeError(e.message));}}><LogOut size={16}/>Salir de la demo</button>}</>
               )}
             </section>
           )}
         </header>
-        {publicDemo && <section className="public-demo-banner" aria-label="Controles de demostración"><div><b>Demo MiCole · Todo es ficticio</b><small>Cambios solo en este navegador. Los pagos y envíos se simulan. Utiliza datos de ejemplo.</small></div><div className="demo-banner-actions"><select aria-label="Rol de demostración" value={role} onChange={e=>{const next=e.target.value as Role;setDemoRole(next);setRole(next);setModal(null);go("overview");}}>{demoAccounts.map(a=><option key={a.role} value={a.role}>{a.label}</option>)}</select><Button variant="secondary" onClick={()=>setResetOpen(true)}>Restablecer demo</Button><Button variant="ghost" onClick={()=>{setDemoRole(null);navigate("/login");}}>Salir</Button></div></section>}
+        {publicDemo && <section className="public-demo-banner" aria-label="Controles de demostración"><div><b>Demo MiCole · Todo es ficticio</b><small>Cambios solo en este navegador. Los pagos y envíos se simulan. Utiliza datos de ejemplo.</small></div><div className="demo-banner-actions"><select aria-label="Rol de demostración" value={role} onChange={e=>{const next=e.target.value as Role;setDemoRole(next);setRole(next);setModal(null);go("overview");}}>{demoAccounts.map(a=><option key={a.role} value={a.role}>{a.label}</option>)}</select><Button variant="secondary" onClick={()=>setResetOpen(true)}>Restablecer demo</Button><Button variant="ghost" onClick={()=>{void logoutDemo().catch(e=>setNoticeError(e.message));}}>Salir</Button></div></section>}
         {support && (
           <div
             className="support-banner"

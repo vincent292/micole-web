@@ -106,5 +106,5 @@ function DemoRedirect() {
   const started=useRef(false);
   const valid=/^https:\/\//.test(publicDemoUrl);
   useEffect(()=>{if(valid&&!started.current){started.current=true;window.location.replace(publicDemoUrl);}},[valid]);
-  return <main className="loading-screen"><Brand/><h1>Demostración de MiCole</h1><p>Preparando el acceso inmediato…</p>{valid?<a className="btn btn-primary" href={publicDemoUrl}>Abrir demo</a>:<Link className="btn btn-primary" to="/">Volver a MiCole</Link>}</main>;
+  return <main className="loading-screen"><Brand/><h1>Demostración de MiCole</h1><p>Abriendo el acceso privado a la demo…</p>{valid?<a className="btn btn-primary" href={publicDemoUrl}>Abrir demo</a>:<Link className="btn btn-primary" to="/">Volver a MiCole</Link>}</main>;
 }

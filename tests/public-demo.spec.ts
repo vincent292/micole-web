@@ -6,29 +6,20 @@ async function finishWizard(page:Page) {
  for(let i=0;i<15 && await d.getByRole('button',{name:'Siguiente',exact:true}).count();i++) await d.getByRole('button',{name:'Siguiente',exact:true}).click();
  await d.getByRole('button',{name:'Guardar',exact:true}).click();
 }
-async function login(page: Page, role = "director") {
+const accessEmail = process.env.MICOLE_DEMO_TEST_EMAIL || "invitado@example.test";
+const accessPassword = process.env.MICOLE_DEMO_TEST_PASSWORD || "AccesoLocalSoloPruebas!";
+async function login(page: Page, selectedRole = "director") {
   await page.goto("/");
-  await page
-    .locator(".demo-accounts button")
-    .filter({
-      hasText:
-        role === "director"
-          ? "Dirección"
-          : role === "teacher"
-            ? "Docente"
-            : role === "guardian"
-              ? "Familia"
-              : "Estudiante",
-    })
-    .click();
-  await page.getByRole("button", { name: "Usar esta clave" }).click();
-  await page
-    .getByRole("button", { name: "Entrar a la demo", exact: true })
-    .click();
-  await expect(
-    page.getByRole("combobox", { name: "Rol de demostración" }),
-  ).toHaveValue(role);
+  if (await page.getByLabel("Correo de acceso", {exact:true}).count()) {
+    await page.getByLabel("Correo de acceso", {exact:true}).fill(accessEmail);
+    await page.getByLabel("Clave de acceso", {exact:true}).fill(accessPassword);
+    await page.getByRole("button", {name:"Entrar a la demo",exact:true}).click();
+  }
+  await expect(page.getByRole("combobox", {name:"Rol de demostración"})).toBeVisible();
+  await page.getByRole("combobox", {name:"Rol de demostración"}).selectOption(selectedRole);
+  await expect(page.getByRole("combobox", {name:"Rol de demostración"})).toHaveValue(selectedRole);
 }
+
 async function role(page: Page, value: string) {
   await page
     .getByRole("combobox", { name: "Rol de demostración" })
@@ -44,7 +35,7 @@ async function route(page: Page, path: string) {
 async function local(page: Page) {
   return page.evaluate((k) => JSON.parse(localStorage.getItem(k) || "{}"), key);
 }
-test("credenciales ficticias, cuatro roles y pantallas sin conexiones externas", async ({
+test("acceso privado, cuatro roles y pantallas sin conexiones externas", async ({
   page,
 }) => {
   const requests: string[] = [],
@@ -64,13 +55,14 @@ test("credenciales ficticias, cuatro roles y pantallas sin conexiones externas",
   await expect(
     page.getByRole("heading", { name: "Entrar a la demo", exact: true }),
   ).toBeVisible();
+  await page.getByLabel("Correo de acceso", {exact:true}).fill(accessEmail);
   await page
-    .getByLabel("Clave de demostración", { exact: true })
+    .getByLabel("Clave de acceso", { exact: true })
     .fill("incorrecta");
   await page
     .getByRole("button", { name: "Entrar a la demo", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText("correos ficticios");
+  await expect(page.getByRole("alert")).toContainText("no son correctos");
   await login(page);
   await page.getByRole("button", { name: "Menú de perfil" }).click();
   await expect(page.locator(".profile-menu")).not.toContainText(
@@ -379,15 +371,21 @@ for (const width of [360, 390, 768, 1024])
     ).toBeInViewport();
   });
 
-test('entra directamente con las credenciales precargadas y sin confirmar correo',async({page})=>{
- test.setTimeout(30000);
- const forbidden:string[]=[];page.on('request',r=>{if(/supabase|\/auth\/v1\/otp|googleapis|firebase/i.test(r.url()))forbidden.push(r.url());});
+test('no muestra ni precarga credenciales y requiere acceso antes de abrir un perfil',async({page})=>{
  await page.goto('/?perfil=guardian');
- await expect(page.getByLabel('Correo ficticio',{exact:true})).toHaveValue('familia@micole.test');
- await expect(page.getByLabel('Clave de demostración',{exact:true})).toHaveValue('MiColeDemo2026!');
- await page.getByRole('button',{name:'Entrar a la demo',exact:true}).click();
- await expect(page.getByRole('combobox',{name:'Rol de demostración'})).toHaveValue('guardian');
- expect(forbidden).toEqual([]);
+ await expect(page.getByLabel('Correo de acceso',{exact:true})).toHaveValue('');
+ await expect(page.getByLabel('Clave de acceso',{exact:true})).toHaveValue('');
+ await expect(page.getByRole('button',{name:'Usar esta clave'})).toHaveCount(0);
+ await expect(page.locator('body')).not.toContainText('direccion@micole.test');
+ await expect(page.locator('body')).not.toContainText(accessPassword);
+ await page.evaluate(()=>sessionStorage.setItem('micole_public_demo_session','director'));
+ await page.goto('/app/students');
+ await expect(page.getByLabel('Correo de acceso',{exact:true})).toBeVisible();
+ await login(page,'guardian');
+ await page.getByRole('button',{name:'Salir',exact:true}).click();
+ await expect(page.getByLabel('Correo de acceso',{exact:true})).toBeVisible();
+ await page.goto('/app/students');
+ await expect(page.getByLabel('Correo de acceso',{exact:true})).toBeVisible();
 });
 
 test('aviso obligatorio registra aceptación de la familia y reporte del docente autor',async({page})=>{

@@ -14,7 +14,7 @@ export default defineConfig({
   webServer: process.env.MICOLE_DEMO_TEST_URL
     ? undefined
     : {
-        command: "npm run preview -- --host 127.0.0.1 --port 4177 --strictPort",
+        command: "MICOLE_DEMO_LOCAL_TEST=1 node scripts/serve-demo.mjs",
         url: "http://127.0.0.1:4177",
         reuseExistingServer: false,
       },

@@ -3,7 +3,6 @@ import type { Role } from "./types";
 export const publicDemo = import.meta.env.VITE_PUBLIC_DEMO === "true";
 export const publicDemoUrl =
   import.meta.env.VITE_DEMO_URL || "https://micole-demo.vercel.app";
-export const demoPassword = "MiColeDemo2026!";
 export const demoAccounts = [
   {
     role: "director",
@@ -54,14 +53,14 @@ export function setDemoRole(role: Role | null) {
   if (role) sessionStorage.setItem(sessionKey, role);
   else sessionStorage.removeItem(sessionKey);
 }
-export function demoLogin(email: string, password: string) {
-  const account = demoAccounts.find(
-    (a) => a.email === email.trim().toLowerCase(),
-  );
-  if (!account || password !== demoPassword)
-    throw new Error(
-      "Usa uno de los correos ficticios y la clave de demostración que aparecen abajo.",
-    );
-  setDemoRole(account.role);
-  return account.role;
+export async function logoutDemo() {
+  const response = await fetch("/__demo/logout", {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (!response.ok)
+    throw new Error("No se pudo cerrar la demo. Inténtalo otra vez.");
+  setDemoRole(null);
+  window.location.replace("/");
 }
