@@ -19,7 +19,7 @@ export function recoverExpiredSupport(message: string) {
   }
 }
 function configure() {
-  if (!liveMode || !url || !key) return { client: null, error: "" };
+  if (typeof window === 'undefined' || !liveMode || !url || !key) return { client: null, error: "" };
   try {
     return {
       client: createClient(url.trim(), key.trim(), {
@@ -58,7 +58,7 @@ function configure() {
     };
   }
 }
-export const authReturnIssue = authenticationReturnError(window.location.search, window.location.hash);
+export const authReturnIssue = typeof window === 'undefined' ? '' : authenticationReturnError(window.location.search, window.location.hash);
 const configuration = configure();
 export const supabase = configuration.client;
 export const supabaseConfigurationError = configuration.error;

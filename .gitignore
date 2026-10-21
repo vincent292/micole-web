@@ -15,3 +15,4 @@ supabase/.temp/
 
 # Independent browser results for the public demo.
 test-results-demo/
+.vercel

@@ -17,7 +17,7 @@ Referencias: https://developers.google.com/search/docs/crawling-indexing/sitemap
 
 ## Dominio confirmado: www.micole.click
 
-Vercel tiene vinculados www.micole.click y micole.click al proyecto micole-web. El principal es https://www.micole.click y la variante sin www redirige al principal. La publicación SEO está preparada; en la comprobación del 19 de octubre de 2026 ambos nombres seguían mostrando el estacionamiento de Hostinger.
+Vercel tiene vinculados www.micole.click y micole.click al proyecto micole-web. El principal es https://www.micole.click y la variante sin www redirige al principal. El 20 de octubre de 2026 se confirmó que ambos dominios sirven Vercel: la variante sin www devuelve 308 hacia www y la portada canónica responde 200 con indexación permitida.
 
 Registros recomendados por Vercel para reemplazar los de estacionamiento en Hostinger:
 
@@ -29,4 +29,20 @@ Registros recomendados por Vercel para reemplazar los de estacionamiento en Host
 
 Al propagar DNS, comprobar https://www.micole.click/robots.txt y https://www.micole.click/sitemap.xml, y la redirección desde https://micole.click. La configuración de referencia se obtuvo con `vercel domains verify`; si Vercel cambia sus recomendaciones, volver a consultarlas.
 
-Search Console: verificar la propiedad micole.click con el TXT que emita Google y enviar https://www.micole.click/sitemap.xml. La propiedad de Search Console no fue creada ni verificada desde esta sesión.
+Search Console: verificar la propiedad micole.click con el TXT que emita Google y enviar https://www.micole.click/sitemap.xml. El 20 de octubre de 2026 se confirmó la propiedad de dominio verificada mediante DNS en la cuenta ariasvincent292@gmail.com.
+
+## Verificación y mejoras del 20 de octubre de 2026
+
+- Publicación comprobada: `dpl_9vxxnoYv7vZadxVFTYw4GzVbW3Vy`, en https://www.micole.click/.
+- Portada renderizada durante la compilación a partir del componente Landing real. El contenido y enlaces públicos están presentes antes de ejecutar JavaScript. Las rutas privadas conservan su HTML separado sin indexación.
+- Favicons ICO (16, 32 y 48 px), PNG de 96 px, Apple Touch Icon de 180 px e iconos del manifiesto de 192 y 512 px, derivados del símbolo existente.
+- Portada, robots.txt, sitemap.xml e iconos: HTTP 200 y tipos correctos; variantes canónicas y exclusión del host vercel.app verificadas.
+- Search Console indica que la portada ya está indexada; último rastreo registrado: 19 de octubre a las 15:58:16. Canonical declarada y seleccionada por Google: https://www.micole.click/.
+- El sitemap anterior figuraba como no obtenido y el informe de la URL indicaba error temporal de procesamiento. Se reenvió el sitemap el 20 de octubre y Google confirmó su recepción; la lectura queda sujeta al procesamiento de Google.
+- Solicitud de indexación enviada y confirmada: URL añadida a una cola de rastreo prioritaria.
+- El último estado del sitemap sigue indicando que no se ha podido leer; no se considera resuelto en Google todavía. Se comprobó el XML público con agente Googlebot: HTTP 200, sin bloqueos y con contenido válido.
+- Prueba en tiempo real de Search Console: la URL está disponible para Google y la página se puede indexar.
+- Búsqueda `site:micole.click`: muestra la portada con título y descripción de MiCole.
+- Validación: compilación de producción, 317 pruebas aprobadas, contenido sin JavaScript y navegación móvil sin errores.
+
+La actualización del favicon y la posición en búsquedas dependen del nuevo rastreo y procesamiento de Google. No son inmediatos ni se garantizan posiciones.

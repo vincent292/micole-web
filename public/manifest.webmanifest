@@ -9,5 +9,8 @@
   "background_color": "#F8FAFF",
   "theme_color": "#3D6EF7",
   "lang": "es-BO",
-  "icons": [{"src": "/brand/symbol.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any"}]
+  "icons": [
+    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
 }
