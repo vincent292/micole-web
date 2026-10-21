@@ -1,3 +1,4 @@
+import { StaffWorkspaceScreen } from "./features/StaffWorkspace";
 import { ownerPaymentAccess } from "./lib/support-access";
 import { DirectorAssistant } from "./features/DirectorAssistant";
 import { guideActions } from "./lib/assistant";
@@ -202,6 +203,8 @@ const nav: {
     roles: ["superadmin", "director"],
     group: "TU ESPACIO",
   },
+  {key:"staffAttendance",label:"Asistencia del equipo",icon:CalendarDays,roles:["director","teacher"],group:"EQUIPO"},
+  {key:"staffPayroll",label:"Boletas de pago",icon:Wallet,roles:["director","teacher"],group:"EQUIPO"},
   {key:"care",label:"Cuidados diarios",icon:Heart,roles:COMMUNITY_ROLES,group:"COMUNIDAD"},
   {key:"gradebook",label:"Evaluación y libretas",icon:GraduationCap,roles:COMMUNITY_ROLES,group:"COMUNIDAD"},
   {key:"years",label:"Gestiones e historial",icon:BookOpen,roles:COMMUNITY_ROLES,group:"ADMINISTRACIÓN"},
@@ -1082,6 +1085,7 @@ function Workspace({
               {validPage === "years" && <Years key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "sites" && <InstitutionSites {...props} onIdentityChanged={refreshIdentity} onChoose={id=>{setSchoolId(id);setStudentId("");go("overview");}}/>}
               {["admissionForms","calendarImport"].includes(validPage) && <DocumentImports key={`${school?.id}:${validPage}`} {...props} documentKind={validPage==="admissionForms"?"form":"calendar"}/>}
+              {["staffAttendance","staffPayroll"].includes(validPage) && <StaffWorkspaceScreen key={`${school?.id}:${validPage}`} {...props} view={validPage as "staffAttendance"|"staffPayroll"}/>}
               {validPage === "onboarding" && <Onboarding {...props} />}
               {validPage === "subjects" && <Subjects key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "assignments" && <Assignments key={`${school?.id}-${student?.id}`} {...props} />}

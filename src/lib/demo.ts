@@ -128,6 +128,7 @@ export function resetDemo() {
   localStorage.removeItem(extraKey);
   localStorage.removeItem("micole_public_demo_features_v1");
   localStorage.removeItem("micole_public_demo_sites_v1");
+  localStorage.removeItem("micole_public_demo_staff_v1");
   writeDemoData(data, true);
   return data;
 }
@@ -166,6 +167,8 @@ function requireStaff(director = false) {
     );
 }
 export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
+  const staff=await import("./demo-staff");
+  if(staff.staffOperations.includes(name)) return staff.demoStaffRpc(name,parameters) as Promise<T>;
   const sites = await import("./demo-sites");
   if(sites.siteOperations.includes(name)) return sites.demoSiteRpc(name,parameters) as Promise<T>;
   const feature = await import("./demo-features");

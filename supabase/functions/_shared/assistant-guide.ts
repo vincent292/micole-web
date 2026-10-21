@@ -1,5 +1,7 @@
 /** Published capabilities only. These IDs open existing pages/forms, never execute writes. */
 export const guideActions = {
+  staff_attendance: { label: "Asistencia del equipo", page: "staffAttendance" },
+  staff_payroll: { label: "Boletas de pago", page: "staffPayroll" },
   students: { label: "Ver estudiantes", page: "students" },
   new_student: { label: "Abrir inscripción", form: "student" },
   classrooms: { label: "Ver aulas", page: "classrooms" },
@@ -37,6 +39,21 @@ export interface GuideMessage {
   text: string;
 }
 export const guideTopics = [
+  {
+    words:
+      "asistencia marcacion marcar GPS geolocalizacion sueldo boleta salario planilla tardanza tolerancia",
+    answer:
+      "Dirección configura la ubicación, horarios y sueldos por sede. El docente marca entrada y salida; la boleta se calcula como borrador y Dirección revisa antes de aprobar.",
+    steps: [
+      "En Asistencia del equipo configura ubicación, rango y precisión GPS.",
+      "En Horarios y sueldos elige modalidad mensual o por horas, días, turnos y descanso.",
+      "Configura la tolerancia, el valor por minuto y si se descuenta solo el exceso o toda la tardanza. Los descuentos deben corresponder al reglamento aplicable.",
+      "El docente pulsa Marcar entrada o salida desde su cuenta. La hora se guarda en el servidor y solo se consulta ubicación al marcar. Si hay un error, Dirección registra una corrección con motivo.",
+      "En Boletas de pago elige el mes y prepara el borrador. Revisa los conceptos y agrega aportes, impuestos, bonos u otros ajustes que correspondan.",
+      "Al terminar el mes, sin entradas pendientes, revisa y aprueba. El docente puede consultar e imprimir su boleta; registrar el pago no realiza una transferencia bancaria.",
+    ],
+    actions: ["staff_attendance", "staff_payroll"],
+  },
   {
     words:
       "inscribir inscripcion matricular alumno estudiantes niño nino madre padre familiar registrar",

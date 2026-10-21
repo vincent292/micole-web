@@ -1,0 +1,86 @@
+.staff-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+  margin: 20px 0;
+}
+.staff-toolbar .field {
+  min-width: 180px;
+  flex: 1;
+}
+.staff-clock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 20px 0;
+}
+.staff-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.staff-line h2 {
+  font-size: 18px;
+}
+.staff-roster article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border, #e4ebf7);
+}
+.staff-roster p {
+  margin: 6px 0;
+  color: #52636c;
+}
+.staff-record-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+.staff-record-grid .entity-card {
+  padding: 20px;
+  min-width: 0;
+}
+.staff-record-grid small {
+  display: block;
+  color: #52636c;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.staff-shift {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin: 18px 0;
+}
+.staff-adjustment {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin: 18px 0;
+}
+@media (max-width: 700px) {
+  .staff-clock,
+  .staff-roster article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .staff-shift,
+  .staff-adjustment {
+    grid-template-columns: 1fr 1fr;
+  }
+  .staff-toolbar .btn {
+    width: 100%;
+  }
+  .staff-line {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
