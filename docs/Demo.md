@@ -13,7 +13,7 @@ Configurar únicamente en el proyecto **micole-demo**, como variables de servido
 - `DEMO_ACCESS_CREDENTIAL_HASH`: SHA-256 hexadecimal de `correo.trim().toLowerCase() + "\0" + clave` (el separador es un byte cero).
 - `DEMO_SESSION_SECRET`: secreto aleatorio de al menos 32 caracteres.
 
-No usar prefijos `VITE_` ni incluir credenciales en Git, URLs o el paquete del navegador. La clave anteriormente pública fue retirada y debe reemplazarse; nunca reutilizarla para accesos privados o cuentas reales. Las credenciales nuevas se conservan en el archivo privado del propietario, fuera del repositorio.
+No usar prefijos `VITE_` ni incluir credenciales en Git, URLs o el paquete del navegador. El propietario comparte el acceso únicamente con las personas invitadas y conserva las credenciales en un archivo privado fuera del repositorio. No reutilizar esta clave compartida en cuentas reales.
 
 La sesión usa una cookie firmada `HttpOnly`, `Secure`, `SameSite=Lax`, dura 8 horas y se elimina al salir. Cambiar el hash o el secreto invalida las cookies anteriores. Es un acceso compartido para demostraciones: quien reciba la clave podrá compartirla; para accesos individuales se necesitan invitaciones por persona. No se registran visitantes ni conversaciones en Supabase.
 
@@ -21,8 +21,8 @@ La sesión usa una cookie firmada `HttpOnly`, `Secure`, `SameSite=Lax`, dura 8 h
 
 Tras iniciar sesión se puede cambiar entre Dirección, Docente, Familia y Estudiante. Los correos que aparecen dentro de la demo pertenecen a datos ficticios y no son las credenciales de acceso.
 
-- Dirección: aulas, inscripción, cuotas, cobros, reportes, formularios, calendarios, avisos, sedes e historial.
-- Docente: tareas, agenda, cuidados, evaluaciones y confirmaciones.
+- Dirección: aulas, inscripción, cuotas, cobros, reportes, formularios, calendarios, avisos, sedes, asistencia docente, boletas e historial.
+- Docente: tareas, agenda, cuidados, evaluaciones, confirmaciones, marcaciones simuladas y consulta de sus boletas aprobadas.
 - Familia: hijos de ejemplo, calendario, notas, permisos y pagos simulados.
 - Estudiante: tareas, entregas y agenda.
 
