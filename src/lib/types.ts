@@ -421,6 +421,7 @@ export interface Membership {
   role: Exclude<Role, "superadmin">;
 }
 export interface SupportSession {
+  paymentBypass?: boolean;
   mode?: "support" | "test";
   id: string;
   schoolId: string;

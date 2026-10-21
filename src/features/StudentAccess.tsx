@@ -1,3 +1,4 @@
+import { ownerPaymentAccess } from "../lib/support-access";
 import { useEffect, useState } from "react";
 import { BookOpen, CalendarDays, Megaphone, ShieldCheck } from "lucide-react";
 import { Button, Empty, Field, Modal, SectionTitle, StatCard } from "../components/UI";
@@ -117,9 +118,9 @@ export function StudentLoginModal({
   );
 }
 
-export function StudentOverview({ store, student, school, go }: PageProps) {
+export function StudentOverview({ store, student, school, go, identity }: PageProps) {
   const data = store.data;
-  const allowed = data.studentPortalAccess?.allowed !== false;
+  const allowed = ownerPaymentAccess(identity, school?.id) || data.studentPortalAccess?.allowed !== false;
   const upcoming = data.events
     .filter(e => e.schoolId === school?.id &&
       (!e.classroomId || e.classroomId === student?.classroomId) && e.date >= today())

@@ -244,12 +244,39 @@ describe("pruebas reales de roles reservadas al propietario",()=>{
   expect(r.rows[0].value.studentIds).toEqual([child]);expect(r.rows[0].portal).not.toHaveProperty('motherEmail');
   expect((await as(owner,()=>q("select id from students"),sid)).rows).toEqual([]);
  });
- it("mantiene el bloqueo académico por pagos para familias y estudiantes de prueba",async()=>{
+ it("el propietario revisa una cuenta con deudas sin pagarla ni habilitar a la familia real",async()=>{
   await q("update platform_charges set status='pending' where student_id=$1",[child]);
+  await q("update students set profile_complete=false where id=$1",[child]);
+  const before=(await q("select id,status,amount from platform_charges where student_id=$1 order by id",[child])).rows;
   let sid=await start('guardian',child,'mother');
-  expect((await as(owner,()=>q("select family_access($1) as access",[child]),sid)).rows[0].access).toBe(false);
+  const family=await as(owner,()=>q("select family_access($1) as access,family_access($2) as unrelated,workspace_identity() as identity",[child,otherChild]),sid);
+  expect(family.rows[0]).toMatchObject({access:true,unrelated:false,identity:{support:{paymentBypass:true}}});
+  await expect(as(stranger,()=>q("select family_access($1)",[child]),sid)).rejects.toThrow(/support_expired/);
+  expect((await as(mother,()=>q("select family_access($1) as access,workspace_identity() as identity",[child]))).rows[0]).toMatchObject({access:false,identity:{support:null}});
   sid=await start('student',child);
-  const r=await as(owner,()=>q("select student_portal() as value"),sid);expect(r.rows[0].value.accessAllowed).toBe(false);
+  expect((await as(owner,()=>q("select student_portal() as value"),sid)).rows[0].value.accessAllowed).toBe(true);
+  expect((await as(kid,()=>q("select student_portal() as value"))).rows[0].value.accessAllowed).toBe(false);
+  expect((await q("select id,status,amount from platform_charges where student_id=$1 order by id",[child])).rows).toEqual(before);
+ });
+ it("el soporte conserva acceso académico con deuda, dentro de la institución atendida",async()=>{
+  await q("update platform_charges set status='pending' where student_id=$1",[child]);
+  const sid=(await acting(owner,()=>q("select start_support_session($1,$2,'guardian','Revisar una cuenta con deuda') as value",[school,mother]))).rows[0].value.id;
+  const result=await as(owner,()=>q("select family_access($1) as access,workspace_identity() as identity",[child]),sid);
+  expect(result.rows[0]).toMatchObject({access:true,identity:{support:{paymentBypass:true}}});
+  await acting(owner,()=>q("select end_support_session($1)",[sid]),sid);
+  await expect(as(owner,()=>q("select family_access($1)",[child]),sid)).rejects.toThrow(/support_expired/);
+  expect((await as(mother,()=>q("select family_access($1) as access",[child]))).rows[0].access).toBe(false);
+ });
+ it("el estudiante de pruebas entra aunque la institución no haya pagado el adelanto",async()=>{
+  const unfunded=id(300),classroom=id(301),student=id(302);
+  await q("insert into schools(id,name,slug,status) values($1,'Sin adelanto','sin-adelanto','active')",[unfunded]);
+  await q("insert into classrooms(id,school_id,name,capacity) values($1,$2,'Primero A',30)",[classroom,unfunded]);
+  await q("insert into students(id,school_id,classroom_id,first_name,last_name,status,profile_complete) values($1,$2,$3,'Prueba','Sin pago','active',false)",[student,unfunded,classroom]);
+  expect((await as(mother,()=>q("select platform_school_enabled($1) as allowed",[unfunded]))).rows[0].allowed).toBe(false);
+  await acting(owner,()=>q("select set_test_institution($1,true)",[unfunded]));
+  const sid=(await acting(owner,()=>q("select start_test_session($1,'student',$2,null) as value",[unfunded,student]))).rows[0].value.id;
+  expect((await as(owner,()=>q("select student_portal() as portal,workspace_identity() as identity"),sid)).rows[0]).toMatchObject({portal:{accessAllowed:true},identity:{support:{paymentBypass:true}}});
+  expect((await q("select initial_paid_at from aulanexo_private.platform_credit_accounts where school_id=$1",[unfunded])).rows[0].initial_paid_at).toBeNull();
  });
  it("publica, entrega y revisa una tarea con roles de prueba y asignación de materia",async()=>{
   const cs=(await acting(director,()=>q("select configure_class_subject($1,'Matemáticas',array[$2]::uuid[],true) as value",[room,id(50)]))).rows[0].value;

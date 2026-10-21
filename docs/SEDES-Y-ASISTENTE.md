@@ -31,3 +31,9 @@ Supabase permite `https://www.micole.click` y `https://micole.click` en `APP_ORI
 La política CORS del bucket privado R2 también debe permitir el dominio nuevo. Si la clave S3 devuelve `AccessDenied` al consultar su configuración, abre Cloudflare → R2 → bucket privado → Settings → CORS policy y agrega los dos dominios a las reglas existentes. Como referencia, `docs/r2-cors.json` contiene la configuración de la aplicación. Conserva otras reglas que utilices; no actives acceso público al bucket.
 
 Para un bucket público de logos o identidad institucional, usa `docs/r2-public-cors.json`, que solo permite lectura. Esta configuración es independiente de la política del bucket privado.
+
+## Acceso del propietario en pruebas y soporte
+
+Una sesión de pruebas o soporte vigente, verificada por Supabase para el propietario de MiCole, permite revisar el contenido del rol seleccionado aunque existan mensualidades pendientes, una ficha incompleta o el adelanto inicial sin pagar. La excepción se limita a la institución atendida; conserva los permisos del rol y el registro de la sesión. No registra pagos, no modifica cuotas ni habilita el acceso de la cuenta real. Al cerrar, caducar o revocar la sesión termina la excepción.
+
+Aplicar `npm run supabase:migrate:owner-access` y publicar la web. Android consume el mismo indicador de servidor; su código incorpora la corrección sin generar un APK.

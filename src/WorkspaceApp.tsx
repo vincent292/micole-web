@@ -1,3 +1,4 @@
+import { ownerPaymentAccess } from "./lib/support-access";
 import { DirectorAssistant } from "./features/DirectorAssistant";
 import { guideActions } from "./lib/assistant";
 import { InstitutionSites } from "./features/InstitutionSites";
@@ -432,13 +433,14 @@ function Workspace({
           )
         : schoolStudents;
   const student = students.find((s) => s.id === studentId) || students[0];
+  const paymentBypass = ownerPaymentAccess(liveIdentity, school?.id);
   const access = studentAccess(student, store.data);
-  const studentLocked = role === "student" && store.data.studentPortalAccess?.allowed === false;
-  const locked = role === "guardian" && !access.allowed;
+  const studentLocked = !paymentBypass && role === "student" && store.data.studentPortalAccess?.allowed === false;
+  const locked = !paymentBypass && role === "guardian" && !access.allowed;
   const startupLocked=liveMode&&role!=="superadmin"&&!identity.support&&school?.platformEnabled===false;
   const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["payments","cash","invoices","requests"]:["overview","requests"];
   const needsProfile =
-    role === "guardian" && !!student && !student.profileComplete;
+    !paymentBypass && role === "guardian" && !!student && !student.profileComplete;
   const requestedPage = location.pathname.split("/")[2] || "overview";
   const page = requestedPage === "imports" ? "admissionForms" : requestedPage;
   const navItems = nav.filter(
@@ -916,6 +918,7 @@ function Workspace({
                   minute: "2-digit",
                 })}{" "}
                 · {support.reason}
+                {paymentBypass && " · Revisión sin bloqueo por pagos"}
               </small>
             </div>
             {support.mode === "test" && <Button variant="secondary" disabled={supportBusy} onClick={() => void exitSupport("/app/support")}>Cambiar rol</Button>}
