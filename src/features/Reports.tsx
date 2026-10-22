@@ -1,3 +1,4 @@
+import { useWorkspaceRevision } from "../lib/useWorkspaceRevision";
 import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { AlertCircle, ArrowDownToLine, CalendarRange, ChevronLeft, ChevronRight, CircleDollarSign, Download, FileBarChart2, Printer, RefreshCw, Wallet } from "lucide-react";
@@ -32,7 +33,9 @@ export function Reports({ store, school, role, identity }: PageProps) {
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [printing, setPrinting] = useState(false);
-  const queryKey = `${scopeKey}:${JSON.stringify(applied)}:${revision}`;
+  const liveRevision = useWorkspaceRevision(["school_charges", "school_payments", "school_receipts", "platform_charges", "platform_payments", "students", "classrooms", "schools"], platform ? applied.schoolId || undefined : school?.id);
+  const demoData = liveMode ? undefined : store.data;
+  const queryKey = `${scopeKey}:${JSON.stringify(applied)}`;
   const report = result?.key === queryKey ? result.value : null;
   const rangeError = validateReportRange(draft.from, draft.to);
 
@@ -40,7 +43,7 @@ export function Reports({ store, school, role, identity }: PageProps) {
     let active = true;
     setBusy(true);
     setError("");
-    setResult(null);
+
     if (!platform && !school?.id) {
       setBusy(false);
       setError("No tienes una institución asignada para consultar sus reportes.");
@@ -56,14 +59,14 @@ export function Reports({ store, school, role, identity }: PageProps) {
         setResult({ key: queryKey, value });
         if (!applied.classroomId && !applied.studentId && (!platform || !applied.schoolId)) setCatalog(value);
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : "No se pudo cargar el reporte.");
+        if (active) { setResult(null); setError(e instanceof Error ? e.message : "No se pudo cargar el reporte."); }
       } finally {
         if (active) setBusy(false);
       }
     };
     void load();
     return () => { active = false; };
-  }, [queryKey, applied, platform, scope, school?.id, store.data]);
+  }, [queryKey, applied, platform, scope, school?.id, demoData, revision, liveRevision]);
 
   useEffect(() => {
     const before = () => flushSync(() => setPrinting(true));
@@ -161,8 +164,8 @@ export function Reports({ store, school, role, identity }: PageProps) {
       <p className="report-explanation">{platform ? "Los cobros se filtran por fecha de pago; las licencias, por mes de emisión, y las activaciones, por su fecha de creación. El estado es actual." : "Los ingresos se filtran por fecha de cobro; las cuotas y la mora, por fecha de vencimiento. El estado de las cuotas es actual."}</p>
       {!liveMode && <p className="report-demo-note">Datos de prueba. Los movimientos se ilustran a partir de pagos locales; en línea se consulta el registro de pagos verificados.</p>}
       {error && <div className="message error" role="alert"><AlertCircle size={19} /><span>{error}</span><Button variant="ghost" onClick={() => setRevision((n) => n + 1)}>Reintentar reporte</Button></div>}
-      {busy && <div className="report-loading" role="status"><RefreshCw size={24} /><div><b>Preparando tu reporte…</b><span>Consultando cuotas y movimientos del período.</span></div></div>}
-      {report && totals && !busy && <>
+      {busy && !report && <div className="report-loading" role="status"><RefreshCw size={24} /><div><b>Preparando tu reporte…</b><span>Consultando cuotas y movimientos del período.</span></div></div>}
+      {report && totals && <>
         <div className="report-print-header"><h1>MiCole · Reporte financiero</h1><p>{reportLabel} · {dateLabel(report.fromDate)} al {dateLabel(report.toDate)}</p><p>{selectedStudent?.name || (applied.classroomId ? classroomName(applied.classroomId) : "")}</p><small>Generado el {new Date(report.generatedAt).toLocaleString("es-BO", { timeZone: "America/La_Paz" })}. Estado de cuotas actual.</small></div>
         <div className="report-period"><span>{reportLabel} <i>·</i> {dateLabel(report.fromDate)} — {dateLabel(report.toDate)}</span><small>Actualizado {new Date(report.generatedAt).toLocaleTimeString("es-BO", { timeZone: "America/La_Paz", hour: "2-digit", minute: "2-digit" })}</small></div>
         <div className="stats-grid report-metrics">

@@ -1,32 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { rpc } from "./repository";
+import { useWorkspaceRevision } from "./useWorkspaceRevision";
 import type { NotificationTestWorkspace } from "./notificationTests";
-export function useNotificationTests(context: unknown) {
+export function useNotificationTests(_context?: unknown) {
   const [revision, setRevision] = useState(0);
-  const scope = useMemo(() => ({ revision, context }), [revision, context]);
-  const [result, setResult] = useState<{
-    scope: typeof scope;
-    data?: NotificationTestWorkspace;
-    error?: string;
-  }>();
+  const liveRevision = useWorkspaceRevision(["notifications", "notification_test_runs"]);
+  const [result, setResult] = useState<{data?: NotificationTestWorkspace; error?: string}>();
   useEffect(() => {
     let active = true;
     void rpc<NotificationTestWorkspace>("notification_test_workspace", {})
-      .then((data) => {
-        if (active) setResult({ scope, data });
-      })
-      .catch((e) => {
-        if (active) setResult({ scope, error: e.message });
-      });
-    return () => {
-      active = false;
-    };
-  }, [scope]);
-  const refresh = useCallback(() => setRevision((n) => n + 1), []);
-  return {
-    data: result?.scope === scope ? result.data : undefined,
-    error: result?.scope === scope ? result.error : "",
-    loading: result?.scope !== scope,
-    refresh,
-  };
+      .then(data => { if (active) setResult({data}); })
+      .catch(e => { if (active) setResult(old => ({...old, error: e.message})); });
+    return () => { active = false; };
+  }, [revision, liveRevision]);
+  const refresh = useCallback(() => setRevision(n => n + 1), []);
+  return {data:result?.data, error:result?.error || "", loading:!result, refresh};
 }

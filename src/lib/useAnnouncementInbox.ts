@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { onWorkspaceChange } from "./workspaceEvents";
 import { subscribeAnnouncements } from "./announcementEvents";
 import {
   normalizePending,
@@ -123,12 +124,18 @@ export function useAnnouncementInbox({
       if (enabled) void show(id);
     });
     void check();
-    const timer = setInterval(() => void check(), 60000);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const offChanges = onWorkspaceChange(change => {
+      if (!["*", "announcements", "announcement_receipts", "notifications", "workspace_ready"].includes(change.table)) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => void check(), 300);
+    });
     return () => {
       alive = false;
       generation.current = version + 1;
       off();
-      clearInterval(timer);
+      offChanges();
+      clearTimeout(timer);
     };
   }, [scope, enabled]);
   useEffect(() => {

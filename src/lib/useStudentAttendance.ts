@@ -24,6 +24,8 @@ export function useStudentAttendance(
       if (
         ![
           "*",
+          "school_charges", "school_payments", "platform_charges", "platform_credit_accounts",
+          "school_memberships", "student_guardians", "teacher_classrooms", "subject_teachers",
           "student_attendance_sessions",
           "students",
           "enrollment_history",
@@ -55,7 +57,7 @@ export function useStudentAttendance(
         if (active)
           setResult((old) => ({
             key,
-            data: old?.key === key ? old.data : undefined,
+            data: !/No tienes acceso|No tienes permiso|Solo su familia|crédito inicial|No puedes consultar/i.test(e.message) && old?.key === key ? old.data : undefined,
             error: e.message,
             revision,
           }));

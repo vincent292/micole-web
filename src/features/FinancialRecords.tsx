@@ -1,3 +1,4 @@
+import { useWorkspaceRevision } from "../lib/useWorkspaceRevision";
 import "../styles/financial-records.css";
 import { useEffect, useState } from "react";
 import { Button, Field, Modal, SectionTitle, Empty } from "../components/UI";
@@ -274,7 +275,7 @@ export function PaymentEvidencePanel({
   studentId,
   role,
   items,
-  revision,
+  revision: _revision,
   onChanged,
 }: {
   schoolId?: string;
@@ -298,6 +299,7 @@ export function PaymentEvidencePanel({
     [approve, setApprove] = useState(true),
     [verified, setVerified] = useState(false),
     [requestId, setRequestId] = useState(uid());
+  const supportRevision = useWorkspaceRevision(["financial_files", "payment_submissions", "school_receipts", "invoice_requests"], schoolId);
   useEffect(() => {
     if (!schoolId || !studentId || !["guardian", "director"].includes(role))
       return;
@@ -312,7 +314,7 @@ export function PaymentEvidencePanel({
     return () => {
       active = false;
     };
-  }, [schoolId, studentId, role, revision, version]);
+  }, [schoolId, studentId, role, supportRevision, version]);
   if (!["guardian", "director"].includes(role) || !studentId) return null;
   const changed = () => {
     setVersion((n) => n + 1);

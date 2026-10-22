@@ -1,3 +1,4 @@
+import { useWorkspaceRevision } from "../lib/useWorkspaceRevision";
 import { useEffect, useState } from "react";
 import { Button, Field, Modal, SectionTitle } from "../components/UI";
 import { rpc } from "../lib/repository";
@@ -18,6 +19,7 @@ export function usePlatformTariffs(schoolId?: string | null, enabled = true, ano
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0);
   const scope = anonymous ? "public" : schoolId || "global";
+  const liveRevision = useWorkspaceRevision(["platform_tariffs"], schoolId, enabled && !anonymous);
   useEffect(() => {
     if (!enabled) return;
     let active = true;
@@ -32,7 +34,7 @@ export function usePlatformTariffs(schoolId?: string | null, enabled = true, ano
     return () => {
       active = false;
     };
-  }, [schoolId, scope, enabled, anonymous, revision]);
+  }, [schoolId, scope, enabled, anonymous, revision, liveRevision]);
   useEffect(() => {
     const update = () => setRevision((v) => v + 1);
     window.addEventListener("micole:tariffs", update);

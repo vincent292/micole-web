@@ -20,7 +20,7 @@ describe('importes y cambios de operación',()=>{
   expect(monthCount('2026-10','2027-03')).toBe(6);
  });
  it('Realtime actualiza solo las colecciones necesarias y reconstruye permisos al cambiar pagos',()=>{
-  expect(realtimeCollections(['messages','notifications'])).toEqual(['notifications','auditEvents','messages']);
+  expect(new Set(realtimeCollections(['messages','notifications']))).toEqual(new Set(['notifications','auditEvents','messages']));
   expect(realtimeCollections(['school_payments'])).toBeUndefined();
   expect(realtimeCollections(['students'])).toBeUndefined();
  });

@@ -44,11 +44,9 @@ export function InstitutionsShowcase() {
     };
     const refresh = () => { void load(); };
     void load();
-    const timer = window.setInterval(refresh, 60000);
-    window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     window.addEventListener("micole:refresh-affiliates", refresh);
-    return () => { active = false; controller?.abort(); window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("micole:refresh-affiliates", refresh); };
+    return () => { active = false; controller?.abort(); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("micole:refresh-affiliates", refresh); };
   }, []);
 
   const update = useCallback(() => {

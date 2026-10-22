@@ -194,3 +194,22 @@ describe('operación conectada, cobros y permisos',()=>{
   await q('select aulanexo_private.send_birthday_reminders()');expect((await q("select count(*)::int n from notifications where kind like 'birthday_%'")).rows[0].n).toBe(count);
  });
 });
+
+it('los módulos de personal y formularios emiten revisiones aisladas sin publicar su contenido',async()=>{
+ await q("insert into staff_attendance_settings(school_id,latitude,longitude,updated_by) values($1,-17.78,-63.18,$2)",[school,director]);
+ let signal=(await q('select * from workspace_signals where school_id=$1',[school])).rows[0];
+ expect(signal.changed_table).toBe('staff_attendance_settings');
+ expect(Object.keys(signal).sort()).toEqual(['changed_at','changed_table','revision','school_id']);
+ const first=Number(signal.revision);
+ await q("update staff_attendance_settings set radius_m=175 where school_id=$1",[school]);
+ signal=(await q('select * from workspace_signals where school_id=$1',[school])).rows[0];
+ expect(Number(signal.revision)).toBeGreaterThan(first);
+ await q("insert into admission_templates(school_id,academic_year,title,fields,updated_by) values($1,2026,'Ficha de prueba','[]',$2)",[school,director]);
+ expect((await q('select changed_table from workspace_signals where school_id=$1',[school])).rows[0].changed_table).toBe('admission_templates');
+ expect((await as(stranger,()=>q('select * from workspace_signals'))).rows).toHaveLength(0);
+ const otherBefore=(await q('select revision from workspace_signals where school_id=$1',[otherSchool])).rows[0].revision;
+ await q("update aulanexo_private.platform_tariffs set monthly_license_fee=30 where scope_key='global'");
+ expect(Number((await q('select revision from workspace_signals where school_id=$1',[otherSchool])).rows[0].revision)).toBeGreaterThan(Number(otherBefore));
+ expect((await q("select count(*)::int n from pg_trigger where not tgisinternal and tgname='realtime_bank_payment_changed'")).rows[0].n).toBe(1);
+ await expect(as(mother,()=>q('select * from aulanexo_private.bank_qr_intents'))).rejects.toThrow();
+});

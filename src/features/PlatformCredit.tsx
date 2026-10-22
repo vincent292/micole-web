@@ -1,3 +1,4 @@
+import { useWorkspaceRevision } from "../lib/useWorkspaceRevision";
 import { useEffect, useState } from "react";
 import { Button, Field, SectionTitle, StatCard } from "../components/UI";
 import { Wallet, ShieldCheck } from "lucide-react";
@@ -26,6 +27,7 @@ export function PlatformCreditPanel({
     [qr, setQr] = useState(false),
     [revision, setRevision] = useState(0);
   const selected = schoolId || chosen || schools?.[0]?.id || "";
+  const liveRevision = useWorkspaceRevision(["platform_credit_accounts", "platform_credit_ledger", "platform_charges"], selected);
   const scope = `${selected}:${revision}`,
     account = result?.scope === scope ? result.account : undefined,
     error = result?.scope === scope ? result.error : "";
@@ -71,7 +73,7 @@ export function PlatformCreditPanel({
     return () => {
       active = false;
     };
-  }, [selected, scope, store.data.platformCharges]);
+  }, [selected, scope, liveRevision]);
   const refresh = () => {
     setRevision((v) => v + 1);
     void store.refresh();

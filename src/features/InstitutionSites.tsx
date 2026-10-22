@@ -1,3 +1,4 @@
+import { useWorkspaceRevision } from "../lib/useWorkspaceRevision";
 import { useEffect, useState } from "react";
 import { Building2, Plus } from "lucide-react";
 import {
@@ -30,10 +31,11 @@ export function InstitutionSites({
     [assign, setAssign] = useState<School | null>(null),
     [link, setLink] = useState(""),
     [version, setVersion] = useState(0);
+  const liveRevision = useWorkspaceRevision(["schools", "school_memberships"]);
   useEffect(() => {
     let active = true;
     setError("");
-    setData(null);
+
     if (school)
       void rpc<SiteDirectory>("institution_sites", { p_school_id: school.id })
         .then((v) => {
@@ -45,7 +47,7 @@ export function InstitutionSites({
     return () => {
       active = false;
     };
-  }, [school?.id, version]);
+  }, [school?.id, version, liveRevision]);
   const updated = async () => {
     await onIdentityChanged();
     await store.refresh();

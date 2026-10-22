@@ -184,7 +184,7 @@ export function AnnouncementGate({
       !store.loading &&
       !store.busy &&
       !document.querySelector('[aria-modal="true"]'),
-    onChanged: () => void store.refresh(),
+    onChanged: () => void store.refresh(["announcements", "notifications"]),
   });
   const n = inbox.notice;
   if (!n)

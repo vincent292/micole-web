@@ -24,6 +24,8 @@ export function useGradeSheet(
       if (
         ![
           "*",
+          "school_charges", "school_payments", "platform_charges", "platform_credit_accounts",
+          "school_memberships", "student_guardians", "teacher_classrooms", "subject_teachers",
           "assessments",
           "assessment_scores",
           "academic_terms",

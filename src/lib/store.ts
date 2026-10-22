@@ -3,6 +3,7 @@ import { publicDemo } from "./demo-config";
 import { readDemoData, writeDemoData, resetDemo, subscribeDemo } from "./demo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { realtimeCollections } from "./realtime";
+import { useSerializedRefresh } from "./useSerializedRefresh";
 import { seed } from "./seed";
 import { uid } from "./format";
 export { uid, money, dateLabel, initials } from "./format";
@@ -66,7 +67,8 @@ export function useAppStore(
   const inflight = useRef(false);
   const refreshSequence = useRef(0);
   const fullRefreshes = useRef(0);
-  const refresh = useCallback(async (collections?: Collection[]) => {
+  const load = useCallback(async (collections?: Collection[]) => {
+    if (session.current !== scope) return;
     if (!liveMode) { if (publicDemo) setData(readDemoData()); return; }
     if (!userId) return;
     const sequence = ++refreshSequence.current;
@@ -91,6 +93,7 @@ export function useAppStore(
         setLoading(false);
     }
   }, [userId, platform, context, student, scope]);
+  const refresh = useSerializedRefresh(load);
   useEffect(() => {
     if (liveMode) {
       setData(emptyData());
@@ -122,20 +125,26 @@ export function useAppStore(
     let active = true;
     const changed = new Set<string>();
     let fullRefresh = false;
-    const backgroundRefresh = (payload?: unknown) => {
-      const signal = (payload as {new?: {school_id?: string; changed_table?: string}})?.new;
-      publishWorkspaceChange({table:signal?.changed_table || "*",schoolId:signal?.school_id});
-      const table = (payload as { new?: { changed_table?: string } })?.new?.changed_table;
-      if (table) changed.add(table); else fullRefresh = true;
+    const drain = () => {
       if (!active) return;
       if (document.querySelector('[aria-modal="true"]')) { pending = true; return; }
       pending = false;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { if (!active) return; if (document.querySelector('[aria-modal="true"]')) { pending = true; return; } const collections = fullRefresh ? undefined : realtimeCollections(changed); changed.clear(); fullRefresh = false; void refresh(collections); }, 400);
+      const collections = fullRefresh ? undefined : realtimeCollections(changed);
+      changed.clear(); fullRefresh = false;
+      void refresh(collections);
     };
-    const closed = () => { if (pending) { if (timer) clearTimeout(timer); timer = setTimeout(backgroundRefresh, 0); } };
+    const backgroundRefresh = (payload?: unknown) => {
+      if (!active) return;
+      const signal = (payload as {new?: {school_id?: string; changed_table?: string}})?.new;
+      const table = signal?.changed_table;
+      publishWorkspaceChange({table: table || "*", schoolId:signal?.school_id});
+      if (table) changed.add(table); else fullRefresh = true;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(drain, 400);
+    };
+    const closed = () => { publishWorkspaceChange({table:"workspace_ready"}); if (pending) { if (timer) clearTimeout(timer); timer = setTimeout(drain, 0); } };
     const visible = () => { if (document.visibilityState === "visible") backgroundRefresh(); };
-    window.addEventListener("focus", backgroundRefresh);
+
     window.addEventListener("online", backgroundRefresh);
     window.addEventListener("micole:modal-closed", closed);
     document.addEventListener("visibilitychange", visible);
@@ -153,7 +162,7 @@ export function useAppStore(
       active = false;
       if (timer) clearTimeout(timer);
       void supabase!.removeChannel(channel);
-      window.removeEventListener("focus", backgroundRefresh);
+
       window.removeEventListener("online", backgroundRefresh);
       window.removeEventListener("micole:modal-closed", closed);
       document.removeEventListener("visibilitychange", visible);
@@ -162,6 +171,7 @@ export function useAppStore(
   async function run(
     remote: () => Promise<unknown>,
     local: (prev: AppData) => AppData,
+    collections?: Collection[],
   ) {
     if (inflight.current)
       throw new Error("Espera a que termine la operación actual.");
@@ -171,7 +181,7 @@ export function useAppStore(
     try {
       if (liveMode) {
         await remote();
-        await refresh();
+        await refresh(collections);
       } else setData((prev) => { const next=local(prev); if(publicDemo) writeDemoData(next); return next; });
     } finally {
       inflight.current = false;
@@ -188,6 +198,7 @@ export function useAppStore(
         ...prev,
         [table]: [...prev[table].filter((x) => x.id !== item.id), item],
       }),
+      ["messages", "dailyEntries", "announcements", "events", "grades", "requests", "media", "studentDocuments"].includes(table) ? [table, "notifications", "auditEvents"] : undefined,
     );
   }
   async function enroll(student: Student, plan?: PaymentPlan) {
@@ -602,6 +613,7 @@ export function useAppStore(
           !id || n.id === id ? { ...n, readAt: new Date().toISOString() } : n,
         ),
       }),
+      ["notifications"],
     );
   }
   async function createIntake(

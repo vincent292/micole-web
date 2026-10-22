@@ -1,3 +1,4 @@
+import { useWorkspaceRevision } from "../lib/useWorkspaceRevision";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -113,7 +114,7 @@ function StaffWorkspaceContent({
   const [month, setMonth] = useState(
       payrollView ? previousPayrollMonth(today()) : today().slice(0, 7),
     ),
-    [data, setData] = useState<Workspace | null>(null),
+    [snapshot, setSnapshot] = useState<{key:string; data:Workspace} | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [revision, setRevision] = useState(0),
@@ -133,17 +134,20 @@ function StaffWorkspaceContent({
     [reviewed, setReviewed] = useState(false),
     [payment, setPayment] = useState<StaffPayroll | null>(null);
   const schoolId = school?.id;
+  const workspaceKey = JSON.stringify([schoolId, month, role]);
+  const data = snapshot?.key === workspaceKey ? snapshot.data : null;
+  const liveRevision = useWorkspaceRevision(["staff_attendance_settings", "staff_work_profiles", "staff_attendance_records", "staff_attendance_changes", "staff_payrolls", "teachers"], schoolId);
   useEffect(() => {
     let alive = true;
     setError("");
-    setData(null);
+
     if (schoolId && /^\d{4}-\d{2}$/.test(month))
       void rpc<Workspace>("staff_workspace", {
         p_school_id: schoolId,
         p_month: month + "-01",
       })
         .then((d) => {
-          if (alive) setData(d);
+          if (alive) setSnapshot({key:workspaceKey, data:d});
         })
         .catch((e) => {
           if (alive) setError(e.message);
@@ -151,7 +155,7 @@ function StaffWorkspaceContent({
     return () => {
       alive = false;
     };
-  }, [schoolId, month, revision]);
+  }, [schoolId, month, revision, liveRevision, workspaceKey]);
   async function act(work: () => Promise<unknown>) {
     setBusy(true);
     setError("");

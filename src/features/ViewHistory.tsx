@@ -1,3 +1,4 @@
+import { useWorkspaceRevision } from "../lib/useWorkspaceRevision";
 import { useEffect, useState } from "react";
 import { Button, Field, SectionTitle, Empty } from "../components/UI";
 import { rpc } from "../lib/repository";
@@ -54,6 +55,7 @@ export function ViewHistory({ school, students }: PageProps) {
     [data, setData] = useState<ViewReport>({ total: 0, rows: [] }),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const liveRevision = useWorkspaceRevision(["content_view_events"], school?.id);
   const load = (offset: number, limit = 50) =>
     (liveMode || publicDemo)
       ? rpc<ViewReport>("content_view_report", {
@@ -83,7 +85,7 @@ export function ViewHistory({ school, students }: PageProps) {
     return () => {
       active = false;
     };
-  }, [school?.id, query, page]);
+  }, [school?.id, query, page, liveRevision]);
   async function csv() {
     if (data.total > 10000) {
       setError(

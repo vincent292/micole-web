@@ -26,6 +26,8 @@ export function useSchoolWorkspace(
       if (
         ![
           "*",
+          "school_charges", "school_payments", "platform_charges", "platform_credit_accounts",
+          "school_memberships", "student_guardians", "teacher_classrooms", "subject_teachers",
           "academic_years",
           "academic_terms",
           "assessments",
@@ -64,7 +66,7 @@ export function useSchoolWorkspace(
         if (active)
           setResult((old) => ({
             key,
-            data: old?.key === key ? old.data : emptySchoolWorkspace(),
+            data: !/No tienes acceso|No tienes permiso|Solo su familia|crédito inicial|No puedes consultar/i.test(e.message) && old?.key === key ? old.data : emptySchoolWorkspace(),
             error: e.message,
           }));
       });
