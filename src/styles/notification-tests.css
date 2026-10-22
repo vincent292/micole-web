@@ -1,0 +1,133 @@
+.lab-safety {
+  background: #f0f5ff;
+  border: 1px solid #dce5f6;
+  border-radius: 12px;
+  padding: 16px 20px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.lab-safety b {
+  display: block;
+}
+.lab-safety p {
+  margin: 8px 0 0;
+  color: #52667d;
+}
+.lab-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.1fr);
+  gap: 18px;
+  margin: 20px 0;
+}
+.lab-panel {
+  padding: 22px;
+  min-width: 0;
+}
+.lab-panel > h3 {
+  font:
+    600 16px Inter,
+    sans-serif;
+  margin: 0 0 18px;
+}
+.lab-catalog {
+  display: grid;
+  gap: 7px;
+  max-height: 480px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+}
+.lab-catalog button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  border: 1px solid #e3eaf6;
+  border-radius: 10px;
+  background: #fff;
+  color: #263238;
+  padding: 10px 12px;
+  text-align: left;
+  font:
+    500 13px Inter,
+    sans-serif;
+  cursor: pointer;
+}
+.lab-catalog button[aria-pressed="true"] {
+  background: #edf2ff;
+  border-color: #3d6ef7;
+}
+.lab-catalog small {
+  display: block;
+  margin-top: 4px;
+  color: #52667d;
+  font-size: 11px;
+}
+.lab-preview {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 18px;
+  background: #f8faff;
+  border: 1px solid #dce5f6;
+  border-radius: 12px;
+  margin: 14px 0;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.lab-preview > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.lab-preview p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+.lab-history {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid #e3eaf6;
+  overflow-wrap: anywhere;
+}
+.lab-history > div {
+  flex: 1;
+  min-width: 0;
+}
+.lab-history small {
+  display: block;
+  color: #52667d;
+  margin-top: 6px;
+  line-height: 1.6;
+}
+.lab-panel .field input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: #3d6ef7;
+}
+.lab-catalog button:focus-visible {
+  outline: 2px solid #3d6ef7;
+  outline-offset: 1px;
+}
+@media (max-width: 760px) {
+  .lab-layout {
+    grid-template-columns: 1fr;
+  }
+  .lab-panel {
+    padding: 16px;
+  }
+  .lab-catalog {
+    max-height: 260px;
+  }
+  .lab-history {
+    flex-wrap: wrap;
+  }
+  .lab-history > .btn {
+    margin-left: auto;
+  }
+  .lab-preview {
+    padding: 14px;
+  }
+}

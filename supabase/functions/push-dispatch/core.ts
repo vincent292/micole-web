@@ -9,6 +9,9 @@ export interface Delivery {
   notificationId: string;
   category: string;
   kind: string;
+  isTest?: boolean;
+  testKind?: string;
+  testLabel?: string;
   alertType?: string;
   collapseId?: string;
 }
@@ -38,24 +41,28 @@ export function firebaseMessage(item: Delivery) {
   const category = Object.hasOwn(copy, item.category)
     ? item.category
     : "alerts";
+  const kind = item.isTest === true ? item.testKind || item.kind : item.kind;
   let [title, body] = copy[category];
-  if (item.kind === "assignment_published") title = "Nueva tarea en MiCole";
-  if (item.kind.startsWith("assignment_submitted_"))
+  if (kind === "assignment_published") title = "Nueva tarea en MiCole";
+  if (kind.startsWith("assignment_submitted_"))
     title = "Nueva entrega de tarea";
-  if (item.kind.startsWith("assignment_reviewed_"))
+  if (kind.startsWith("assignment_reviewed_"))
     title = "Tu tarea tiene una revisión";
-  if (item.kind.startsWith("attendance_")) { title = "Actualización de asistencia"; body = "Revisa el registro de asistencia en tu cuenta de MiCole."; }
-  if (item.kind === "grade") title = "Nueva nota o recomendación";
-  if (item.kind === "daily_task") title = "Nueva tarea en MiCole";
-  if (item.kind === "payment_receipt") {
+  if (kind.startsWith("attendance_")) {
+    title = "Actualización de asistencia";
+    body = "Revisa el registro de asistencia en tu cuenta de MiCole.";
+  }
+  if (kind === "grade") title = "Nueva nota o recomendación";
+  if (kind === "daily_task") title = "Nueva tarea en MiCole";
+  if (kind === "payment_receipt") {
     title = "Cobro confirmado";
     body = "Tu recibo está disponible dentro de MiCole.";
   }
-  if (item.kind === "push_test") {
+  if (kind === "push_test") {
     title = "MiCole está conectado";
     body = "Las notificaciones de este teléfono están activas.";
   }
-  const type = presentationType(item.alertType, item.kind, category),
+  const type = presentationType(item.alertType, kind, category),
     style = alertPresentations[type];
   if (type === "health") {
     title = "✚ Aviso de salud";
@@ -65,9 +72,14 @@ export function firebaseMessage(item: Delivery) {
     body = "Revisa la autorización o solicitud de recojo dentro de MiCole.";
   } else if (type === "announcement") {
     title = "📣 Comunicado de MiCole";
-    body = item.kind.startsWith("announcement_reminder_")
+    body = kind.startsWith("announcement_reminder_")
       ? "Tienes un comunicado pendiente de leer o confirmar."
       : "Hay un comunicado para ti dentro de MiCole.";
+  }
+  if (item.isTest === true) {
+    title = `[PRUEBA] ${item.testLabel || style.label}`;
+    body =
+      "Aviso ficticio solicitado desde tu cuenta. No corresponde a un caso real.";
   }
   return {
     message: {

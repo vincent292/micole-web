@@ -1,3 +1,4 @@
+import {NotificationTests} from "./features/NotificationTests";
 import {clearDrafts} from "./lib/sessionDraft";
 import { StaffWorkspaceScreen } from "./features/StaffWorkspace";
 import { ownerPaymentAccess } from "./lib/support-access";
@@ -138,6 +139,7 @@ const nav: {
   group: string;
   hidden?: boolean;
 }[] = [
+  {key:"notificationTests",label:"Pruebas de notificaciones",icon:Bell,roles:["superadmin"],group:"ADMINISTRACIÓN"},
   {
     key: "overview",
     label: "Resumen",
@@ -1100,6 +1102,7 @@ function Workspace({
               {validPage === "onboarding" && <Onboarding {...props} />}
               {validPage === "classrooms" && <ClassroomEntry {...props}/>}
               {validPage === "studentRecord" && <StudentRecord {...props}/>}
+              {validPage === "notificationTests" && <NotificationTests {...props}/>}
               {validPage === "studentAttendance" && <StudentAttendance key={`${school?.id}-${student?.id}-${role}`} {...props} />}
               {validPage === "subjects" && <Subjects key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "assignments" && <Assignments key={`${school?.id}-${student?.id}`} {...props} />}

@@ -12,7 +12,7 @@ Las fracciones de minuto de atraso se redondean al minuto siguiente. Las condici
 
 ## Marcación y corrección
 
-El docente pulsa **Marcar entrada** o **Marcar salida**. La app solicita ubicación en ese momento. Supabase verifica el docente, la sede, el rango, la precisión, la antigüedad de la lectura y el indicador de ubicación simulada; guarda su propia hora de servidor. No depende de la hora elegida por el teléfono. No hay seguimiento GPS en segundo plano ni marcaciones sin conexión.
+En Android, el docente pulsa primero **Verificar mi ubicación**. Entrada y salida se habilitan solo con una lectura precisa, dentro del radio y de menos de 90 segundos. Al pulsar **Marcar entrada** o **Marcar salida**, la app obtiene una nueva lectura para evitar usar una ubicación previa. En la web se solicita ubicación al marcar. Supabase verifica el docente, la sede, el rango, la precisión, la antigüedad de la lectura y el indicador de ubicación simulada; guarda su propia hora de servidor. No depende de la hora elegida por el teléfono. No hay seguimiento GPS en segundo plano ni marcaciones sin conexión.
 
 Una coordenada reportada por un dispositivo no constituye una prueba infalible de presencia. Para un control adicional puede incorporarse un QR rotativo presencial o un reloj de asistencia; estos métodos adicionales no forman parte de esta versión.
 

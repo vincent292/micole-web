@@ -41,3 +41,7 @@ Referencias oficiales: [Expo SDK 57 Notifications](https://docs.expo.dev/version
 Ambas migraciones aplicadas al Supabase vinculado. Secretos de servidor guardados, función `push-dispatch` desplegada y autenticación con Google/Firebase comprobada desde el servidor. Los tres trabajos Cron están activos; la primera ejecución del despachador terminó correctamente. Las funciones de procesamiento rechazan a `anon` y `authenticated`; solo `service_role` puede usarlas.
 
 Prueba real completada en Stratus C7 (Android 12), APK versión 2 y sesión real: dispositivo registrado con las cinco categorías, botón de prueba pulsado desde la app, entrega FCM `sent` en el primer intento y sin error. Android mostró el aviso con el título y canal esperados. Al tocarlo abrió Notificaciones de MiCole y el servidor lo marcó como leído. Solo se envió a este dispositivo; no se enviaron pruebas a familias.
+
+## Laboratorio privado del superadmin
+
+El superadmin puede comprobar 30 escenarios desde la web o Android y enviar cada prueba a un teléfono propio o solo a la campanita. Consulta [Pruebas privadas de notificaciones](PRUEBAS-NOTIFICACIONES.md). No crea casos escolares reales.
