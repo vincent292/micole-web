@@ -215,7 +215,7 @@ export function StudentAttendance({
               )
             }
             required
-            disabled={busy || confirmed}
+            disabled={busy}
           />
         </Field>
         <Button
