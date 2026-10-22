@@ -4,6 +4,12 @@
 
 Google está habilitado en Supabase y el inicio de OAuth devuelve la autorización de Google. La marca de Google todavía no se ha modificado desde este trabajo. Supabase rechazó la consulta de dominio personalizado con `entitlement_required`: requiere el complemento Custom Domain en un plan Pro o superior. No se ha contratado ningún plan o complemento ni activado otro dominio.
 
+El cliente OAuth activo pertenece al proyecto de Google número `902319375536`. Enlace directo a su configuración de marca: https://console.cloud.google.com/auth/branding?project=902319375536. La comprobación de autorización confirmó el callback actual y los scopes `email profile`; no se inició sesión ni se cambió el cliente.
+
+El DNS de `micole.click` responde con los nameservers `helios.dns-parking.com` y `aster.dns-parking.com` de Hostinger. `auth.micole.click` todavía no tiene registro CNAME ni A. La compra del dominio de la web no activa el complemento de dominios de Supabase.
+
+Coste oficial consultado el 22/10/2026: Pro desde **US$25/mes**, más Custom Domain **US$0,0137 por hora (aprox. US$10/mes)**. Base orientativa de **US$35/mes** para Pro con un proyecto Micro y un dominio; puede aumentar por otros proyectos, recursos, uso e impuestos. El dominio se factura por horas y no lo cubre el Spend Cap. Falta la elección del propietario antes de contratar o activar. Fuentes: https://supabase.com/pricing y https://supabase.com/docs/guides/platform/manage-your-usage/custom-domains.
+
 La aplicación ya tiene dominio principal `https://www.micole.click`. Identidad propuesta:
 
 - Nombre de aplicación: **MiCole**.
@@ -35,7 +41,7 @@ Solo continuar después de que el propietario elija el plan y complemento de pag
 
 ## Encargo para Work o un navegador autorizado
 
-> En el proyecto de Google Cloud cuyo cliente OAuth utiliza MiCole/Supabase, configura la marca de acceso **MiCole**, su logo y la página `https://www.micole.click`. Comprueba el correo de soporte `micole.click@gmail.com` y la propiedad `micole.click`. Revisa qué URLs de privacidad y términos faltan; no inventes textos legales ni envíes la verificación con páginas inexistentes. Conserva Client ID, Client Secret, callbacks existentes y scopes. Presenta los cambios de marca listos y completa la verificación que permita Google. Para `auth.micole.click`, prepara las opciones y coste del plan Pro y Custom Domain antes de contratar o activar algo; el callback nuevo debe añadirse en Google antes de activar el dominio. No compartas secretos en el chat. Distingue lo realizado de lo pendiente.
+> En el proyecto de Google Cloud `902319375536` (https://console.cloud.google.com/auth/branding?project=902319375536), cuyo cliente OAuth utiliza MiCole/Supabase, configura la marca de acceso **MiCole**, su logo y la página `https://www.micole.click`. Comprueba el correo de soporte `micole.click@gmail.com` y la propiedad `micole.click`. Revisa qué URLs de privacidad y términos faltan; no inventes textos legales ni envíes la verificación con páginas inexistentes. Conserva Client ID, Client Secret, callbacks existentes y scopes. Presenta los cambios de marca listos y completa la verificación que permita Google. Para `auth.micole.click`, prepara las opciones y coste del plan Pro y Custom Domain antes de contratar o activar algo; el callback nuevo debe añadirse en Google antes de activar el dominio. No compartas secretos en el chat. Distingue lo realizado de lo pendiente.
 
 Work puede necesitar un inicio de sesión manual en su propio navegador y puede encontrar restricciones del sitio. En este chat no hay un navegador autenticado de Google Cloud disponible; TinyFish es una integración opcional de navegador que debe conectarse antes de utilizarla. No se ha confirmado su conexión.
 
