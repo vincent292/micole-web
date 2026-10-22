@@ -37,6 +37,7 @@ export function AlertIcon({
 }) {
   const type = alertType(notice);
   const Icon = {
+    attendance: BookOpen,
     health: Cross,
     pickup: Car,
     grades: GraduationCap,

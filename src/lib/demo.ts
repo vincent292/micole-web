@@ -129,6 +129,7 @@ export function resetDemo() {
   localStorage.removeItem("micole_public_demo_features_v1");
   localStorage.removeItem("micole_public_demo_sites_v1");
   localStorage.removeItem("micole_public_demo_staff_v1");
+  localStorage.removeItem("micole_public_demo_student_attendance_v1");
   writeDemoData(data, true);
   return data;
 }
@@ -167,6 +168,8 @@ function requireStaff(director = false) {
     );
 }
 export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
+  const attendance=await import("./demo-student-attendance");
+  if(attendance.studentAttendanceOperations.includes(name)) return attendance.demoStudentAttendanceRpc(name,parameters) as Promise<T>;
   const staff=await import("./demo-staff");
   if(staff.staffOperations.includes(name)) return staff.demoStaffRpc(name,parameters) as Promise<T>;
   const sites = await import("./demo-sites");

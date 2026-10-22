@@ -8,7 +8,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
+const modalStack: symbol[] = [];
+let bodyOverflowBeforeModals = "";
 import type { ReactNode, FormEvent } from "react";
 import { X, Inbox, Plus, Search, LoaderCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -232,6 +234,14 @@ export function Modal({
   busy?: boolean;
   error?: string;
 }) {
+  const [discarding, setDiscarding] = useState(false);
+  const [validationError, setValidationError] = useState("");
+  const touched = useRef(false);
+  const token = useRef(Symbol("modal"));
+  const requestClose = () => {
+    if (touched.current) setDiscarding(true);
+    else onClose();
+  };
   const [sections, setSections] = useState<{ id: string; label: string }[]>([]);
   const [selected, setSelected] = useState("");
   const [reached, setReached] = useState(0);
@@ -266,6 +276,9 @@ export function Modal({
       (input) => input.willValidate && !input.checkValidity(),
     );
     if (!invalid) return true;
+    setValidationError(
+      "Revisa los campos obligatorios o el formato del paso indicado antes de continuar.",
+    );
     if (sections[step]) flushSync(() => setSelected(sections[step].id));
     requestAnimationFrame(() => {
       invalid.focus();
@@ -292,11 +305,11 @@ export function Modal({
     onSubmit(event);
   };
   const dialog = useRef<HTMLDivElement>(null);
-  const closeRef = useRef(onClose);
+  const closeRef = useRef(requestClose);
   const dismissRef = useRef(dismissible);
   dismissRef.current = dismissible;
   const busyRef = useRef(busy);
-  closeRef.current = onClose;
+  closeRef.current = requestClose;
   busyRef.current = busy;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -306,8 +319,29 @@ export function Modal({
           "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]",
         ) || []),
       ].filter((node) => node.getClientRects().length > 0);
-    focusable()[1]?.focus({ preventScroll: true });
+    const modalToken = token.current;
+    if (!modalStack.length)
+      bodyOverflowBeforeModals = document.body.style.overflow;
+    modalStack.push(modalToken);
+    dialog.current?.focus({ preventScroll: true });
+    const viewport = window.visualViewport;
+    const fit = () => {
+      const height = viewport?.height || window.innerHeight;
+      if (dialog.current) {
+        dialog.current.style.setProperty("--modal-viewport", `${height}px`);
+        const backdrop = dialog.current.parentElement;
+        if (backdrop) {
+          backdrop.style.height = `${height}px`;
+          backdrop.style.top = `${viewport?.offsetTop || 0}px`;
+          backdrop.style.bottom = "auto";
+        }
+      }
+    };
+    fit();
+    viewport?.addEventListener("resize", fit);
+    viewport?.addEventListener("scroll", fit);
     const key = (e: KeyboardEvent) => {
+      if (modalStack.at(-1) !== modalToken) return;
       if (e.key === "Escape" && dismissRef.current && !busyRef.current)
         closeRef.current();
       if (e.key === "Tab") {
@@ -324,24 +358,34 @@ export function Modal({
       }
     };
     document.addEventListener("keydown", key);
-    const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", key);
-      document.body.style.overflow = overflow;
-      previous?.focus({ preventScroll: true });
+      viewport?.removeEventListener("resize", fit);
+      viewport?.removeEventListener("scroll", fit);
+      modalStack.splice(modalStack.indexOf(modalToken), 1);
+      if (!modalStack.length)
+        document.body.style.overflow = bodyOverflowBeforeModals;
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
       window.dispatchEvent(new Event("micole:modal-closed"));
     };
   }, []);
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && dismissible && !busy) onClose();
+        if (
+          e.target === e.currentTarget &&
+          dismissible &&
+          !busy &&
+          modalStack.at(-1) === token.current
+        )
+          requestClose();
       }}
     >
       <div
         ref={dialog}
+        tabIndex={-1}
         className="modal"
         role="dialog"
         aria-modal="true"
@@ -358,7 +402,7 @@ export function Modal({
               className="icon-button"
               disabled={busy}
               aria-label="Cerrar"
-              onClick={onClose}
+              onClick={requestClose}
             >
               <X size={20} />
             </button>
@@ -380,7 +424,33 @@ export function Modal({
             ))}
           </nav>
         )}
-        <form ref={form} noValidate onSubmit={submit}>
+        {discarding && (
+          <div className="modal-discard" role="alert">
+            <p>Tienes cambios sin guardar. ¿Quieres descartarlos?</p>
+            <div>
+              <Button variant="secondary" onClick={() => setDiscarding(false)}>
+                Seguir editando
+              </Button>
+              <Button variant="danger" onClick={onClose}>
+                Descartar y cerrar
+              </Button>
+            </div>
+          </div>
+        )}
+        {(error || validationError) && (
+          <div className="modal-error message error" role="alert">
+            {error || validationError}
+          </div>
+        )}
+        <form
+          ref={form}
+          noValidate
+          onSubmit={submit}
+          onChangeCapture={() => {
+            touched.current = true;
+            setValidationError("");
+          }}
+        >
           <div
             className="modal-content"
             ref={body}
@@ -391,11 +461,6 @@ export function Modal({
               <FormNavigation.Provider value={{ active, register }}>
                 {children}
               </FormNavigation.Provider>
-              {error && (
-                <div className="message error" role="alert">
-                  {error}
-                </div>
-              )}
             </fieldset>
           </div>
           <div className="modal-footer">
@@ -423,7 +488,11 @@ export function Modal({
               </div>
             )}
             {dismissible && (
-              <Button variant="secondary" disabled={busy} onClick={onClose}>
+              <Button
+                variant="secondary"
+                disabled={busy}
+                onClick={requestClose}
+              >
                 Cancelar
               </Button>
             )}
@@ -439,7 +508,8 @@ export function Modal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 export function Field({

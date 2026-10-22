@@ -1,5 +1,6 @@
 import type { Collection } from "./types";
 const lightChanges: Record<string, Collection[]> = {
+ student_attendance_sessions:["notifications"],
  financial_files:["invoiceRequests","schoolReceipts"],
  payment_submissions:["invoiceRequests","schoolReceipts","charges"],
  announcement_receipts:["announcements"],

@@ -85,6 +85,7 @@ import { Gallery } from "./features/Gallery";
 import { StudentLoginModal, StudentOverview } from "./features/StudentAccess";
 import { Collections, Invoices } from "./features/Collections";
 import { LearningRequests } from "./features/LearningRequests";
+import { StudentAttendance } from "./features/StudentAttendance";
 import { Subjects, Assignments } from "./features/Academics";
 import {Care,Gradebook,Years,Onboarding} from "./features/SchoolLife";
 import { Reports } from "./features/Reports";
@@ -203,6 +204,7 @@ const nav: {
     roles: ["superadmin", "director"],
     group: "TU ESPACIO",
   },
+  {key:"studentAttendance",label:"Asistencia de alumnos",icon:ListChecks,roles:["director","teacher","guardian"],group:"COMUNIDAD"},
   {key:"staffAttendance",label:"Asistencia del equipo",icon:CalendarDays,roles:["director","teacher"],group:"EQUIPO"},
   {key:"staffPayroll",label:"Boletas de pago",icon:Wallet,roles:["director","teacher"],group:"EQUIPO"},
   {key:"care",label:"Cuidados diarios",icon:Heart,roles:COMMUNITY_ROLES,group:"COMUNIDAD"},
@@ -441,7 +443,7 @@ function Workspace({
   const studentLocked = !paymentBypass && role === "student" && store.data.studentPortalAccess?.allowed === false;
   const locked = !paymentBypass && role === "guardian" && !access.allowed;
   const startupLocked=liveMode&&role!=="superadmin"&&!identity.support&&school?.platformEnabled===false;
-  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["payments","cash","invoices","requests"]:["overview","requests"];
+  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["payments","cash","invoices","requests","studentAttendance"]:["overview","requests"];
   const needsProfile =
     !paymentBypass && role === "guardian" && !!student && !student.profileComplete;
   const requestedPage = location.pathname.split("/")[2] || "overview";
@@ -451,12 +453,12 @@ function Workspace({
       n.roles.includes(role) &&
       (!startupLocked||startupAllowed.includes(n.key))&&
       (n.key !== "support" || identity.canSupport) &&
-      (!locked || ["payments", "cash", "invoices"].includes(n.key)) &&
-      (!needsProfile || ["payments", "cash", "invoices", "family"].includes(n.key)),
+      (!locked || ["payments", "cash", "invoices", "studentAttendance"].includes(n.key)) &&
+      (!needsProfile || ["payments", "cash", "invoices", "family", "studentAttendance"].includes(n.key)),
   );
   const validPage = startupLocked ? (startupAllowed.includes(page)?page:role==="director"?"credit":startupAllowed[0]) : studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
-    ? (["payments", "cash", "invoices"].includes(page) ? page : "payments")
-    : needsProfile && !["payments", "cash", "invoices"].includes(page)
+    ? (["payments", "cash", "invoices", "studentAttendance"].includes(page) ? page : "payments")
+    : needsProfile && !["payments", "cash", "invoices", "studentAttendance"].includes(page)
       ? "family"
       : navItems.some((n) => n.key === page)
         ? page
@@ -485,6 +487,7 @@ function Workspace({
   );
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length;
   const go = (next: string) => {
+    if (!window.dispatchEvent(new Event("micole:before-navigate", {cancelable:true}))) return;
     const linkedStudent = new URLSearchParams(next.split("?")[1] || "").get("student");
     if (linkedStudent) setStudentId(linkedStudent);
     if (next.startsWith("school:")) {
@@ -1087,6 +1090,7 @@ function Workspace({
               {["admissionForms","calendarImport"].includes(validPage) && <DocumentImports key={`${school?.id}:${validPage}`} {...props} documentKind={validPage==="admissionForms"?"form":"calendar"}/>}
               {["staffAttendance","staffPayroll"].includes(validPage) && <StaffWorkspaceScreen key={`${school?.id}:${validPage}`} {...props} view={validPage as "staffAttendance"|"staffPayroll"}/>}
               {validPage === "onboarding" && <Onboarding {...props} />}
+              {validPage === "studentAttendance" && <StudentAttendance key={`${school?.id}-${student?.id}-${role}`} {...props} />}
               {validPage === "subjects" && <Subjects key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "assignments" && <Assignments key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "cash" && <Collections key={`${school?.id}-${student?.id}`} {...props} />}

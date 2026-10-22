@@ -703,8 +703,8 @@ export function WorkspaceModal({
       title={titles[type] || "Guardar registro"}
       subtitle={
         type === "student"
-          ? "Una inscripción pendiente genera la activación de MiCole según la tarifa vigente."
-          : "Cada detalle nos ayuda a estar más cerca."
+          ? "Vincula a la familia y define el plan de pagos del estudiante."
+          : undefined
       }
       onClose={onClose}
       onSubmit={submit}

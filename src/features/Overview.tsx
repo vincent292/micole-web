@@ -75,6 +75,7 @@ export function Overview({
     .slice(0, 3);
   return (
     <>
+      {(role === "teacher" || role === "director") && <div className="soft-note life-actions"><span>Registra la asistencia del día y confirma las faltas para avisar a las familias.</span><Button variant="secondary" onClick={()=>go("studentAttendance")}>Pasar lista de alumnos</Button></div>}
       {role === "director" && school && <div className="soft-note life-actions"><span>Configura requisitos e importa tu comunidad desde el asistente.</span><Button variant="secondary" onClick={()=>go("onboarding")}>Preparar institución</Button></div>}
       {(role === "director" || role === "superadmin") &&
         (!school || !classrooms.length || !data.teachers.some(t => t.schoolId === school.id) || !data.academicRequests.some(r => r.schoolId === school.id && r.kind === "annual_materials" && r.status === "approved")) && (

@@ -10,6 +10,7 @@ import {
   FormSection,
   Modal,
   SectionTitle,
+  SearchBox,
 } from "../components/UI";
 import { rpc } from "../lib/repository";
 import { publicDemo } from "../lib/demo-config";
@@ -45,6 +46,7 @@ export function Subjects({
   role,
   identity,
   student,
+  go,
 }: PageProps) {
   const location = useLocation();
   const data = store.data,
@@ -53,6 +55,8 @@ export function Subjects({
     ),
     [edit, setEdit] = useState<ClassSubject | "new" | null>(null),
     [name, setName] = useState(""),
+    [query, setQuery] = useState(""),
+    [availability, setAvailability] = useState("active"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const rooms = data.classrooms.filter(
@@ -66,7 +70,7 @@ export function Subjects({
   const room = rooms.find((r) => r.id === roomId) || rooms[0],
     director = role === "director";
   const courses = data.classSubjects.filter(
-      (cs) => cs.classroomId === room?.id,
+      (cs) => cs.classroomId === room?.id && (director ? (!availability || (availability === "active" ? cs.active : !cs.active)) : cs.active) && subjectName(data,cs.id).toLocaleLowerCase().includes(query.toLocaleLowerCase()),
     ),
     suggestions = subjectSuggestions(data, name);
   const open = (cs: ClassSubject | "new") => {
@@ -124,7 +128,10 @@ export function Subjects({
             ))}
           </select>
         </Field>
+        <SearchBox value={query} onChange={setQuery} placeholder="Buscar materia del aula"/>
+        {director && <Field label="Mostrar materias" name="subjectAvailability"><select value={availability} onChange={e=>setAvailability(e.target.value)}><option value="active">Disponibles</option><option value="archived">Archivadas</option><option value="">Todas</option></select></Field>}
       </div>
+      <div className="subject-summary"><span>{courses.length} materia(s) en esta vista</span><span>{courses.filter(cs=>!data.subjectTeachers.some(t=>t.classSubjectId===cs.id)).length} sin docente asignado</span></div>
       {error && !edit && (
         <div className="message error" role="alert">
           {error}
@@ -180,11 +187,10 @@ export function Subjects({
                 .filter(Boolean)
                 .join(", ") || "Sin docente asignado"}
             </p>
-            {director && (
-              <Button variant="secondary" onClick={() => open(cs)}>
-                Docentes y estado
-              </Button>
-            )}
+            <div className="subject-card-actions">
+              <Button variant="secondary" onClick={()=>go(`assignments?classroom=${cs.classroomId}&subject=${cs.id}`)}>Ver tareas</Button>
+              {director && <Button variant="ghost" onClick={() => open(cs)}>Docentes y estado</Button>}
+            </div>
           </article>
         ))}
       </div>
@@ -230,6 +236,7 @@ export function Subjects({
           )}
           <fieldset className="academic-checkboxes">
             <legend>Docentes asignados al aula</legend>
+            {!data.teachers.some(t=>room?.teacherIds.includes(t.id)&&t.status!=="inactive") && <p>Primero asigna docentes al aula desde Aulas y cursos. Después podrás vincularlos a esta materia.</p>}
             {data.teachers
               .filter(
                 (t) =>
@@ -278,7 +285,7 @@ export function Assignments(props: PageProps) {
   const [roomId, setRoomId] = useState(
       new URLSearchParams(location.search).get("classroom") || "",
     ),
-    [subjectId, setSubjectId] = useState(""),
+    [subjectId, setSubjectId] = useState(new URLSearchParams(location.search).get("subject") || ""),
     [state, setState] = useState(""),
     [expanded, setExpanded] = useState(""),
     [dialog, setDialog] = useState<TaskDialog | null>(null),

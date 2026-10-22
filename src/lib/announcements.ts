@@ -41,6 +41,7 @@ export function normalizePending(value: unknown): AnnouncementView[] {
     : [];
 }
 export const presentationTypes = [
+  "attendance",
   "health",
   "pickup",
   "grades",

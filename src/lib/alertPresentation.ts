@@ -1,4 +1,5 @@
 export const alertPresentations = {
+  attendance: { label:"Asistencia de alumnos", icon:"ic_micole_tasks", color:"#3D6EF7", emoji:"📋", sound:"default", vibration:[0,180] },
   health: {
     label: "Salud y emergencias",
     icon: "ic_micole_health",
@@ -90,6 +91,7 @@ export function presentationType(
     return type as PresentationType;
   if (kind === "announcement" || kind.startsWith("announcement_reminder_"))
     return "announcement";
+  if (kind.startsWith("attendance_")) return "attendance";
   if (kind === "grade") return "grades";
   if (kind === "daily_task" || kind.startsWith("assignment_")) return "tasks";
   return category === "academic"

@@ -44,6 +44,7 @@ export function firebaseMessage(item: Delivery) {
     title = "Nueva entrega de tarea";
   if (item.kind.startsWith("assignment_reviewed_"))
     title = "Tu tarea tiene una revisión";
+  if (item.kind.startsWith("attendance_")) { title = "Actualización de asistencia"; body = "Revisa el registro de asistencia en tu cuenta de MiCole."; }
   if (item.kind === "grade") title = "Nueva nota o recomendación";
   if (item.kind === "daily_task") title = "Nueva tarea en MiCole";
   if (item.kind === "payment_receipt") {

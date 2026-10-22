@@ -1,5 +1,6 @@
 /** Published capabilities only. These IDs open existing pages/forms, never execute writes. */
 export const guideActions = {
+  student_attendance: {label:"Asistencia de alumnos",page:"studentAttendance"},
   staff_attendance: { label: "Asistencia del equipo", page: "staffAttendance" },
   staff_payroll: { label: "Boletas de pago", page: "staffPayroll" },
   students: { label: "Ver estudiantes", page: "students" },
@@ -39,6 +40,9 @@ export interface GuideMessage {
   text: string;
 }
 export const guideTopics = [
+  { words:"asistencia alumnos faltas ausencias pasar lista presentes permiso historial niño estudiantes",
+    answer:"La asistencia de alumnos se registra por aula y fecha. Un borrador no genera avisos; al confirmar se avisa a las familias de las faltas.",
+    steps:["Abre Asistencia de alumnos y elige aula y fecha.","Marca presentes con la casilla o elige Falta, Tardanza o Con permiso. Completa todos los estudiantes; sin marcar no significa falta.","Guarda un borrador si falta revisar. Pulsa Revisar y confirmar al terminar; se notificará a madre y padre vinculados.","Una lista confirmada se corrige indicando un motivo. Si se corrigió una falta notificada la familia recibe una actualización, sin repetir el aviso original.","En Historial del mes consulta los registros y exporta CSV. Las familias ven solo su hijo, incluso si tienen cuotas pendientes."],actions:["student_attendance"]},
   {
     words:
       "asistencia marcacion marcar GPS geolocalizacion sueldo boleta salario planilla tardanza tolerancia",

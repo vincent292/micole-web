@@ -504,7 +504,7 @@ export function Directory({
                   estudiantes activos
                 </div>
                 <Button variant="secondary" onClick={() => go(`students?classroom=${encodeURIComponent(c.id)}`)}>Ver estudiantes</Button>
-                <div className="table-actions"><Button variant="ghost" onClick={()=>go(`subjects?classroom=${encodeURIComponent(c.id)}`)}>Materias</Button><Button variant="ghost" onClick={()=>go(`assignments?classroom=${encodeURIComponent(c.id)}`)}>Tareas y entregas</Button></div>
+                <div className="table-actions"><Button variant="ghost" onClick={()=>go(`studentAttendance?classroom=${encodeURIComponent(c.id)}`)}>Pasar lista</Button><Button variant="ghost" onClick={()=>go(`subjects?classroom=${encodeURIComponent(c.id)}`)}>Materias</Button><Button variant="ghost" onClick={()=>go(`assignments?classroom=${encodeURIComponent(c.id)}`)}>Tareas y entregas</Button></div>
                 <div className="entity-footer">
                   <div className="avatar-stack">
                     {c.teacherIds.map((id) => (

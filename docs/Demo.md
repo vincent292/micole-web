@@ -21,8 +21,8 @@ La sesión usa una cookie firmada `HttpOnly`, `Secure`, `SameSite=Lax`, dura 8 h
 
 Tras iniciar sesión se puede cambiar entre Dirección, Docente, Familia y Estudiante. Los correos que aparecen dentro de la demo pertenecen a datos ficticios y no son las credenciales de acceso.
 
-- Dirección: aulas, inscripción, cuotas, cobros, reportes, formularios, calendarios, avisos, sedes, asistencia docente, boletas e historial.
-- Docente: tareas, agenda, cuidados, evaluaciones, confirmaciones, marcaciones simuladas y consulta de sus boletas aprobadas.
+- Dirección: aulas, inscripción, cuotas, cobros, reportes, formularios, calendarios, avisos, sedes, asistencia docente, asistencia de alumnos, boletas e historial.
+- Docente: tareas, agenda, cuidados, evaluaciones, confirmaciones, marcaciones simuladas, lista de asistencia de alumnos y consulta de sus boletas aprobadas.
 - Familia: hijos de ejemplo, calendario, notas, permisos y pagos simulados.
 - Estudiante: tareas, entregas y agenda.
 
