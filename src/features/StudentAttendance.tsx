@@ -318,7 +318,7 @@ export function StudentAttendance({
                       setNotice("");
                     }}
                   >
-                    Completar sin marcar como presentes
+                    Marcar pendientes como presentes
                   </Button>
                 </div>
                 <p className="attendance-help">
@@ -370,7 +370,7 @@ export function StudentAttendance({
                             ))}
                           </select>
                         </label>
-                        <label className="field">
+                        <details className="attendance-note"><summary>{m.note ? "Editar observación" : "Añadir observación"}</summary><label className="field">
                           <span>Observación opcional</span>
                           <input
                             aria-label={`Observación de ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
@@ -381,7 +381,7 @@ export function StudentAttendance({
                               change(m.studentId, { note: e.target.value })
                             }
                           />
-                        </label>
+                        </label></details>
                       </div>
                     </article>
                   ))}

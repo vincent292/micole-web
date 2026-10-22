@@ -1,4 +1,6 @@
 import {
+  cloneElement,
+  isValidElement,
   createContext,
   useCallback,
   useContext,
@@ -211,6 +213,7 @@ export function FormSection({
     </section>
   );
 }
+const FormDefaults=createContext<Record<string,string|boolean>>({});
 export function Modal({
   title,
   subtitle,
@@ -222,9 +225,13 @@ export function Modal({
   dismissible = true,
   busy = false,
   error = "",
+  initialValues,
+  onDraftChange,
 }: {
   title: string;
   subtitle?: string;
+  initialValues?:Record<string,string|boolean>;
+  onDraftChange?:(form:HTMLFormElement)=>void;
   children: ReactNode;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -446,6 +453,7 @@ export function Modal({
           ref={form}
           noValidate
           onSubmit={submit}
+          onChange={e=>{const el=e.currentTarget;queueMicrotask(()=>{if(el.isConnected)onDraftChange?.(el);});}}
           onChangeCapture={() => {
             touched.current = true;
             setValidationError("");
@@ -459,7 +467,7 @@ export function Modal({
           >
             <fieldset disabled={busy}>
               <FormNavigation.Provider value={{ active, register }}>
-                {children}
+                <FormDefaults.Provider value={initialValues||{}}>{children}</FormDefaults.Provider>
               </FormNavigation.Provider>
             </fieldset>
           </div>
@@ -535,19 +543,22 @@ export function Field({
   step?: string;
   children?: ReactNode;
 }) {
+  const defaults=useContext(FormDefaults),value=defaults[name];
+  let content=children;
+  if(value!==undefined&&isValidElement<Record<string,unknown>>(children)&&['input','textarea','select'].includes(String(children.type))&&children.props.value===undefined&&children.props.checked===undefined){content=cloneElement(children,children.props.type==='checkbox'?{defaultChecked:value===true||value==='on'}:{defaultValue:String(value)});}
   return (
     <label className="field">
       <span>
         {label}
         {required && <sup> *</sup>}
       </span>
-      {children || (
+      {content || (
         <input
           name={name}
           type={type}
           required={required}
           placeholder={placeholder}
-          defaultValue={defaultValue}
+          defaultValue={value===undefined?defaultValue:String(value)}
           min={min}
           max={max}
           step={step}

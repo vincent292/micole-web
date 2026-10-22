@@ -161,3 +161,5 @@
     grid-template-columns: 1fr;
   }
 }
+
+.attendance-note summary{min-height:44px;display:flex;align-items:center;color:#244ece;font-size:13px;cursor:pointer;font-weight:600}.attendance-note[open]{grid-column:1/-1}.attendance-note .field{margin:8px 0}.attendance-row{padding:10px 14px;gap:12px}.attendance-row-fields{align-items:center;grid-template-columns:minmax(110px,1fr) minmax(130px,1fr)}@media(max-width:700px){.attendance-row{grid-template-columns:minmax(0,1fr) minmax(140px,.85fr);gap:8px}.attendance-row-fields{grid-template-columns:1fr;gap:0}.attendance-person strong{font-size:13px;overflow-wrap:anywhere}.attendance-row-fields .field>span{display:none}.attendance-note summary{min-height:36px;font-size:12px}.attendance-note[open]{grid-column:auto}.attendance-row:has(.attendance-note[open]){grid-template-columns:1fr}}

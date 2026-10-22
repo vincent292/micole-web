@@ -195,7 +195,7 @@ export function useAppStore(
     if (
       current.current.students.some(
         (s) =>
-          s.schoolId === student.schoolId &&
+          s.id !== student.id && s.schoolId === student.schoolId &&
           ((student.rude &&
             s.rude?.replace(/\s/g, "").toUpperCase() ===
               student.rude.replace(/\s/g, "").toUpperCase()) ||

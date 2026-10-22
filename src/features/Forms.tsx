@@ -1,3 +1,5 @@
+import {draftKey,readDraft,writeDraft,removeDraft} from "../lib/sessionDraft";
+import {useLocation} from "react-router-dom";
 import {noticeCategories, type NoticeCategory} from '../lib/announcements';
 import { platformBalance } from "../lib/pricing";
 import { uploadPickupIdentity } from "./PickupIdentity";
@@ -246,13 +248,20 @@ export function WorkspaceModal({
   onClose: () => void;
   onSuccess: (message: string) => void;
 }) {
-  const [noticeRoom,setNoticeRoom]=useState(role==='teacher'?store.data.classrooms.find(c=>c.schoolId===school?.id&&c.teacherIds.some(id=>identity.teacherIds.includes(id)))?.id||'':'');
-  const [noticeAudience,setNoticeAudience]=useState('families');
-  const [noticeCategory,setNoticeCategory]=useState<NoticeCategory>('general');
-  const [noticeRequired,setNoticeRequired]=useState(false),[noticeHourly,setNoticeHourly]=useState(false);
+  const draftId=['student','announcement'].includes(type)?draftKey(identity.id,role,school?.id||'',identity.support?.id||'',`${type}:${id||'new'}`):'';
+  const [recovered]=useState(()=>draftId?readDraft<Record<string,string|boolean>>(draftId):undefined);
+  const [requestIds]=useState(()=>({id:String(recovered?._id||id||uid()),planId:String(recovered?._planId||uid()),createdAt:String(recovered?._createdAt||today())}));
+  function keepDraft(form:HTMLFormElement){if(!draftId)return;const values:Record<string,string|boolean>={};for(const field of Array.from(form.elements)){if((field instanceof HTMLInputElement||field instanceof HTMLSelectElement||field instanceof HTMLTextAreaElement)&&field.name&&field.type!=='file'&&field.type!=='password')values[field.name]=field instanceof HTMLInputElement&&field.type==='checkbox'?field.checked:field.value;}Object.assign(values,{_id:requestIds.id,_planId:requestIds.planId,_createdAt:requestIds.createdAt});if(type==='announcement')values._targets=JSON.stringify(Array.from(form.querySelectorAll<HTMLInputElement>('input[name="targetStudentIds"]:checked')).map(i=>i.value));writeDraft(draftId,values);}
+  const discard=()=>{if(draftId)removeDraft(draftId);onClose();};
+  const formParams=new URLSearchParams(useLocation().search);
+  const contextRoom=formParams.get("classroom")||"";
+  const [noticeRoom,setNoticeRoom]=useState(String(recovered?.classroomId||contextRoom)||(role==='teacher'?store.data.classrooms.find(c=>c.schoolId===school?.id&&c.teacherIds.some(id=>identity.teacherIds.includes(id)))?.id||'':''));
+  const [noticeAudience,setNoticeAudience]=useState(String(recovered?.audience||'families'));
+  const [noticeCategory,setNoticeCategory]=useState<NoticeCategory>((recovered?.category||'general') as NoticeCategory);
+  const [noticeRequired,setNoticeRequired]=useState(!!recovered?.requiresAcknowledgment),[noticeHourly,setNoticeHourly]=useState(!!recovered?.remindHourly);
   const [noticeSearch,setNoticeSearch]=useState('');
-  const [noticeTargets,setNoticeTargets]=useState<string[]>([]);
-  const [admissionRoomId, setAdmissionRoomId] = useState(id ? store.data.students.find(s => s.id === id)?.classroomId || "" : "");
+  const [noticeTargets,setNoticeTargets]=useState<string[]>(()=>{try{return JSON.parse(String(recovered?._targets||'[]'));}catch{return [];}});
+  const [admissionRoomId, setAdmissionRoomId] = useState(id ? store.data.students.find(s => s.id === id)?.classroomId || "" : String(recovered?.classroomId||contextRoom));
   const [gradeStudentId,setGradeStudentId]=useState(student?.id||students[0]?.id||"");
   const [planStudentId, setPlanStudentId] = useState(student?.id || "");
   const [error, setError] = useState(""),
@@ -311,12 +320,13 @@ export function WorkspaceModal({
     e.preventDefault();
     if (submitting || store.busy) return;
     const form = e.currentTarget;
+    keepDraft(form);
     const formData = new FormData(form);
     const f = Object.fromEntries(formData.entries()),
       val = (key: string) => String(f[key] || "").trim(),
       num = (key: string) => Number(val(key)) || 0;
     const schoolId = school?.id || "";
-    const createdAt = today();
+    const createdAt = requestIds.createdAt;
     setSubmitting(true);
     setError("");
     try {
@@ -372,7 +382,7 @@ export function WorkspaceModal({
       if (type === "student") {
         const item: Student = {
           ...editStudent,
-          id: id || uid(),
+          id: id || requestIds.id,
           schoolId,
           firstName: val("firstName"),
           lastName: val("lastName"),
@@ -399,7 +409,7 @@ export function WorkspaceModal({
         if (id) await store.save("students", item);
         else await store.enroll(item, {
           licenseFee: tariffs.rates.monthlyLicenseFee,
-          id: uid(), schoolId, studentId: item.id, startDate: val("startDate"), months: num("months"),
+          id: requestIds.planId, schoolId, studentId: item.id, startDate: val("startDate"), months: num("months"),
           monthlyFee: item.monthlyFee, snackFee: item.snackFee || 0, enrollmentFee: item.enrollmentFee || 0,
           dueDay: num("dueDay"), discount: num("discount"), discountFrom: val("discountFrom"), discountTo: val("discountTo"), prorate: f.prorate === "on", createdAt,
         });
@@ -411,7 +421,7 @@ export function WorkspaceModal({
       if (type === "teacher") {
         const teacher = {
           ...editTeacher,
-          id: id || uid(),
+          id: id || requestIds.id,
           schoolId,
           name: val("name"),
           email: val("email").toLowerCase(),
@@ -425,7 +435,7 @@ export function WorkspaceModal({
       }
       if (type === "classroom")
         await store.save("classrooms", {
-          id: id || uid(),
+          id: id || requestIds.id,
           schoolId,
           name: val("name"),
           level: val("level"),
@@ -474,7 +484,7 @@ export function WorkspaceModal({
         );
       if (type === "announcement")
         await store.save("announcements", {
-          id: uid(),
+          id: requestIds.id,
           schoolId,
           title: val("title"),
           content: val("content"),
@@ -508,7 +518,7 @@ export function WorkspaceModal({
         });
       if (type === "event" || type === "materials")
         await store.save("events", {
-          id: id || uid(),
+          id: id || requestIds.id,
           schoolId,
           classroomId: val("classroomId"),
           title: val("title"),
@@ -633,6 +643,7 @@ export function WorkspaceModal({
           );
       }
       if (type === "reset") store.reset();
+      if(draftId)removeDraft(draftId);
       onSuccess(
         type === "student" && !id
           ? tariffs.rates.activationFee>0?`Inscripción creada. Activación de ${money(tariffs.rates.activationFee)} pendiente; ya puedes invitar a la familia.`:"Inscripción creada sin cobro de activación. Ya puedes completar la ficha familiar."
@@ -706,8 +717,10 @@ export function WorkspaceModal({
           ? "Vincula a la familia y define el plan de pagos del estudiante."
           : undefined
       }
-      onClose={onClose}
+      onClose={discard}
       onSubmit={submit}
+      initialValues={recovered}
+      onDraftChange={draftId?keepDraft:undefined}
       error={error|| (needsTariffs?tariffs.error:"")}
       busy={submitting || store.busy}
       submitDisabled={needsTariffs&&!tariffs.ready}
@@ -719,6 +732,7 @@ export function WorkspaceModal({
             : "Guardar"
       }
     >
+      {draftId&&<p className="soft-note">{recovered?"Borrador recuperado. Revisa los datos antes de enviar.":"El borrador se conserva durante esta sesión si falla la conexión. Todavía no se ha enviado."}</p>}
       {(type === "school" || type === "branding") && (
         <>
           <FormSection title="Datos generales">
@@ -864,7 +878,7 @@ export function WorkspaceModal({
           <FormSection title="Plan de pagos">
           {id&&<p className="soft-note">Los precios editados se usarán en nuevas emisiones. Las cuotas ya creadas conservan su importe.</p>}
           {id ? <div className="form-grid"><Field label="Mensualidad fija" name="monthlyFee" type="number" min={0} step="0.01" required defaultValue={editStudent?.monthlyFee || 0} /><Field label="Merienda mensual" name="snackFee" type="number" min={0} step="0.01" defaultValue={editStudent?.snackFee || 0} /><Field label="Matrícula (0 si no aplica)" name="enrollmentFee" type="number" min={0} step="0.01" defaultValue={editStudent?.enrollmentFee || 0} /></div>
-          : <PlanFields licenseFee={tariffs.rates.monthlyLicenseFee} key={admissionRoomId} student={{ monthlyFee: rooms.find(r => r.id === admissionRoomId)?.monthlyFee || 0 } as Student} schoolId={school?.id || ""} />}
+          : <PlanFields draft={recovered} licenseFee={tariffs.rates.monthlyLicenseFee} key={admissionRoomId} student={{ monthlyFee: rooms.find(r => r.id === admissionRoomId)?.monthlyFee || 0 } as Student} schoolId={school?.id || ""} />}
           <div className="soft-note">
             La licencia mensual de MiCole está incluida en las cuotas del plan. Puedes
             compartir la ficha familiar por WhatsApp después de guardar. Madre y
@@ -1058,10 +1072,10 @@ export function WorkspaceModal({
           <FormSection title="Destinatarios">
           <Field label="Aula destinataria" name="classroomId"><select name="classroomId" value={noticeRoom} required={role==='teacher'} onChange={e=>{setNoticeRoom(e.target.value);setNoticeTargets([]);setNoticeSearch('');}}>{role!=='teacher'&&<option value="">Toda la institución</option>}{rooms.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
           <Field label="Para quién" name="audience"><select name="audience" value={noticeAudience} onChange={e=>{setNoticeAudience(e.target.value);setNoticeTargets([]);}}><option value="families">Familias</option><option value="all">Toda la comunidad</option><option value="staff">Equipo docente</option></select></Field>
-          {noticeRoom&&noticeAudience!=='staff'&&<><p className="muted">Sin selección se envía a todas las familias del aula. Al elegir niños, solo sus padres recibirán el aviso{noticeAudience==='all'?' junto al equipo del aula':''}.</p><Field label="Buscar niño" name="noticeSearch"><input value={noticeSearch} onChange={e=>setNoticeSearch(e.target.value)} placeholder="Nombre o apellido"/></Field><div className="notice-targets">{students.filter(s=>s.status==='active'&&s.classroomId===noticeRoom&&fullName(s).toLowerCase().includes(noticeSearch.toLowerCase())).map(s=><label key={s.id}><input type="checkbox" checked={noticeTargets.includes(s.id)} onChange={e=>setNoticeTargets(old=>e.target.checked?[...old,s.id]:old.filter(id=>id!==s.id))}/>{fullName(s)}</label>)}</div><small>{noticeTargets.length?`${noticeTargets.length} niños seleccionados`:'Todas las familias del aula'}</small></>}
+          {noticeRoom&&noticeAudience!=='staff'&&<><p className="muted">Sin selección se envía a todas las familias del aula. Al elegir niños, solo sus padres recibirán el aviso{noticeAudience==='all'?' junto al equipo del aula':''}.</p><Field label="Buscar niño" name="noticeSearch"><input value={noticeSearch} onChange={e=>setNoticeSearch(e.target.value)} placeholder="Nombre o apellido"/></Field><div className="notice-targets">{students.filter(s=>s.status==='active'&&s.classroomId===noticeRoom&&fullName(s).toLowerCase().includes(noticeSearch.toLowerCase())).map(s=><label key={s.id}><input name="targetStudentIds" value={s.id} type="checkbox" checked={noticeTargets.includes(s.id)} onChange={e=>setNoticeTargets(old=>e.target.checked?[...old,s.id]:old.filter(id=>id!==s.id))}/>{fullName(s)}</label>)}</div><small>{noticeTargets.length?`${noticeTargets.length} niños seleccionados`:'Todas las familias del aula'}</small></>}
           </FormSection>
           <FormSection title="Confirmación y recordatorios">
-          <div className="notice-flags"><label><input type="checkbox" checked={noticeRequired} onChange={e=>{setNoticeRequired(e.target.checked);if(e.target.checked)setNoticeHourly(true);}}/> Exigir confirmación: «Estoy de acuerdo»</label><label><input type="checkbox" checked={noticeHourly} onChange={e=>setNoticeHourly(e.target.checked)}/> Recordar cada hora hasta {noticeRequired?'que confirme':'que lo lea'}</label>{['health','pickup'].includes(noticeCategory)&&<label><input key={noticeCategory} type="checkbox" name="urgent" defaultChecked/> Urgente: puede notificarse durante el descanso</label>}</div>
+          <div className="notice-flags"><label><input name="requiresAcknowledgment" type="checkbox" checked={noticeRequired} onChange={e=>{setNoticeRequired(e.target.checked);if(e.target.checked)setNoticeHourly(true);}}/> Exigir confirmación: «Estoy de acuerdo»</label><label><input name="remindHourly" type="checkbox" checked={noticeHourly} onChange={e=>setNoticeHourly(e.target.checked)}/> Recordar cada hora hasta {noticeRequired?'que confirme':'que lo lea'}</label>{['health','pickup'].includes(noticeCategory)&&<label><input key={noticeCategory} type="checkbox" name="urgent" defaultChecked={recovered?.urgent===undefined?true:recovered.urgent===true}/> Urgente: puede notificarse durante el descanso</label>}</div>
           <div className="soft-note">Descanso de 22:00 a 07:00 (Bolivia), salvo urgencias de salud o recojo. Los avisos obligatorios, de salud y de recojo estarán disponibles incluso con pagos pendientes. Una vez publicado, puedes retirarlo y crear una nueva versión.</div>
           </FormSection>
         </>
@@ -1132,7 +1146,7 @@ export function WorkspaceModal({
               <select
                 name="classroomId"
                 defaultValue={
-                  editEvent?.classroomId ||
+                  editEvent?.classroomId || contextRoom ||
                   (role === "teacher" ? rooms[0]?.id : "")
                 }
               >
@@ -1431,10 +1445,12 @@ export function WorkspaceModal({
   );
 }
 function PlanFields({
+  draft,
   student,
   schoolId,
   licenseFee=29,
 }: {
+  draft?:Record<string,string|boolean>;
   student?: Student;
   schoolId: string;
   licenseFee?: number;
@@ -1456,8 +1472,9 @@ function PlanFields({
     prorate: false,
     createdAt: today(),
   };
+  if(draft){for(const key of ["startDate","discountFrom","discountTo"] as const)if(typeof draft[key]==="string")initial[key]=String(draft[key]);for(const key of ["months","monthlyFee","snackFee","enrollmentFee","dueDay","discount"] as const)if(draft[key]!==undefined)initial[key]=Number(draft[key]);initial.prorate=draft.prorate===true;}
   const [preview, setPreview] = useState(initial);
-  const [rangeEnd, setRangeEnd] = useState(shiftMonth(initial.startDate.slice(0,7), 9));
+  const [rangeEnd, setRangeEnd] = useState(shiftMonth(initial.startDate.slice(0,7),initial.months-1));
   let charges: ReturnType<typeof buildSchedule> = [];
   let invalid = "";
   try {
@@ -1538,7 +1555,7 @@ function PlanFields({
         />
       </div>
       <label className="check-field">
-        <input name="prorate" type="checkbox" /> Prorratear el primer mes desde
+        <input name="prorate" type="checkbox" defaultChecked={initial.prorate}/> Prorratear el primer mes desde
         la fecha de ingreso
       </label>
       <div className="form-section-label">DESCUENTO OPCIONAL</div>

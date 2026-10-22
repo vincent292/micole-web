@@ -20,7 +20,7 @@ test("pasa lista, guarda borrador sin avisos, confirma falta y la familia consul
   await login(page, "teacher");
   await page.goto("/app/studentAttendance");
   const all = page.getByRole("button", {
-    name: "Completar sin marcar como presentes",
+    name: "Marcar pendientes como presentes",
     exact: true,
   });
   await all.click();

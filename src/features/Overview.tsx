@@ -1,3 +1,4 @@
+import {RoleHome} from "./RoleHome";
 import {
   ArrowRight,
   BookOpen,
@@ -22,13 +23,15 @@ import {
 } from "../components/UI";
 import { money, dateLabel } from "../lib/store";
 import { chargeStatus } from "../lib/billing";
-import type { AppData, Role, School, Student } from "../lib/types";
+import type { AppData, Identity, Role, School, Student } from "../lib/types";
 export function Overview({
   data,
   school,
   role,
   students,
   name,
+  student,
+  identity,
   go,
   open,
 }: {
@@ -37,9 +40,12 @@ export function Overview({
   role: Role;
   students: Student[];
   name: string;
+  student?: Student;
+  identity: Identity;
   go: (page: string) => void;
   open: (type: string) => void;
 }) {
+  if (["director", "teacher", "guardian"].includes(role)) return <RoleHome data={data} school={school} role={role} students={students} student={student} identity={identity} name={name} go={go}/>;
   const charges = data.charges.filter(
     (c) =>
       c.schoolId === school?.id &&

@@ -116,7 +116,7 @@ function locationOrigin(){return window.location.origin;}
 function InvoiceFields({defaults}:{defaults?:{invoiceName?:string;invoiceNit?:string;invoicePhone?:string}}){return <><Field label="Nombre o razón social" name="invoiceName" required defaultValue={defaults?.invoiceName}/><div className="form-grid"><Field label="NIT o CI" name="invoiceNit" required defaultValue={defaults?.invoiceNit}/><Field label="Celular para la factura" name="invoicePhone" type="tel" required defaultValue={defaults?.invoicePhone}/></div></>;}
 
 export function Invoices({store,school,role,student,students}:PageProps){
- const [status,setStatus]=useState('pending'),[selected,setSelected]=useState<InvoiceRequest|null>(null),[issue,setIssue]=useState<InvoiceRequest|null>(null),[requestReceipt,setRequestReceipt]=useState('');
+ const [status,setStatus]=useState(role==='guardian'?'all':'pending'),[selected,setSelected]=useState<InvoiceRequest|null>(null),[issue,setIssue]=useState<InvoiceRequest|null>(null),[requestReceipt,setRequestReceipt]=useState('');
  const [error,setError]=useState(''),[busy,setBusy]=useState(false);const previewRef=useRef<HTMLDivElement>(null);
  const invoices=store.data.invoiceRequests.filter(i=>i.schoolId===school?.id&&(role!=='guardian'||i.studentId===student?.id)&&(status==='all'||i.status===status)).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
  const receipts=store.data.schoolReceipts.filter(r=>r.schoolId===school?.id&&(role!=='guardian'||r.studentId===student?.id)&&!store.data.invoiceRequests.some(i=>i.receiptId===r.id));

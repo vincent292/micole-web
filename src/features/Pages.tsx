@@ -280,6 +280,7 @@ export function Directory({
                     </td>
                     <td>
                       <div className="table-actions">
+                        <button className="mini-btn" onClick={()=>go(`studentRecord?student=${encodeURIComponent(s.id)}`)}>Ver expediente</button>
                         <button className="mini-btn" onClick={()=>open("emergency",s)}>Emergencias</button>
                         {canEdit && (
                           <>
@@ -487,7 +488,7 @@ export function Directory({
                 <span className={`room-icon room-${i % 3}`}>
                   <BookOpen size={26} />
                 </span>
-                <h3><button className="text-button" onClick={() => go(`students?classroom=${encodeURIComponent(c.id)}`)}>{c.name}</button></h3>
+                <h3><button className="text-button" onClick={() => go(`classrooms?classroom=${encodeURIComponent(c.id)}`)}>{c.name}</button></h3>
                 <p>{c.active === false ? "Inscripciones cerradas" : `${Math.max(0,(c.capacity || 30)-students.filter(s=>s.classroomId===c.id && s.status!=="inactive").length)} cupos disponibles`} · Gestión {c.academicYear || today().slice(0,4)}</p>
                 <p>{c.level}</p>
                 <div className="icon-line">
@@ -503,6 +504,7 @@ export function Directory({
                   }{" "}
                   estudiantes activos
                 </div>
+                <Button onClick={()=>go(`classrooms?classroom=${encodeURIComponent(c.id)}`)}>Abrir aula</Button>
                 <Button variant="secondary" onClick={() => go(`students?classroom=${encodeURIComponent(c.id)}`)}>Ver estudiantes</Button>
                 <div className="table-actions"><Button variant="ghost" onClick={()=>go(`studentAttendance?classroom=${encodeURIComponent(c.id)}`)}>Pasar lista</Button><Button variant="ghost" onClick={()=>go(`subjects?classroom=${encodeURIComponent(c.id)}`)}>Materias</Button><Button variant="ghost" onClick={()=>go(`assignments?classroom=${encodeURIComponent(c.id)}`)}>Tareas y entregas</Button></div>
                 <div className="entity-footer">

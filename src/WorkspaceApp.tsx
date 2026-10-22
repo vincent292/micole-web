@@ -1,3 +1,4 @@
+import {clearDrafts} from "./lib/sessionDraft";
 import { StaffWorkspaceScreen } from "./features/StaffWorkspace";
 import { ownerPaymentAccess } from "./lib/support-access";
 import { DirectorAssistant } from "./features/DirectorAssistant";
@@ -85,6 +86,7 @@ import { Gallery } from "./features/Gallery";
 import { StudentLoginModal, StudentOverview } from "./features/StudentAccess";
 import { Collections, Invoices } from "./features/Collections";
 import { LearningRequests } from "./features/LearningRequests";
+import {ClassroomEntry,StudentRecord} from "./features/Workspaces";
 import { StudentAttendance } from "./features/StudentAttendance";
 import { Subjects, Assignments } from "./features/Academics";
 import {Care,Gradebook,Years,Onboarding} from "./features/SchoolLife";
@@ -134,6 +136,7 @@ const nav: {
   icon: LucideIcon;
   roles: Role[];
   group: string;
+  hidden?: boolean;
 }[] = [
   {
     key: "overview",
@@ -204,6 +207,7 @@ const nav: {
     roles: ["superadmin", "director"],
     group: "TU ESPACIO",
   },
+  {key:"studentRecord",label:"Expediente del alumno",icon:BookOpen,roles:["director","teacher","guardian"],group:"TU ESPACIO",hidden:true},
   {key:"studentAttendance",label:"Asistencia de alumnos",icon:ListChecks,roles:["director","teacher","guardian"],group:"COMUNIDAD"},
   {key:"staffAttendance",label:"Asistencia del equipo",icon:CalendarDays,roles:["director","teacher"],group:"EQUIPO"},
   {key:"staffPayroll",label:"Boletas de pago",icon:Wallet,roles:["director","teacher"],group:"EQUIPO"},
@@ -380,7 +384,7 @@ function Workspace({
             : "Administrador",
     email: publicDemo ? demoAccounts.find(a=>a.role===role)!.email : role === "guardian" ? "daniela@example.com" : "demo@micole.local",
     roles: publicDemo ? ALL.filter(r=>r!=="superadmin") : ALL,
-    memberships: [],
+    memberships: publicDemo && role === "director" && store.data.schools.some(s=>s.id===schoolId) ? [{schoolId,role:"director"}] : [],
     teacherIds:
       demoAccount?.role === "teacher"
         ? store.data.teachers
@@ -443,7 +447,7 @@ function Workspace({
   const studentLocked = !paymentBypass && role === "student" && store.data.studentPortalAccess?.allowed === false;
   const locked = !paymentBypass && role === "guardian" && !access.allowed;
   const startupLocked=liveMode&&role!=="superadmin"&&!identity.support&&school?.platformEnabled===false;
-  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["payments","cash","invoices","requests","studentAttendance"]:["overview","requests"];
+  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["overview","payments","cash","invoices","requests","studentAttendance","studentRecord"]:["overview","requests"];
   const needsProfile =
     !paymentBypass && role === "guardian" && !!student && !student.profileComplete;
   const requestedPage = location.pathname.split("/")[2] || "overview";
@@ -453,12 +457,12 @@ function Workspace({
       n.roles.includes(role) &&
       (!startupLocked||startupAllowed.includes(n.key))&&
       (n.key !== "support" || identity.canSupport) &&
-      (!locked || ["payments", "cash", "invoices", "studentAttendance"].includes(n.key)) &&
-      (!needsProfile || ["payments", "cash", "invoices", "family", "studentAttendance"].includes(n.key)),
+      (!locked || ["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord"].includes(n.key)) &&
+      (!needsProfile || ["overview", "payments", "cash", "invoices", "family", "studentAttendance", "studentRecord"].includes(n.key)),
   );
   const validPage = startupLocked ? (startupAllowed.includes(page)?page:role==="director"?"credit":startupAllowed[0]) : studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
-    ? (["payments", "cash", "invoices", "studentAttendance"].includes(page) ? page : "payments")
-    : needsProfile && !["payments", "cash", "invoices", "studentAttendance"].includes(page)
+    ? (["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord"].includes(page) ? page : "payments")
+    : needsProfile && !["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord"].includes(page)
       ? "family"
       : navItems.some((n) => n.key === page)
         ? page
@@ -488,6 +492,7 @@ function Workspace({
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length;
   const go = (next: string) => {
     if (!window.dispatchEvent(new Event("micole:before-navigate", {cancelable:true}))) return;
+    if (next === "notifications") { setNotifications(true); setMobile(false); setProfile(false); return; }
     const linkedStudent = new URLSearchParams(next.split("?")[1] || "").get("student");
     if (linkedStudent) setStudentId(linkedStudent);
     if (next.startsWith("school:")) {
@@ -679,13 +684,13 @@ function Workspace({
           </div>
         )}
         <nav aria-label="Navegación principal">
-          {["TU ESPACIO", "COMUNIDAD", "ADMINISTRACIÓN"].map(
+          {["TU ESPACIO", "COMUNIDAD", "EQUIPO", "ADMINISTRACIÓN"].map(
             (group) =>
               navItems.some((n) => n.group === group) && (
                 <div key={group}>
                   <div className="sidebar-label">{group}</div>
                   {navItems
-                    .filter((n) => n.group === group && n.key!=="calendarImport")
+                    .filter((n) => n.group === group && n.key!=="calendarImport" && (!n.hidden || role==="guardian"&&n.key==="studentRecord"))
                     .map((n) => (
                       <button
                         key={n.key}
@@ -817,7 +822,7 @@ function Workspace({
                         if (role === "guardian" && n.studentId)
                           setStudentId(n.studentId);
                         if(isAnnouncementNotice(n.kind)){setNotifications(false);openAnnouncement(n.sourceId);}
-                        else go(locked ? "payments" : n.target);
+                        else go(n.target);
                       }, "");
                     }}
                   >
@@ -884,6 +889,7 @@ function Workspace({
                       const sid = sessionStorage.getItem(supportStorageKey);
                       if (sid) await rpc("end_support_session", { p_id: sid });
                       setSupportSession(null);
+                      clearDrafts();
                       await supabase?.auth.signOut();
                     })().catch((e) =>
                       setNoticeError(
@@ -1053,11 +1059,13 @@ function Workspace({
                   role={role}
                   students={students}
                   name={identity.name}
+                  identity={identity}
+                  student={student}
                   go={go}
                   open={open}
                 />
               )}
-              {["schools", "students", "teachers", "classrooms"].includes(
+              {["schools", "students", "teachers"].includes(
                 validPage,
               ) && (
                 <Directory
@@ -1090,6 +1098,8 @@ function Workspace({
               {["admissionForms","calendarImport"].includes(validPage) && <DocumentImports key={`${school?.id}:${validPage}`} {...props} documentKind={validPage==="admissionForms"?"form":"calendar"}/>}
               {["staffAttendance","staffPayroll"].includes(validPage) && <StaffWorkspaceScreen key={`${school?.id}:${validPage}`} {...props} view={validPage as "staffAttendance"|"staffPayroll"}/>}
               {validPage === "onboarding" && <Onboarding {...props} />}
+              {validPage === "classrooms" && <ClassroomEntry {...props}/>}
+              {validPage === "studentRecord" && <StudentRecord {...props}/>}
               {validPage === "studentAttendance" && <StudentAttendance key={`${school?.id}-${student?.id}-${role}`} {...props} />}
               {validPage === "subjects" && <Subjects key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "assignments" && <Assignments key={`${school?.id}-${student?.id}`} {...props} />}
@@ -1106,7 +1116,7 @@ function Workspace({
               {validPage === "credit" && <PlatformCreditPanel schoolId={role==="superadmin"?undefined:school?.id} schools={store.data.schools} store={store}/>}
               {validPage === "demoRequests" && <DemoRequests {...props}/>}
               {validPage === "gallery" && <Gallery {...props} />}
-              <ContentAreaTracker key={`${role}:${school?.id}:${student?.id}:${validPage}`} page={validPage} studentId={student?.id} enabled={["guardian","student"].includes(role)&&!locked&&!studentLocked&&!needsProfile}/>
+              <ContentAreaTracker key={`${role}:${school?.id}:${student?.id}:${validPage}`} page={validPage==="journal"?"daily":validPage} studentId={student?.id} enabled={["guardian","student"].includes(role)&&!locked&&!studentLocked&&!needsProfile}/>
               {validPage==='viewHistory'&&<ViewHistory {...props}/>}
               {validPage === "reports" && ["superadmin", "director"].includes(role) && <Reports {...props} />}
               {!school && !isPlatform && validPage !== "schools" && (

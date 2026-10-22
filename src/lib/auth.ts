@@ -1,3 +1,4 @@
+import {clearDrafts} from "./sessionDraft";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { liveMode, supabase, setSupportSession, authReturnIssue } from "./supabase";
@@ -91,6 +92,7 @@ export function useIdentity() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        clearDrafts();
         setSupportSession(null);
         sequenceRef.current++;
         setLoading(false);

@@ -74,6 +74,17 @@ describe('operación conectada, cobros y permisos',()=>{
   await expect(as(director,()=>q('select enroll_student_with_plan($1::jsonb,$2::jsonb)',[JSON.stringify(student),JSON.stringify(plan)]))).rejects.toThrow(/lista anual/);
   const rid=await request();await expect(as(teacher,()=>q("select review_academic_request($1,true,'')",[rid]))).rejects.toThrow(/Dirección/);await approve(rid);
   await acting(director,()=>q('select enroll_student_with_plan($1::jsonb,$2::jsonb)',[JSON.stringify(student),JSON.stringify(plan)]));
+ // Simula la respuesta perdida: el mismo actor reenvía exactamente el mismo pedido.
+ await acting(director,()=>q('select enroll_student_with_plan($1::jsonb,$2::jsonb)',[JSON.stringify(student),JSON.stringify(plan)]));
+ expect((await q('select count(*)::int n from students where id=$1',[student.id])).rows[0].n).toBe(1);
+ expect((await q('select count(*)::int n from payment_plans where student_id=$1',[student.id])).rows[0].n).toBe(1);
+ expect((await q('select count(*)::int n from school_charges where student_id=$1',[student.id])).rows[0].n).toBe(4);
+ await expect(as(director,()=>q('select enroll_student_with_plan($1::jsonb,$2::jsonb)',[JSON.stringify({...student,first_name:'Cambio posterior'}),JSON.stringify(plan)]))).rejects.toThrow(/otros datos/);
+ for(const user of [teacher,mother,stranger])await expect(as(user,()=>q('select enroll_student_with_plan($1::jsonb,$2::jsonb)',[JSON.stringify(student),JSON.stringify(plan)]))).rejects.toThrow(/Dirección/);
+ await q("insert into school_memberships(school_id,user_id,role) values($1,$2,'director')",[school,stranger]);
+ await expect(as(stranger,()=>q('select enroll_student_with_plan($1::jsonb,$2::jsonb)',[JSON.stringify(student),JSON.stringify(plan)]))).rejects.toThrow(/otros datos/);
+ await expect(as(director,()=>q('select * from aulanexo_private.enrollment_requests'))).rejects.toThrow();
+ await expect(as(null,()=>q('select enroll_student_with_plan($1::jsonb,$2::jsonb)',[JSON.stringify(student),JSON.stringify(plan)]),undefined,'anon')).rejects.toThrow();
   const charges=(await q('select amount,minimum_access_ratio from school_charges where student_id=$1 order by period',[student.id])).rows;
   expect(charges.map(c=>Number(c.amount))).toEqual([429,429,429,429]);expect(charges.map(c=>Number(c.minimum_access_ratio))).toEqual([.5,.5,1,1]);
   await expect(as(director,()=>q('select enroll_student($1::jsonb)',[JSON.stringify({...student,id:id(43),identity_number:'CI-43'})]))).rejects.toThrow(/cupos/);
