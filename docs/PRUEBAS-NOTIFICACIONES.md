@@ -38,3 +38,7 @@ Wi-Fi puede incorporarse como comprobación adicional por sede; todavía no se v
 - La demo pública de perfiles no contiene un rol de superadmin ni acceso a este módulo.
 
 Verificación del 22/10/2026: pruebas de permisos, catálogo, destino propio, idempotencia, límites, cola y preparación Firebase; navegación web en 390/768/1366 px y Expo web en 390/768 px; validación GPS dentro/fuera del rango y nueva lectura al marcar. Las pruebas de navegador interceptan Supabase y no envían avisos a personas reales. La visualización y el sonido en un teléfono físico deben comprobarse desde el laboratorio.
+
+## Corrección de señales — 22/10/2026
+
+La migración `202610220001_platform_signal_updates.sql` limita las actualizaciones de `platform_signals` a su fila `singleton=true`. Resuelve «UPDATE requires a WHERE clause» al crear, leer o confirmar una prueba bajo la protección de PostgREST. También restaura `changed_table=demo_requests` en las señales comerciales posteriores a una prueba. No desactiva safeupdate, no cambia permisos y no requiere recompilar la APK. El comando de migración anterior aplica ambas migraciones pendientes.

@@ -2,7 +2,10 @@ import fs from "node:fs";
 import { databaseClient, reportFailure } from "./database.mjs";
 const db = databaseClient(),
   apply = process.argv.includes("--apply"),
-  migrations = [["202610210003", "notification_test_lab"]];
+  migrations = [
+    ["202610210003", "notification_test_lab"],
+    ["202610220001", "platform_signal_updates"],
+  ];
 try {
   await db.connect();
   await db.query("begin");

@@ -448,6 +448,52 @@ it("emite una revisión de plataforma sin datos de alumnos ni tokens", async () 
   expect(after.changed_table).toBe("notifications");
   expect(JSON.stringify(after)).not.toContain("Salud");
 });
+it("una solicitud de demo posterior al laboratorio conserva su señal y su seguimiento", async () => {
+  await acting(owner, () =>
+    q("select create_notification_test($1,$2,$3,$4)", [
+      "general",
+      "web",
+      null,
+      id(991),
+    ]),
+  );
+  const before = (
+    await q("select revision from platform_signals where singleton=true")
+  ).rows[0].revision;
+  await q(
+    "insert into demo_requests(id,school_name,contact_name,email,phone,city,request_key) values($1,'Demo ficticia','Contacto ficticio','demo@example.invalid','00000000','La Paz',$2)",
+    [id(992), id(993)],
+  );
+  const inserted = (
+    await q("select * from platform_signals where singleton=true")
+  ).rows[0];
+  expect(inserted.changed_table).toBe("demo_requests");
+  expect(Number(inserted.revision)).toBeGreaterThan(Number(before));
+  expect(JSON.stringify(inserted)).not.toContain("demo@example.invalid");
+  expect(
+    (
+      await q(
+        "select count(*) n from notifications where kind='school_request' and source_id=$1",
+        [id(992)],
+      )
+    ).rows[0].n,
+  ).toBe(1);
+  await q("update demo_requests set status='contacted' where id=$1", [id(992)]);
+  expect(
+    Number(
+      (await q("select revision from platform_signals where singleton=true"))
+        .rows[0].revision,
+    ),
+  ).toBeGreaterThan(Number(inserted.revision));
+  expect(
+    (
+      await q(
+        "select count(*) n from notifications where kind='school_request' and source_id=$1",
+        [id(992)],
+      )
+    ).rows[0].n,
+  ).toBe(1);
+});
 it("permite recorrer escenarios pero limita los envíos nuevos a 60 por hora", async () => {
   for (let i = 0; i < 60; i++) {
     await q(
