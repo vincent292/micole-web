@@ -786,7 +786,7 @@ test('cuidados registra comida y conserva la nota al cambiar de sección a 390px
  await expect(page.getByText('Sopa de verduras · Todo',{exact:true})).toBeVisible();
 });
 test('docente califica evaluación y ve el promedio normalizado',async({page})=>{
- const {calls}=await setup(page,'teacher');await page.goto('/app/gradebook');await page.getByRole('button',{name:'Calificar',exact:true}).click();
+ const {calls}=await setup(page,'teacher');await page.goto('/app/gradebook');await page.getByRole('button',{name:'Periodos y libretas',exact:true}).click();await page.getByRole('button',{name:'Calificar',exact:true}).click();
  const d=page.getByRole('dialog');await d.getByLabel('Nota de Lucía Prueba',{exact:true}).fill('15');await d.getByRole('button',{name:'Guardar',exact:true}).click();
  await expect.poll(()=>calls.some(c=>c.name==='save_assessment_scores')).toBe(true);expect(calls.find(c=>c.name==='save_assessment_scores')?.body.p_scores[0].score).toBe(15);
  await expect(page.getByRole('cell',{name:'75',exact:true})).toBeVisible();
@@ -808,4 +808,31 @@ test('requisitos configurables permiten inscripción con solo padre y CI opciona
  await page.goto('/app/students');await page.getByRole('button',{name:'Inscribir estudiante',exact:true}).click();const d=page.getByRole('dialog');
  await expect(d.getByLabel('Número de CI del niño',{exact:true})).not.toHaveAttribute('required','');
  await d.getByLabel('Nombres').fill('Ejemplo');await d.getByLabel('Apellidos').fill('Familia');await d.getByLabel('Fecha de nacimiento').fill('2020-01-01');await d.getByLabel('Aula',{exact:false}).selectOption(roomId);await showFormSection(page,'Madre y padre');await expect(d.getByLabel('Nombre completo de la madre',{exact:true})).not.toHaveAttribute('required','');await expect(d.getByLabel('Correo del padre',{exact:false})).toHaveAttribute('required','');
+});
+
+async function sheetFixture(page:Page,role='teacher'){
+ const base=await setup(page,role),column=id(910),qual=id(911);
+ const data:any={canManage:role!=='guardian',canConfigure:role==='director',schoolId,termId:id(802),terms:base.state.life.terms,settings:{maxCorrections:3,labels:['Destacado','Logrado','En proceso','Necesita apoyo']},method:'weighted',assessments:[{id:column,term_id:id(802),classroom_id:roomId,title:'Lectura',assessment_date:date,max_score:20,weight:1,grading_type:'numeric',qualitative_options:[]},{id:qual,term_id:id(802),classroom_id:roomId,title:'Participación',assessment_date:date,max_score:100,weight:1,grading_type:'qualitative',qualitative_options:['Destacado','Logrado','En proceso','Necesita apoyo']}],roster:[{studentId,studentName:'Lucía Prueba',total:{score:null,max_score:100,missing:2,qualitative:[]}}],scores:[]};
+ let reads=0;await page.route('**/rest/v1/rpc/gradebook_workspace',r=>{reads++;return r.fulfill({json:data});});
+ await page.route('**/rest/v1/rpc/save_assessment_scores',r=>{const body=r.request().postDataJSON();base.calls.push({name:'save_assessment_scores',body});const item=body.p_scores[0],existing=data.scores.find((s:any)=>s.assessment_id===body.p_assessment_id&&s.student_id===item.student_id);if(existing){Object.assign(existing,item,{revision:existing.revision+1,corrections:existing.corrections+1});}else data.scores.push({...item,id:id(912+data.scores.length),assessment_id:body.p_assessment_id,corrections:0,revision:1});return r.fulfill({json:1});});
+ return {...base,data,reads:()=>reads};
+}
+test('planilla guarda una nota por casilla y una etiqueta cualitativa',async({page})=>{
+ const {calls}=await sheetFixture(page);await page.goto('/app/gradebook');
+ const score=page.getByLabel('Lectura: Lucía Prueba',{exact:true});await score.fill('16');await score.press('Enter');
+ await expect.poll(()=>calls.filter(c=>c.name==='save_assessment_scores').length).toBe(1);
+ expect(calls.find(c=>c.name==='save_assessment_scores')?.body.p_scores[0]).toMatchObject({student_id:studentId,score:16,revision:0});
+ await page.getByLabel('Participación: Lucía Prueba',{exact:true}).selectOption('Logrado');
+ await expect.poll(()=>calls.filter(c=>c.name==='save_assessment_scores').length).toBe(2);
+ expect(calls.filter(c=>c.name==='save_assessment_scores')[1].body.p_scores[0]).toMatchObject({score:null,qualitative_score:'Logrado'});
+});
+test('planilla conserva texto y foco mientras llegan cambios de Realtime',async({page})=>{
+ const {signal,ready}=await sheetFixture(page);await page.goto('/app/gradebook');await expect.poll(ready).toBe(true);
+ const score=page.getByLabel('Lectura: Lucía Prueba',{exact:true});await score.fill('12');signal('assessment_scores');
+ await expect(score).toHaveValue('12');await expect(score).toBeFocused();await expect(page.getByText('Cargando planilla…',{exact:true})).toHaveCount(0);
+});
+test('familia ve sus notas en la planilla sin controles de escritura',async({page})=>{
+ const {data}=await sheetFixture(page,'guardian');data.scores.push({id:id(930),assessment_id:id(910),student_id:studentId,score:17,comment:'Buen avance',revision:1,corrections:0});
+ await page.goto('/app/gradebook');await expect(page.getByRole('region',{name:'Planilla de calificaciones'})).toBeVisible();await expect(page.getByText('17',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Añadir columna',exact:true})).toHaveCount(0);await expect(page.getByLabel('Lectura: Lucía Prueba',{exact:true})).toHaveCount(0);
 });

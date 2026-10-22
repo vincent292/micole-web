@@ -1,3 +1,4 @@
+import {publishWorkspaceChange} from "./workspaceEvents";
 import { publicDemo } from "./demo-config";
 import { readDemoData, writeDemoData, resetDemo, subscribeDemo } from "./demo";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -122,6 +123,8 @@ export function useAppStore(
     const changed = new Set<string>();
     let fullRefresh = false;
     const backgroundRefresh = (payload?: unknown) => {
+      const signal = (payload as {new?: {school_id?: string; changed_table?: string}})?.new;
+      publishWorkspaceChange({table:signal?.changed_table || "*",schoolId:signal?.school_id});
       const table = (payload as { new?: { changed_table?: string } })?.new?.changed_table;
       if (table) changed.add(table); else fullRefresh = true;
       if (!active) return;

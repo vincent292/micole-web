@@ -671,9 +671,7 @@ function ReportCards({
                       <td>{s.subject}</td>
                       {group.map((c) => (
                         <td key={c.id}>
-                          {c.content.subjects.find(
-                            (l) => l.subject === s.subject,
-                          )?.score ?? "Exento / sin nota"}
+                          {(()=>{const line=c.content.subjects.find(l=>l.subject===s.subject);return <>{line?.score!=null?`${line.score} / ${line.maxScore||100}`:line?.qualitative?.length?'':"Exento / sin nota"}{line?.qualitative?.map((q,index)=><div key={index}><b>{q.title}:</b> {q.value||'Pendiente'}{q.comment&&<small> · {q.comment}</small>}</div>)}</>;})()}
                         </td>
                       ))}
                       <td>
@@ -702,7 +700,7 @@ function ReportCards({
     </div>
   );
 }
-export function Gradebook(p: PageProps) {
+export function Gradebook(p: PageProps & {onOpenSheet?:()=>void}) {
   const life = useLife(p),
     [yearId, setYearId] = useState(""),
     [termId, setTermId] = useState(""),
@@ -1052,9 +1050,9 @@ export function Gradebook(p: PageProps) {
                 <div className="life-actions">
                   <Button
                     disabled={term?.status === "closed"}
-                    onClick={() => setMarking(a)}
+                    onClick={() => a.gradingType==='qualitative'?p.onOpenSheet?.():setMarking(a)}
                   >
-                    Calificar
+                    {a.gradingType==='qualitative'?'Calificar en planilla':'Calificar'}
                   </Button>
                   <Button
                     variant="ghost"

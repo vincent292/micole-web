@@ -59,7 +59,7 @@ export function StudentAttendance({
     room?.id || "",
     day,
     family ? student?.id : undefined,
-    store.data.notifications,
+    school?.id,
   );
   const key = `${room?.id}:${day}`;
   const [draft, setDraft] = useState<{
@@ -67,15 +67,14 @@ export function StudentAttendance({
       marks: AttendanceMark[];
       revision: number;
     } | null>(null),
-    [confirm, setConfirm] = useState(false),
-    [reason, setReason] = useState(""),
+    [confirm, setConfirm] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
-  const dirty = draft?.key === key;
+  const confirmed = data?.session?.status === "confirmed";
+  const dirty = draft?.key === key && !confirmed;
   const marks = dirty ? draft.marks : data ? attendanceMarks(data, day) : [];
-  const counts = attendanceCounts(marks),
-    confirmed = data?.session?.status === "confirmed";
+  const counts = attendanceCounts(marks);
   useEffect(() => {
     if (!dirty) return;
     const unload = (e: BeforeUnloadEvent) => {
@@ -95,7 +94,7 @@ export function StudentAttendance({
     };
   }, [dirty]);
   function change(id: string, value: Partial<AttendanceMark>) {
-    if (!data) return;
+    if (!data || confirmed) return;
     setNotice("");
     setDraft({
       key,
@@ -115,7 +114,7 @@ export function StudentAttendance({
     task();
   }
   async function save(final: boolean) {
-    if (!room || !data || busy) return;
+    if (!room || !data || busy || confirmed) return;
     setBusy(true);
     setError("");
     try {
@@ -127,12 +126,12 @@ export function StudentAttendance({
           p_records: marks,
           p_revision: dirty ? draft.revision : data.session?.revision || 0,
           p_confirm: final,
-          p_reason: reason,
+          p_reason: "",
         },
       );
       setDraft(null);
-      setConfirm(false);
-      setReason("");
+      setConfirm(null);
+
       setNotice(
         final
           ? `Lista confirmada. ${result.notifications} aviso(s) preparado(s) para las familias.`
@@ -216,7 +215,7 @@ export function StudentAttendance({
               )
             }
             required
-            disabled={busy}
+            disabled={busy || confirmed}
           />
         </Field>
         <Button
@@ -288,7 +287,7 @@ export function StudentAttendance({
                   <strong>{counts.pending} sin marcar</strong>
                   <span>
                     {confirmed
-                      ? "Lista confirmada"
+                      ? "Lista confirmada · Registro definitivo"
                       : data.session
                         ? "Borrador"
                         : "Lista sin iniciar"}
@@ -303,7 +302,7 @@ export function StudentAttendance({
                   <Button
                     variant="secondary"
                     icon={CheckCheck}
-                    disabled={busy || !marks.length}
+                    disabled={busy || confirmed || !marks.length}
                     onClick={() => {
                       setDraft({
                         key,
@@ -334,7 +333,7 @@ export function StudentAttendance({
                           type="checkbox"
                           aria-label={`Presente: ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
                           checked={m.status === "present"}
-                          disabled={busy}
+                          disabled={busy || confirmed}
                           onChange={(e) =>
                             change(m.studentId, {
                               status: e.target.checked ? "present" : "",
@@ -355,7 +354,7 @@ export function StudentAttendance({
                           <select
                             aria-label={`Estado de ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
                             value={m.status}
-                            disabled={busy}
+                            disabled={busy || confirmed}
                             onChange={(e) =>
                               change(m.studentId, {
                                 status: e.target.value as AttendanceStatus | "",
@@ -370,18 +369,31 @@ export function StudentAttendance({
                             ))}
                           </select>
                         </label>
-                        <details className="attendance-note"><summary>{m.note ? "Editar observación" : "Añadir observación"}</summary><label className="field">
-                          <span>Observación opcional</span>
-                          <input
-                            aria-label={`Observación de ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
-                            maxLength={1000}
-                            value={m.note}
-                            disabled={busy}
-                            onChange={(e) =>
-                              change(m.studentId, { note: e.target.value })
-                            }
-                          />
-                        </label></details>
+                        {confirmed ? (
+                          m.note ? (
+                            <p className="attendance-help">{m.note}</p>
+                          ) : null
+                        ) : (
+                          <details className="attendance-note">
+                            <summary>
+                              {m.note
+                                ? "Editar observación"
+                                : "Añadir observación"}
+                            </summary>
+                            <label className="field">
+                              <span>Observación opcional</span>
+                              <input
+                                aria-label={`Observación de ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
+                                maxLength={1000}
+                                value={m.note}
+                                disabled={busy || confirmed}
+                                onChange={(e) =>
+                                  change(m.studentId, { note: e.target.value })
+                                }
+                              />
+                            </label>
+                          </details>
+                        )}
                       </div>
                     </article>
                   ))}
@@ -392,52 +404,54 @@ export function StudentAttendance({
                     subtitle="Revisa el aula y la fecha de inscripción de los estudiantes."
                   />
                 )}
-                <div className="attendance-savebar">
-                  <span>
-                    {dirty
-                      ? "Cambios sin guardar"
-                      : confirmed
-                        ? "Las correcciones conservan el historial."
-                        : "Guardar borrador no envía notificaciones."}
-                  </span>
-                  {dirty && (
+                {!confirmed && (
+                  <div className="attendance-savebar">
+                    <span>
+                      {dirty
+                        ? "Cambios sin guardar"
+                        : confirmed
+                          ? "Lista confirmada. Registro definitivo y de solo lectura."
+                          : "Guardar borrador no envía notificaciones."}
+                    </span>
+                    {dirty && (
+                      <Button
+                        variant="ghost"
+                        disabled={busy || confirmed}
+                        onClick={() => {
+                          setDraft(null);
+                          setError("");
+                        }}
+                      >
+                        Descartar cambios
+                      </Button>
+                    )}
+                    {!confirmed && (
+                      <Button
+                        variant="secondary"
+                        disabled={busy || !marks.length || !dirty}
+                        onClick={() => void save(false)}
+                      >
+                        Guardar borrador
+                      </Button>
+                    )}
                     <Button
-                      variant="ghost"
-                      disabled={busy}
+                      icon={CalendarCheck}
+                      disabled={
+                        busy ||
+                        confirmed ||
+                        !marks.length ||
+                        counts.pending > 0 ||
+                        (confirmed && !dirty)
+                      }
                       onClick={() => {
-                        setDraft(null);
+                        setConfirm(key);
                         setError("");
                       }}
                     >
-                      Descartar cambios
+                      Revisar y confirmar
                     </Button>
-                  )}
-                  {!confirmed && (
-                    <Button
-                      variant="secondary"
-                      disabled={busy || !marks.length || !dirty}
-                      onClick={() => void save(false)}
-                    >
-                      Guardar borrador
-                    </Button>
-                  )}
-                  <Button
-                    icon={CalendarCheck}
-                    disabled={
-                      busy ||
-                      !marks.length ||
-                      counts.pending > 0 ||
-                      (confirmed && !dirty)
-                    }
-                    onClick={() => {
-                      setReason("");
-                      setConfirm(true);
-                      setError("");
-                    }}
-                  >
-                    {confirmed ? "Revisar corrección" : "Revisar y confirmar"}
-                  </Button>
-                </div>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -510,16 +524,14 @@ export function StudentAttendance({
           </>
         )
       )}
-      {confirm && (
+      {confirm === key && !confirmed && (
         <Modal
-          title={
-            confirmed ? "Confirmar corrección" : "Confirmar asistencia del día"
-          }
+          title="Confirmar asistencia del día"
           subtitle={`${room?.name} · ${dateLabel(day)}`}
-          onClose={() => setConfirm(false)}
+          onClose={() => setConfirm(null)}
           busy={busy}
           error={error}
-          submitLabel={confirmed ? "Guardar corrección" : "Confirmar y avisar"}
+          submitLabel="Confirmar y avisar"
           onSubmit={(e) => {
             e.preventDefault();
             void save(true);
@@ -530,21 +542,10 @@ export function StudentAttendance({
             tardanzas · {counts.excused} permisos.
           </p>
           <div className="soft-note">
-            Se avisará a las familias de las faltas confirmadas. Si corriges una
-            falta previamente notificada también recibirán un aviso de
-            corrección. Guardar de nuevo no duplica los avisos.
+            Se avisará a las familias de las faltas confirmadas. Al confirmar,
+            la lista quedará cerrada y no podrá modificarse. Revisa los datos
+            antes de continuar.
           </div>
-          {confirmed && (
-            <Field label="Motivo de la corrección" name="attendanceReason">
-              <textarea
-                required
-                minLength={5}
-                maxLength={1000}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-              />
-            </Field>
-          )}
         </Modal>
       )}
     </>

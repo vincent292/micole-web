@@ -48,6 +48,8 @@ export interface AcademicTerm {
   revision: number;
 }
 export interface Assessment {
+  gradingType?: "numeric"|"qualitative";
+  qualitativeOptions?: string[];
   id: string;
   schoolId: string;
   termId: string;
@@ -60,6 +62,9 @@ export interface Assessment {
   weight: number;
 }
 export interface AssessmentScore {
+  qualitativeScore?: string;
+  revision?: number;
+  corrections?: number;
   id: string;
   assessmentId: string;
   studentId: string;
@@ -68,6 +73,8 @@ export interface AssessmentScore {
   comment: string;
 }
 export interface CardSubject {
+  maxScore?: number;
+  qualitative?: {title:string;value:string|null;comment?:string}[];
   classSubjectId?: string;
   subject: string;
   score: number | null;
@@ -229,7 +236,7 @@ export function annualSubjects(cards: ReportCard[]) {
         periods: 0,
       };
       if (line.score !== null) {
-        current.sum += line.score * Number(card.content.termWeight);
+        current.sum += line.score / (line.maxScore || 100) * 100 * Number(card.content.termWeight);
         current.weight += Number(card.content.termWeight);
         current.periods++;
       }

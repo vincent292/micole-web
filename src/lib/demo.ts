@@ -1,3 +1,5 @@
+import {publishWorkspaceChange} from "./workspaceEvents";
+import {defaultGradeLabels,type GradeTotal} from "./gradeSheet";
 import { makeDemoSeed, makeDemoWorkspace, demoCards } from "./demo-seed";
 import { demoRole } from "./demo-config";
 import { today, buildSchedule } from "./billing";
@@ -25,6 +27,8 @@ export function readDemoData(): AppData {
   return makeDemoSeed();
 }
 interface Extras {
+ gradeSettings?:Record<string,{maxCorrections:number;labels:string[]}>;
+ gradeRules?:Record<string,string>;
   workspace: SchoolWorkspace;
   payments: (BankPayment & {
     items: { chargeId: string; amount: number }[];
@@ -201,7 +205,32 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
       );
     return t;
   };
+  const snake=(object:object)=>Object.fromEntries(Object.entries(object).map(([key,value])=>[key.replace(/[A-Z]/g,c=>'_'+c.toLowerCase()),value??null]));
+  const gradeRuleKey=(term:string,room:string,subject:string)=>`${term}:${room}:${subject||''}`;
+  const demoGradeTotal=(term:string,room:string,subject:string,student:string):GradeTotal=>{
+   const columns=w.assessments.filter(a=>a.termId===term&&a.classroomId===room&&(a.classSubjectId||'')===(subject||'')),method=extra.gradeRules?.[gradeRuleKey(term,room,subject)]||'weighted';
+   let points=0,denominator=0,maximum=0,missing=0;const qualitative:GradeTotal['qualitative']=[];
+   for(const a of columns){const mark=w.scores.find(s=>s.assessmentId===a.id&&s.studentId===student);if(mark?.exempt)continue;
+    if(a.gradingType==='qualitative'){qualitative.push({title:a.title,value:mark?.qualitativeScore||null});if(!mark?.qualitativeScore)missing++;continue;}
+    maximum+=Number(a.maxScore);if(mark?.score===undefined){missing++;continue;}const weight=method==='weighted'?a.weight:1;
+    points+=method==='sum'?mark.score:mark.score/a.maxScore*100*weight;denominator+=weight;
+   }return {score:denominator?Math.round((method==='sum'?points:points/denominator)*100)/100:null,max_score:method==='sum'?maximum:100,missing,qualitative};
+  };
   switch (name) {
+    case 'gradebook_workspace': {
+     mutation=false;const room=data.classrooms.find(r=>r.id===p.p_classroom_id);if(!room)throw new Error('Selecciona un aula.');
+     const year=w.years.find(y=>y.year===room.academicYear&&y.schoolId===room.schoolId),terms=w.terms.filter(t=>t.yearId===year?.id),term=terms.find(t=>t.id===p.p_term_id)||terms.find(t=>t.status==='open')||terms[0],manager=['director','teacher'].includes(demoRole()||'');
+     const columns=w.assessments.filter(a=>a.termId===term?.id&&a.classroomId===room.id&&(a.classSubjectId||'')===(p.p_subject_id||''));
+     const pupils=[...new Set(w.enrollments.filter(e=>e.classroomId===room.id&&e.yearId===year?.id&&(manager||e.studentId===p.p_student_id)).map(e=>e.studentId))];
+     result={canManage:manager,canConfigure:demoRole()==='director',schoolId:room.schoolId,termId:term?.id||null,terms:terms.map(snake),settings:extra.gradeSettings?.[room.schoolId]||{maxCorrections:3,labels:defaultGradeLabels},method:extra.gradeRules?.[gradeRuleKey(term?.id||'',room.id,p.p_subject_id)]||'weighted',assessments:columns.map(a=>({...snake(a),grading_type:a.gradingType||'numeric',qualitative_options:a.qualitativeOptions||[]})),scores:w.scores.filter(s=>columns.some(a=>a.id===s.assessmentId)&&pupils.includes(s.studentId)).map(s=>({...snake(s),revision:s.revision||1,corrections:s.corrections||0})),roster:pupils.map(studentId=>({studentId,studentName:(()=>{const pupil=findStudent(studentId);return `${pupil.firstName} ${pupil.lastName}`;})(),total:demoGradeTotal(term?.id||'',room.id,p.p_subject_id,studentId)}))};break;
+    }
+    case 'save_gradebook_settings': {
+     requireStaff(true);if(!Number.isInteger(p.p_limit)||p.p_limit<0||p.p_limit>100||!Array.isArray(p.p_labels)||p.p_labels.length<2||p.p_labels.length>12||new Set(p.p_labels).size!==p.p_labels.length)throw new Error('Revisa el límite y las etiquetas.');
+     (extra.gradeSettings||={})[schoolId]={maxCorrections:p.p_limit,labels:p.p_labels};break;
+    }
+    case 'save_gradebook_rule': {
+     requireStaff();mutableTerm(p.p_term_id);if(!['weighted','average','sum'].includes(p.p_method))throw new Error('Elige un cálculo válido.');(extra.gradeRules||={})[gradeRuleKey(p.p_term_id,p.p_classroom_id,p.p_subject_id)]=p.p_method;break;
+    }
     case "school_workspace": {
       mutation = false;
       const clone = structuredClone(w),
@@ -295,9 +324,10 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
         room = data.classrooms.find((r) => r.id === a.classroomId);
       if (!room) throw new Error("Selecciona un aula.");
       number(a.maxScore, 0.01, 10000);
+      const targetId=a.id||id();
       upsert(data.assignments, {
         ...a,
-        id: a.id || id(),
+        id: targetId,
         schoolId: room.schoolId,
         classSubjectId: a.classSubjectId || undefined,
         title: required(a.title),
@@ -306,6 +336,12 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
         createdAt: stamp(),
         updatedAt: stamp(),
       });
+      if(a.gradeable){
+       const term=mutableTerm(a.termId);if(a.status==='draft')throw new Error('Publica la tarea para crear su columna.');if(a.assessmentDate<term.startsOn||a.assessmentDate>term.endsOn)throw new Error('La evaluación debe estar dentro del periodo.');
+       const old=w.assessments.find(c=>c.assignmentId===targetId&&c.termId===term.id);
+       const columnId=old?.id||id();upsert(w.assessments,{id:columnId,schoolId:room.schoolId,termId:term.id,classroomId:room.id,classSubjectId:a.classSubjectId||undefined,assignmentId:targetId,title:a.title,assessmentDate:a.assessmentDate,maxScore:Number(a.maxScore),weight:Number(a.gradeWeight||1),gradingType:'numeric',qualitativeOptions:[]});
+       if(!old)for(const sub of data.submissions.filter(sub=>sub.assignmentId===targetId&&sub.status==='reviewed'&&sub.score!==undefined))upsert(w.scores,{id:id(),assessmentId:columnId,studentId:sub.studentId,score:sub.score,comment:sub.feedback,exempt:false,revision:1,corrections:0});
+      }
       break;
     }
     case "save_assignment_submission": {
@@ -362,6 +398,11 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
         p.p_score === null ? undefined : number(p.p_score, 0, task.maxScore);
       s.feedback = String(p.p_feedback || "");
       s.reviewedAt = stamp();
+      if(s.status==='reviewed'&&s.score!==undefined)for(const column of w.assessments.filter(a=>a.assignmentId===task.id)){
+       mutableTerm(column.termId);const old=w.scores.find(v=>v.assessmentId===column.id&&v.studentId===s.studentId);if(old&&old.score===s.score&&old.comment===s.feedback)continue;
+       if(old&&(old.corrections||0)>=(extra.gradeSettings?.[column.schoolId]?.maxCorrections??3))throw new Error('Se alcanzó el límite de correcciones.');
+       upsert(w.scores,{id:old?.id||id(),assessmentId:column.id,studentId:s.studentId,score:s.score,comment:s.feedback,exempt:false,revision:(old?.revision||(old?1:0))+1,corrections:old?(old.corrections||0)+1:0});
+      }
       break;
     }
     case "save_care_record": {
@@ -499,8 +540,11 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
         throw new Error("La evaluación debe estar dentro del periodo.");
       number(a.maxScore, 0.01, 10000);
       number(a.weight, 0.01, 1000);
+      const existingColumn=w.assessments.find(c=>c.id===a.id);
+      if(existingColumn&&w.scores.some(s=>s.assessmentId===a.id)&&((a.gradingType||existingColumn.gradingType||'numeric')!==(existingColumn.gradingType||'numeric')||JSON.stringify(a.qualitativeOptions||[])!==JSON.stringify(existingColumn.qualitativeOptions||[])))throw new Error('La columna con notas conserva su tipo y etiquetas.');
       upsert(w.assessments, {
         ...a,
+        gradingType:a.gradingType||'numeric',qualitativeOptions:a.gradingType==='qualitative'?(a.qualitativeOptions||extra.gradeSettings?.[term.schoolId]?.labels||defaultGradeLabels):[],
         id: a.id || id(),
         schoolId: term.schoolId,
         classSubjectId: a.classSubjectId || undefined,
@@ -511,27 +555,16 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
       break;
     }
     case "save_assessment_scores": {
-      requireStaff();
-      const a = w.assessments.find((a) => a.id === p.p_assessment_id)!;
-      mutableTerm(a.termId);
-      for (const raw of p.p_scores) {
-        const s = camel(raw);
-        if (s.exempt) required(s.comment);
-        upsert(w.scores, {
-          ...s,
-          id:
-            w.scores.find(
-              (old) =>
-                old.assessmentId === a.id && old.studentId === s.studentId,
-            )?.id || id(),
-          assessmentId: a.id,
-          score:
-            s.exempt || s.score === undefined
-              ? undefined
-              : number(s.score, 0, a.maxScore),
-        });
-      }
-      break;
+      requireStaff();const a=w.assessments.find(a=>a.id===p.p_assessment_id)!;mutableTerm(a.termId);let changed=0;
+      for(const raw of p.p_scores){const value=camel(raw),old=w.scores.find(s=>s.assessmentId===a.id&&s.studentId===value.studentId),limit=extra.gradeSettings?.[a.schoolId]?.maxCorrections??3;
+       if(raw.revision!==undefined&&raw.revision!==(old?.revision||(old?1:0)))throw new Error('La nota cambió en otro dispositivo.');
+       const score=value.exempt||value.score==null?undefined:number(value.score,0,a.maxScore),qual=value.exempt?undefined:value.qualitativeScore||undefined;
+       if(a.gradingType==='qualitative'&&(score!==undefined||qual&&!(a.qualitativeOptions||defaultGradeLabels).includes(qual)))throw new Error('Elige una etiqueta válida.');
+       if(old&&old.score===score&&old.qualitativeScore===qual&&old.exempt===!!value.exempt&&old.comment===(value.comment||''))continue;
+       if(old&&(old.corrections||0)>=limit)throw new Error('Se alcanzó el límite de correcciones de Dirección.');
+       if(value.exempt&&String(value.comment||'').trim().length<5)throw new Error('Indica el motivo de la exención.');
+       upsert(w.scores,{id:old?.id||id(),assessmentId:a.id,studentId:value.studentId,score,qualitativeScore:qual,exempt:!!value.exempt,comment:value.comment||'',revision:(old?.revision||(old?1:0))+1,corrections:old?(old.corrections||0)+1:0});changed++;
+      }result=changed;break;
     }
     case "import_assignment_scores": {
       requireStaff();
@@ -949,6 +982,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
   if (mutation) {
     localStorage.setItem(extraKey, JSON.stringify(extra));
     writeDemoData(data, true);
+    publishWorkspaceChange({table:'*'});
   }
   return structuredClone(result) as T;
 }

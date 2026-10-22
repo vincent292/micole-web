@@ -5,7 +5,7 @@ import { Button, Badge, Empty, Field, SectionTitle } from "../components/UI";
 import type { PageProps } from "./Pages";
 import { Community, Directory, fullName } from "./Pages";
 import { Subjects, Assignments } from "./Academics";
-import { Gradebook } from "./SchoolLife";
+import { Gradebook } from "./GradeSheet";
 import { StudentAttendance } from "./StudentAttendance";
 import { Gallery } from "./Gallery";
 import { ContentAreaTracker } from "./ViewHistory";
@@ -518,7 +518,7 @@ function RecordAttendance(p: PageProps) {
     p.student?.classroomId || "",
     month + "-01",
     p.student?.id,
-    p.store.data.notifications,
+    p.school?.id,
   );
   const rows = (data?.records || []).filter(
       (r) => r.confirmed && r.studentId === p.student?.id,

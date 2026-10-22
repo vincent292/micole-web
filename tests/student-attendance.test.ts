@@ -119,14 +119,14 @@ it("la demo guarda borradores, confirma, notifica una vez y permite consultar al
       p_revision: 1,
       p_confirm: true,
     }),
-  ).rejects.toThrow("Otra persona");
-  await demoStudentAttendanceRpc("save_student_attendance", {
+  ).rejects.toThrow("no puede modificarse");
+  await expect(demoStudentAttendanceRpc("save_student_attendance", {
     ...p,
     p_records: marks,
     p_revision: 2,
     p_confirm: true,
     p_reason: "Revisado otra vez",
-  });
+  })).rejects.toThrow("no puede modificarse");
   expect(
     readDemoData().notifications.filter((n) => n.kind === "attendance_absent"),
   ).toHaveLength(1);

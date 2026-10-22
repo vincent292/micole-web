@@ -243,45 +243,33 @@ describe("Asistencia de alumnos: acceso, confirmación, avisos y respaldo", () =
     ).toBe(true);
     await expect(
       as(teacher, () => save(marks("absent"), 0, true)),
-    ).rejects.toThrow("Otra persona");
-    await acting(teacher, () =>
-      save(marks("absent"), 1, true, "Confirmación revisada"),
-    );
+    ).rejects.toThrow("no puede modificarse");
+    await expect(
+      as(teacher, () =>
+        save(marks("absent"), 1, true, "Confirmación revisada"),
+      ),
+    ).rejects.toThrow("no puede modificarse");
     expect((await notices()).rows).toHaveLength(2);
     expect(
       (await q("select * from student_attendance_changes")).rows,
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
-  it("corrige con motivo, conserva el registro anterior y avisa de la corrección sin enviar la falta vieja", async () => {
+  it("bloquea correcciones posteriores incluso para Dirección y conserva la falta original", async () => {
     await acting(teacher, () => save(marks("absent"), 0, true));
     await expect(
-      as(director, () => save(marks("late"), 1, true)),
-    ).rejects.toThrow("motivo");
-    await acting(director, () =>
-      save(marks("late"), 1, true, "El estudiante llegó más tarde"),
-    );
-    const audit = (
-      await q("select previous,reason from student_attendance_changes")
-    ).rows[0];
-    expect(audit.previous.records[0].status).toBe("absent");
-    expect(audit.reason).toContain("llegó");
+      as(director, () =>
+        save(marks("late"), 1, true, "El estudiante llegó más tarde"),
+      ),
+    ).rejects.toThrow("no puede modificarse");
+    expect(
+      (await q("select status from student_attendance_records")).rows[0].status,
+    ).toBe("absent");
+    expect(
+      (await q("select * from student_attendance_changes")).rows,
+    ).toHaveLength(0);
     expect(
       (await notices()).rows.filter((n) => n.kind === "attendance_corrected"),
-    ).toHaveLength(2);
-    const old = (await notices()).rows.find(
-      (n) => n.kind === "attendance_absent",
-    );
-    expect(
-      (
-        await q("select aulanexo_private.push_notice_visible($1) as visible", [
-          old.id,
-        ])
-      ).rows[0].visible,
-    ).toBe(false);
-    await acting(director, () =>
-      save(marks("late"), 2, true, "Corrección revisada otra vez"),
-    );
-    expect((await notices()).rows).toHaveLength(4);
+    ).toHaveLength(0);
   });
   it("la familia ve solo los registros confirmados del hijo incluso con deuda y no obtiene motivos internos", async () => {
     await acting(teacher, () => save(marks("absent"), 0, true));

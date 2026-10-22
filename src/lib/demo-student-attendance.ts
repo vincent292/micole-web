@@ -81,16 +81,10 @@ export async function demoStudentAttendanceRpc(
     } satisfies AttendanceWorkspace;
   if (!manager) throw new Error("Solo Dirección o Docente puede pasar lista.");
   if (p.p_day > today()) throw new Error("La asistencia no puede ser futura.");
+  if(session?.status=== "confirmed")throw new Error("La asistencia de este día está confirmada y no puede modificarse.");
   if ((session?.revision || 0) !== p.p_revision)
     throw new Error(
       "Otra persona actualizó la lista. Recarga antes de guardar.",
-    );
-  if (
-    session?.status === "confirmed" &&
-    (!p.p_confirm || p.p_reason.trim().length < 5)
-  )
-    throw new Error(
-      "Indica un motivo de al menos 5 caracteres para corregir la lista.",
     );
   if (
     !students.length ||

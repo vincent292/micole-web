@@ -1,3 +1,5 @@
+import {useSchoolWorkspace} from "../lib/useSchoolWorkspace";
+import {today} from "../lib/billing";
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import type { FormEvent } from "react";
@@ -589,6 +591,12 @@ function AcademicDialog({
           r.teacherIds.some((id) => identity.teacherIds.includes(id))),
     ),
     room = rooms.find((r) => r.id === roomId) || rooms[0];
+  const life=useSchoolWorkspace(dialog.kind==='assignment'?school?.id:undefined,today());
+  const linked=life.data.assessments.find(a=>a.assignmentId===dialog.task?.id);
+  const [gradeable,setGradeable]=useState(false);
+  const scoreTask=gradeable||!!linked;
+  const gradeYear=life.data.years.find(y=>y.year===room?.academicYear);
+  const gradeTerms=life.data.terms.filter(t=>t.yearId===gradeYear?.id&&t.status==='open');
   const own = data.submissions.find(
       (s) => s.assignmentId === dialog.task?.id && s.studentId === student?.id,
     ),
@@ -616,6 +624,7 @@ function AcademicDialog({
             allow_late: f.get("allowLate") === "on",
             max_score: Number(read(f, "maxScore")),
             status: read(f, "status"),
+            gradeable:scoreTask,term_id:read(f,"gradeTerm"),assessment_date:read(f,"gradeDate"),grade_weight:Number(read(f,"gradeWeight")||1),
           },
         });
       } else if (dialog.kind === "submission") {
@@ -720,6 +729,9 @@ function AcademicDialog({
             </Field>
           </FormSection>
           <FormSection title="Entrega y publicación">
+            <label className="check-field"><input type="checkbox" checked={scoreTask} disabled={!!linked} onChange={e=>setGradeable(e.target.checked)}/> Puntuable: crear columna en notas al publicar</label>
+            {scoreTask&&<><Field label="Periodo de la nota" name="gradeTerm"><select name="gradeTerm" required defaultValue={linked?.termId||''}><option value="">Selecciona periodo</option>{gradeTerms.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></Field><Field label="Fecha de evaluación" name="gradeDate" type="date" required defaultValue={linked?.assessmentDate||today()}/><Field label="Peso de la tarea" name="gradeWeight" type="number" min={0.01} max={1000} step="0.01" required defaultValue={linked?.weight||1}/><p className="auth-hint">Al revisar una entrega, su puntuación se guardará en la planilla. La tarea debe estar publicada y pertenecer a un periodo abierto.</p></>}
+
             <Field
               label="Fecha límite (opcional)"
               name="dueDate"
