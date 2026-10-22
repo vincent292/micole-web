@@ -19,6 +19,7 @@ import {
   supabaseConfigurationError,
   authProviders,
   signInEmail,
+  signInPassword,
 } from "../../lib/supabase";
 import { demoEntryUrl, isDemoEmail } from "../../lib/demo-config";
 import type { useIdentity } from "../../lib/auth";
@@ -33,7 +34,9 @@ export function AuthPage({
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [email, setEmail] = useState(""),
-    [sent, setSent] = useState(false);
+    [sent, setSent] = useState(false),
+    [password, setPassword] = useState(""),
+    [emailMethod, setEmailMethod] = useState<"password" | "link">("password");
   const [providers, setProviders] = useState({ google: false, email: false }),
     [checking, setChecking] = useState(liveMode);
   const invitation = location.pathname.startsWith("/invite/");
@@ -247,7 +250,7 @@ export function AuthPage({
                         onSubmit={async (e) => {
                           e.preventDefault();
                           if (busy) return;
-                          if (isDemoEmail(email)) {
+                          if (emailMethod === "link" && isDemoEmail(email)) {
                             window.location.assign(demoEntryUrl(email));
                             return;
                           }
@@ -255,8 +258,13 @@ export function AuthPage({
                           setNotice("");
                           try {
                             rememberInvitation();
-                            await signInEmail(email);
-                            setSent(true);
+                            if (emailMethod === "password") {
+                              await signInPassword(email, password);
+                              setPassword("");
+                            } else {
+                              await signInEmail(email);
+                              setSent(true);
+                            }
                           } catch (e) {
                             setNotice(
                               e instanceof Error
@@ -268,6 +276,41 @@ export function AuthPage({
                           }
                         }}
                       >
+                        <div
+                          className="auth-methods"
+                          role="group"
+                          aria-label="Método de acceso por correo"
+                        >
+                          <Button
+                            type="button"
+                            variant={
+                              emailMethod === "password" ? "secondary" : "ghost"
+                            }
+                            aria-pressed={emailMethod === "password"}
+                            disabled={busy}
+                            onClick={() => {
+                              setEmailMethod("password");
+                              setNotice("");
+                            }}
+                          >
+                            Con contraseña
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={
+                              emailMethod === "link" ? "secondary" : "ghost"
+                            }
+                            aria-pressed={emailMethod === "link"}
+                            disabled={busy}
+                            onClick={() => {
+                              setEmailMethod("link");
+                              setPassword("");
+                              setNotice("");
+                            }}
+                          >
+                            Recibir enlace
+                          </Button>
+                        </div>
                         <Field label="Tu correo" name="email">
                           <input
                             required
@@ -278,15 +321,34 @@ export function AuthPage({
                             onChange={(e) => setEmail(e.target.value)}
                           />
                         </Field>
+                        {emailMethod === "password" && (
+                          <Field label="Contraseña" name="password">
+                            <input
+                              required
+                              type="password"
+                              autoComplete="current-password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                            />
+                          </Field>
+                        )}
                         <Button
                           type="submit"
                           className="full"
-                          icon={busy ? LoaderCircle : Mail}
+                          icon={
+                            busy
+                              ? LoaderCircle
+                              : emailMethod === "password"
+                                ? LockKeyhole
+                                : Mail
+                          }
                           disabled={busy || !supabase}
                         >
                           {busy
-                            ? "Enviando enlace…"
-                            : "Enviar enlace de acceso"}
+                            ? "Conectando…"
+                            : emailMethod === "password"
+                              ? "Ingresar con contraseña"
+                              : "Enviar enlace de acceso"}
                         </Button>
                       </form>
                     ))}

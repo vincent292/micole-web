@@ -111,3 +111,9 @@ export function authenticationRedirect() {
     ? `${window.location.origin}/invite/${encodeURIComponent(token)}`
     : `${window.location.origin}/auth/callback`;
 }
+
+export async function signInPassword(email: string, password: string) {
+  if (!supabase) throw new Error("La conexión de MiCole todavía no está configurada.");
+  const { error } = await supabase.auth.signInWithPassword({email: email.trim().toLowerCase(), password});
+  if (error) throw new Error(authenticationError(error));
+}

@@ -437,6 +437,7 @@ export interface SupportAccount {
   role: Exclude<Role, "superadmin">;
 }
 export interface Identity {
+  testing?: boolean;
   canSupport?: boolean;
   support?: SupportSession;
   id: string;

@@ -912,6 +912,7 @@ function Workspace({
           )}
         </header>
         {publicDemo && <section className="public-demo-banner" aria-label="Controles de demostración"><div><b>Demo MiCole · Todo es ficticio</b><small>Cambios solo en este navegador. Los pagos y envíos se simulan. Utiliza datos de ejemplo.</small></div><div className="demo-banner-actions"><select aria-label="Rol de demostración" value={role} onChange={e=>{const next=e.target.value as Role;setDemoRole(next);setRole(next);setModal(null);go("overview");}}>{demoAccounts.map(a=><option key={a.role} value={a.role}>{a.label}</option>)}</select><Button variant="secondary" onClick={()=>setResetOpen(true)}>Restablecer demo</Button><Button variant="ghost" onClick={()=>{void logoutDemo().catch(e=>setNoticeError(e.message));}}>Salir</Button></div></section>}
+        {identity.testing && <section className="public-demo-banner" aria-label="Institución de pruebas"><div><b>Institución de pruebas · Datos ficticios</b><small>Los cambios se guardan en este entorno de pruebas. Usa datos ficticios; los pagos registrados aquí no son cobros reales.</small></div></section>}
         {support && (
           <div
             className="support-banner"
@@ -1116,7 +1117,7 @@ function Workspace({
               {["institutionRequests", "audit"].includes(validPage) && (
                 <PlatformOperations page={validPage} {...props} />
               )}
-              {validPage === "credit" && <PlatformCreditPanel schoolId={role==="superadmin"?undefined:school?.id} schools={store.data.schools} store={store}/>}
+              {validPage === "credit" && (identity.testing ? <section className="message info"><h2>Crédito MiCole · Pruebas</h2><p>Esta institución está habilitada para pruebas sin pago inicial. No se emiten cargos de licencias ni se genera crédito real. Las mensualidades ficticias de alumnos se prueban desde Caja y Pagos.</p></section> : <PlatformCreditPanel schoolId={role==="superadmin"?undefined:school?.id} schools={store.data.schools} store={store}/>)}
               {validPage === "demoRequests" && <DemoRequests {...props}/>}
               {validPage === "gallery" && <Gallery {...props} />}
               <ContentAreaTracker key={`${role}:${school?.id}:${student?.id}:${validPage}`} page={validPage==="journal"?"daily":validPage} studentId={student?.id} enabled={["guardian","student"].includes(role)&&!locked&&!studentLocked&&!needsProfile}/>
