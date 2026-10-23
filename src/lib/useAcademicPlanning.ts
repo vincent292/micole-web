@@ -11,6 +11,8 @@ export function useAcademicPlanning<T>(
     [result, setResult] = useState<{ key: string; data?: T; error?: string }>();
   const live = useWorkspaceRevision(
     [
+      "bolivia_school_profiles",
+      "bolivia_pedagogical_documents",
       "timetable_versions",
       "timetable_delegates",
       "academic_years",

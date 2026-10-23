@@ -55,27 +55,14 @@ test("pasa lista, guarda borrador sin avisos, confirma falta y la familia consul
   await expect(page.locator(".attendance-summary")).toContainText(
     "Lista confirmada",
   );
-  await first.getByRole("combobox").selectOption("late");
-  await page
-    .getByRole("button", { name: "Revisar corrección", exact: true })
-    .click();
-  await dialog
-    .getByRole("button", { name: "Guardar corrección", exact: true })
-    .click();
-  await expect(dialog).toBeVisible();
-  await dialog
-    .getByRole("textbox", { name: "Motivo de la corrección" })
-    .fill("Llegó con retraso y se verificó su presencia");
-  await dialog
-    .getByRole("button", { name: "Guardar corrección", exact: true })
-    .click();
-  await expect(dialog).toHaveCount(0);
+  await expect(first.getByRole("combobox")).toBeDisabled();
+  await expect(page.getByRole("button", {name:"Revisar corrección",exact:true})).toHaveCount(0);
   await page
     .getByRole("button", { name: "Historial del mes", exact: true })
     .click();
   await expect(
     page.locator(".attendance-history").filter({ hasText: name }),
-  ).toContainText("Tardanza");
+  ).toContainText("Falta");
   await page
     .getByRole("combobox", { name: "Rol de demostración" })
     .selectOption("guardian");
@@ -147,7 +134,7 @@ for (const width of [390, 768, 1366])
     const openedForms: string[] = [];
     for (const route of routes) {
       await page.goto("/app/" + route);
-      await expect(page.locator("main h1").first()).toBeVisible();
+      await expect(page.locator("main h1:visible, main h2:visible").first()).toBeVisible();
       await expect(page.locator(".loading-screen")).toHaveCount(0);
       await expect
         .poll(

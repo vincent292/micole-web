@@ -133,6 +133,7 @@ export function resetDemo() {
   const data = makeDemoSeed();
   localStorage.removeItem(extraKey);
   localStorage.removeItem("micole_public_demo_academic_planning_v1");
+  localStorage.removeItem("micole_demo_bolivia_v1");
   localStorage.removeItem("micole_public_demo_tutoring_v1");
   localStorage.removeItem("micole_public_demo_features_v1");
   localStorage.removeItem("micole_public_demo_sites_v1");
@@ -176,6 +177,8 @@ function requireStaff(director = false) {
     );
 }
 export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
+  const bolivia=await import("./demo-bolivia");
+  if(bolivia.boliviaOperations.includes(name))return bolivia.demoBoliviaRpc(name,parameters as Record<string,unknown>) as Promise<T>;
   const academic=await import("./demo-academic-planning");
   if(academic.academicOperations.includes(name))return academic.demoAcademicRpc(name,parameters) as Promise<T>;
   const tutoring=await import("./demo-tutoring");

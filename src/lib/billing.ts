@@ -1,3 +1,4 @@
+import { schoolRoom } from "./bolivia";
 import { chargeAccessMinimum } from "./operations";
 import type { AppData, Charge, PaymentPlan, Student } from "./types";
 export const ACTIVATION_FEE = 50;
@@ -116,6 +117,7 @@ export function studentAccess(
     };
   if (student.status !== "active")
     return { allowed: false, reason: "La inscripción debe estar activa." };
+  if (schoolRoom(data.classrooms.find(r => r.id === student.classroomId), data.schools.find(s => s.id === student.schoolId))) return { allowed: true, reason: "" };
   if (
     data.platformCharges.some(
       (c) =>

@@ -30,7 +30,7 @@ async function role(page: Page, value: string) {
 }
 async function route(page: Page, path: string) {
   await page.goto(`/app/${path}`);
-  await expect(page.locator("main h1").first()).toBeVisible();
+  await expect(page.locator("main h1:visible, main h2:visible").first()).toBeVisible();
 }
 async function local(page: Page) {
   return page.evaluate((k) => JSON.parse(localStorage.getItem(k) || "{}"), key);

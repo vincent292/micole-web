@@ -18,6 +18,7 @@ export function makeDemoSeed(): AppData {
   data.schools = data.schools.slice(0, 1).map((s) => ({
     ...s,
     name: "Colegio y Guardería MiCole · Demo",
+    educationLevels: ["Guardería","Inicial","Primaria"],
       platformEnabled: true, activationEnabled: false,
     slug: "micole-demo",
     initials: "MD",

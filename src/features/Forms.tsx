@@ -1,3 +1,5 @@
+import {educationLevels} from "../lib/sites";
+import {schoolRoom} from "../lib/bolivia";
 import {draftKey,readDraft,writeDraft,removeDraft} from "../lib/sessionDraft";
 import {useLocation} from "react-router-dom";
 import {noticeCategories, type NoticeCategory} from '../lib/announcements';
@@ -105,6 +107,7 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
 
   return (
     <>
+      <FormSection title="Niveles de esta sede"><p>Las reglas de colegio se aplican a aulas de primaria/secundaria. Inicial y guardería conservan su funcionamiento.</p><div className="checkbox-grid">{educationLevels.map(level=><label className="check-field" key={level}><input type="checkbox" name="educationLevels" value={level} defaultChecked={institution?.educationLevels?.includes(level)}/>{level}</label>)}</div></FormSection>
       <FormSection title="Logo y portada">
       <div className="institution-logo-preview" aria-live="polite">
         {preview && !previewFailed ? (
@@ -355,6 +358,7 @@ export function WorkspaceModal({
         await store.save("schools", type === "branding" ? {
           ...editSchool!,
           ...institutionIdentity,
+          educationLevels:formData.getAll("educationLevels").map(String),
           name,
           city: val("city"),
           director: role === "superadmin" ? val("director") : editSchool!.director,
@@ -363,6 +367,7 @@ export function WorkspaceModal({
         } : {
           id: newId,
           ...institutionIdentity,
+          educationLevels:formData.getAll("educationLevels").map(String),
           name,
           slug: `${name
             .toLowerCase()
@@ -409,7 +414,7 @@ export function WorkspaceModal({
         if(!id)Object.assign(item,{activationFeeQuote:tariffs.rates.activationFee});
         if (id) await store.save("students", item);
         else await store.enroll(item, {
-          licenseFee: tariffs.rates.monthlyLicenseFee,
+          licenseFee: schoolRoom(rooms.find(r=>r.id===item.classroomId),school)?0:tariffs.rates.monthlyLicenseFee,
           id: requestIds.planId, schoolId, studentId: item.id, startDate: val("startDate"), months: num("months"),
           monthlyFee: item.monthlyFee, snackFee: item.snackFee || 0, enrollmentFee: item.enrollmentFee || 0,
           dueDay: num("dueDay"), discount: num("discount"), discountFrom: val("discountFrom"), discountTo: val("discountTo"), prorate: f.prorate === "on", createdAt,
@@ -459,7 +464,7 @@ export function WorkspaceModal({
         });
       if (type === "plan")
         await store.createPlan({
-          licenseFee: tariffs.rates.monthlyLicenseFee,
+          licenseFee: schoolRoom(rooms.find(r=>r.id===store.data.students.find(st=>st.id===val("studentId"))?.classroomId),school)?0:tariffs.rates.monthlyLicenseFee,
           id: uid(),
           schoolId,
           studentId: val("studentId"),
@@ -879,9 +884,9 @@ export function WorkspaceModal({
           <FormSection title="Plan de pagos">
           {id&&<p className="soft-note">Los precios editados se usarán en nuevas emisiones. Las cuotas ya creadas conservan su importe.</p>}
           {id ? <div className="form-grid"><Field label="Mensualidad fija" name="monthlyFee" type="number" min={0} step="0.01" required defaultValue={editStudent?.monthlyFee || 0} /><Field label="Merienda mensual" name="snackFee" type="number" min={0} step="0.01" defaultValue={editStudent?.snackFee || 0} /><Field label="Matrícula (0 si no aplica)" name="enrollmentFee" type="number" min={0} step="0.01" defaultValue={editStudent?.enrollmentFee || 0} /></div>
-          : <PlanFields draft={recovered} licenseFee={tariffs.rates.monthlyLicenseFee} key={admissionRoomId} student={{ monthlyFee: rooms.find(r => r.id === admissionRoomId)?.monthlyFee || 0 } as Student} schoolId={school?.id || ""} />}
+          : <PlanFields academicYear={rooms.find(r=>r.id===admissionRoomId)?.academicYear} bolivia={schoolRoom(rooms.find(r=>r.id===admissionRoomId),school)} draft={recovered} licenseFee={tariffs.rates.monthlyLicenseFee} key={admissionRoomId} student={{ monthlyFee: rooms.find(r => r.id === admissionRoomId)?.monthlyFee || 0 } as Student} schoolId={school?.id || ""} />}
           <div className="soft-note">
-            La licencia mensual de MiCole está incluida en las cuotas del plan. Puedes
+            {schoolRoom(rooms.find(r=>r.id===admissionRoomId),school)?"La licencia MiCole se liquida a la institución; las pensiones familiares no llevan ese cargo adicional.":"La licencia mensual de MiCole está incluida en las cuotas del plan."} Puedes
             compartir la ficha familiar por WhatsApp después de guardar. Madre y
             padre encontrarán a sus hijos al ingresar con los correos
             registrados.
@@ -941,12 +946,7 @@ export function WorkspaceModal({
             defaultValue={editClassroom?.name}
           />
           <div className="form-grid">
-            <Field
-              label="Nivel"
-              name="level"
-              required
-              defaultValue={editClassroom?.level}
-            />
+            <Field label="Nivel" name="level" required><input name="level" required defaultValue={editClassroom?.level} list="classroom-levels"/><datalist id="classroom-levels">{educationLevels.map(level=><option value={level} key={level}/>)}</datalist></Field>
           </div>
           <div className="form-grid">
             <Field label="Hora de inicio" name="startTime" required><select name="startTime" required defaultValue={editClassroom?.startTime?.slice(0,5) || "08:00"}>{Array.from({length:96},(_,i) => `${String(Math.floor(i/4)).padStart(2,"0")}:${String(i%4*15).padStart(2,"0")}`).map(time => <option key={time}>{time}</option>)}</select></Field>
@@ -1027,7 +1027,7 @@ export function WorkspaceModal({
               ))}
             </select>
           </Field>
-          <PlanFields licenseFee={tariffs.rates.monthlyLicenseFee}
+          <PlanFields academicYear={rooms.find(r=>r.id===students.find(st=>st.id===planStudentId)?.classroomId)?.academicYear} bolivia={schoolRoom(rooms.find(r=>r.id===students.find(st=>st.id===planStudentId)?.classroomId),school)} licenseFee={tariffs.rates.monthlyLicenseFee}
             key={planStudentId}
             student={students.find((s) => s.id === planStudentId)}
             schoolId={school?.id || ""}
@@ -1449,12 +1449,17 @@ function PlanFields({
   student,
   schoolId,
   licenseFee=29,
+  bolivia=false,
+  academicYear,
 }: {
   draft?:Record<string,string|boolean>;
   student?: Student;
   schoolId: string;
   licenseFee?: number;
+  bolivia?: boolean;
+  academicYear?: number;
 }) {
+  if(bolivia)licenseFee=0;
   const initial: PaymentPlan = {
     id: "preview",
     licenseFee,
@@ -1473,8 +1478,10 @@ function PlanFields({
     createdAt: today(),
   };
   if(draft){for(const key of ["startDate","discountFrom","discountTo"] as const)if(typeof draft[key]==="string")initial[key]=String(draft[key]);for(const key of ["months","monthlyFee","snackFee","enrollmentFee","dueDay","discount"] as const)if(draft[key]!==undefined)initial[key]=Number(draft[key]);initial.prorate=draft.prorate===true;}
+  if(bolivia){if(academicYear&&initial.startDate.slice(0,4)!==String(academicYear))initial.startDate=`${academicYear}-01-01`;initial.months=Math.min(10,initial.months,13-Number(initial.startDate.slice(5,7)));initial.snackFee=0;initial.enrollmentFee=0;}
   const [preview, setPreview] = useState(initial);
   const [rangeEnd, setRangeEnd] = useState(shiftMonth(initial.startDate.slice(0,7),initial.months-1));
+  const maxMonths=bolivia?Math.max(1,Math.min(10,13-Number(preview.startDate.slice(5,7)))):36;
   let charges: ReturnType<typeof buildSchedule> = [];
   let invalid = "";
   try {
@@ -1492,7 +1499,8 @@ function PlanFields({
         const n = (key: string) => Number(f[key] || 0);
         const startDate = String(f.startDate || "");
         const field = (e.target as HTMLInputElement).name;
-        const months = field === "endMonth" ? monthCount(startDate.slice(0,7), String(f.endMonth)) : n("months");
+        const chosenMonths = field === "endMonth" ? monthCount(startDate.slice(0,7), String(f.endMonth)) : n("months");
+        const months = bolivia ? Math.min(chosenMonths,10,13-Number(startDate.slice(5,7))) : chosenMonths;
         if (field === "months" || field === "startDate") setRangeEnd(shiftMonth(startDate.slice(0,7), months-1));
         setPreview({
           ...initial,
@@ -1517,8 +1525,8 @@ function PlanFields({
           required
           defaultValue={initial.startDate}
         />
-        <Field label="Hasta qué mes" name="endMonth" required><input name="endMonth" type="month" required min={preview.startDate.slice(0,7)} max={shiftMonth(preview.startDate.slice(0,7),35)} value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} /></Field>
-        <Field label="Cuotas mensuales" name="months" required><select name="months" value={preview.months} onChange={() => {}}>{Array.from({length:36},(_,i)=><option key={i+1} value={i+1}>{i+1} {i===0 ? "cuota" : "cuotas"}</option>)}</select></Field>
+        <Field label="Hasta qué mes" name="endMonth" required><input name="endMonth" type="month" required min={preview.startDate.slice(0,7)} max={shiftMonth(preview.startDate.slice(0,7),maxMonths-1)} value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} /></Field>
+        <Field label="Cuotas mensuales" name="months" required><select name="months" value={preview.months} onChange={() => {}}>{Array.from({length:maxMonths},(_,i)=><option key={i+1} value={i+1}>{i+1} {i===0 ? "cuota" : "cuotas"}</option>)}</select></Field>
         <Field
           label="Mensualidad fija · Bs"
           name="monthlyFee"
@@ -1534,6 +1542,7 @@ function PlanFields({
           type="number"
           min={0}
           step="0.01"
+          readOnly={bolivia}
           defaultValue={initial.snackFee}
         />
         <Field
@@ -1542,6 +1551,7 @@ function PlanFields({
           type="number"
           min={0}
           step="0.01"
+          readOnly={bolivia}
           defaultValue={initial.enrollmentFee}
         />
         <Field
@@ -1597,9 +1607,9 @@ function PlanFields({
           </>
         )}
         <small>
-          Incluye {money(licenseFee)} de licencia en cada mensualidad. El descuento aplica
+          {bolivia ? "Primaria/secundaria: hasta diez pensiones pactadas, sin matrícula ni licencia adicional para la familia. MiCole se liquida a la institución. Al terminar el plan no se emiten más cuotas automáticamente." : <>Incluye {money(licenseFee)} de licencia en cada mensualidad. El descuento aplica
           según el vencimiento y no reduce la licencia. El corte mensual
-          continúa al terminar el plan mientras la inscripción siga activa.
+          continúa al terminar el plan mientras la inscripción siga activa.</>}
         </small>
       </div>
     </div>

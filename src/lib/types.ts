@@ -30,6 +30,7 @@ export interface School {
   activeStudentCount?: number;
 }
 export interface Classroom {
+  boliviaRegular?: boolean;
   tutorTeacherId?: string;
   subjectsEnabled?: boolean;
   id: string;

@@ -648,6 +648,7 @@ function ReportCards({
           first = group[0].content;
         return (
           <section className="panel printable-card" key={key}>
+            {group.some(c=>c.content.subjects.some(s=>s.method==="bolivia2026"))&&<p className="soft-note">Informe académico interno MiCole. No sustituye la Libreta Escolar Electrónica oficial del SIE.</p>}
             {group.map(c=><ContentSeen key={c.id} kind="report_card" id={c.id}><span>{c.content.termName}</span></ContentSeen>)}
             <SectionTitle
               title={first.studentName}

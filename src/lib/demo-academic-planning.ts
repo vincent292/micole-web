@@ -92,6 +92,7 @@ export async function demoAcademicRpc(name: string, args: object) {
         id: r.id,
         name: r.name,
         academic_year: r.academicYear,
+        boliviaRegular:r.boliviaRegular??(r.level==="Primaria"||r.level==="Secundaria"),
       })),
       subjects: subjects.map((s) => ({
         id: s.id,
@@ -188,6 +189,8 @@ export async function demoAcademicRpc(name: string, args: object) {
       scheme: p.p_scheme,
       reinforcement_method: p.p_reinforcement_method,
     };
+    const configured=d.classrooms.find(r=>r.id===p.p_classroom_id);
+    if(configured){configured.boliviaRegular=/^(primary|secondary)[1-6]$/.test(p.p_grade_code);writeDemoData(d);}
     save("academic_class_policies");
     return null;
   }
@@ -264,6 +267,7 @@ export async function demoAcademicRpc(name: string, args: object) {
       rooms: rooms.map((r) => ({
         ...r,
         academic_year: r.academicYear,
+        boliviaRegular:r.boliviaRegular??(r.level==="Primaria"||r.level==="Secundaria"),
         policy: state.policies[r.id],
       })),
       batches: state.batches,

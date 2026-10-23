@@ -114,7 +114,7 @@ export function toRow(table: Collection, item: object) {
         "initials",
         "teacherIds",
         "token",
-        "localUrl", "pickupFileUrl", "platformEnabled", "activationEnabled",
+        "localUrl", "pickupFileUrl", "platformEnabled", "activationEnabled", "boliviaRegular",
         "activeStudentCount", "directorIdentity", "directorPhone",
       ].includes(key) ||
       value === undefined

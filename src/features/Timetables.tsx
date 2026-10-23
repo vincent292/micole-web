@@ -1,3 +1,4 @@
+import {validateSchoolTimetable} from "../lib/boliviaTimetable";
 import { useState } from "react";
 import {
   Button,
@@ -404,7 +405,7 @@ function TimetableEditor({
         : "Horario semanal",
     ),
     [config, setConfig] = useState<TimetableConfig>(() =>
-      structuredClone(initial?.config || defaultTimetable()),
+      structuredClone(initial?.config || (d.rooms.some(r=>r.boliviaRegular)?{...defaultTimetable(),end:720}:defaultTimetable())),
     ),
     [lessons, setLessons] = useState<Lesson[]>(initial?.lessons || []),
     [issues, setIssues] = useState<string[]>([]),
@@ -445,6 +446,8 @@ function TimetableEditor({
           throw new Error(
             "Configura todas las materias y paralelos de esta gestión.",
           );
+        const schoolIssues=validateSchoolTimetable(config,[],d.rooms.filter(r=>r.boliviaRegular).map(r=>r.id),false);
+        if(schoolIssues.length)throw new Error(schoolIssues.join(" "));
         const result = generateTimetable(config, d.externalBusy);
         setLessons(result.lessons);
         setIssues(
@@ -512,6 +515,7 @@ function TimetableEditor({
             value={config.end}
             change={(n) => change({ ...config, end: n })}
           />
+          {d.rooms.some(r=>r.boliviaRegular)&&<Field label="Jornada escolar" name="boliviaShift"><select value={config.boliviaShift||"day"} onChange={e=>change({...config,boliviaShift:e.target.value as "day"|"night",periodMinutes:e.target.value==="night"?35:40})}><option value="day">Diurna · 40 minutos</option><option value="night">Nocturna · 35 minutos</option></select></Field>}
           <Field label="Minutos por periodo pedagógico" name="minutes">
             <input
               required
@@ -526,7 +530,7 @@ function TimetableEditor({
           </Field>
         </div>
         <p className="muted">
-          Referencia Bolivia 2026: periodos de 40 minutos. Para una sesión de 80
+          Primaria/secundaria Bolivia 2026: seis periodos diarios de 40 minutos (35 en nocturno). Para una sesión de 80
           minutos, usa bloques de 2 periodos.
         </p>
         <div className="planning-actions">

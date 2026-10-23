@@ -531,6 +531,7 @@ export function Field({
   max,
   step,
   children,
+  value: controlledValue, onChange, readOnly, minLength, maxLength,
 }: {
   label: string;
   name: string;
@@ -542,6 +543,9 @@ export function Field({
   max?: string | number;
   step?: string;
   children?: ReactNode;
+  value?: string | number;
+  onChange?: import("react").ChangeEventHandler<HTMLInputElement>;
+  readOnly?: boolean; minLength?: number; maxLength?: number;
 }) {
   const defaults=useContext(FormDefaults),value=defaults[name];
   let content=children;
@@ -558,7 +562,12 @@ export function Field({
           type={type}
           required={required}
           placeholder={placeholder}
-          defaultValue={value===undefined?defaultValue:String(value)}
+          value={controlledValue}
+          onChange={onChange}
+          readOnly={readOnly}
+          minLength={minLength}
+          maxLength={maxLength}
+          defaultValue={controlledValue===undefined?(value===undefined?defaultValue:String(value)):undefined}
           min={min}
           max={max}
           step={step}

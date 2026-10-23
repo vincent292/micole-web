@@ -30,6 +30,7 @@ export type Lesson = {
   end: number;
 };
 export interface TimetableConfig {
+  boliviaShift?: "day" | "night";
   days: number[];
   start: number;
   end: number;
@@ -54,7 +55,7 @@ export interface PlanningData {
   canApprove: boolean;
   canDelegate: boolean;
   years: { id: string; year: number; name: string; status: string }[];
-  rooms: { id: string; name: string; academic_year: number }[];
+  rooms: { id: string; name: string; academic_year: number; boliviaRegular?: boolean }[];
   subjects: {
     id: string;
     classroomId: string;
