@@ -616,7 +616,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
       requireStaff(true);
       const term = mutableTerm(p.p_term_id),
         cards = demoCards(data, w, term.id);
-      for(const c of cards){if(readDemoPlanning().policies[c.classroomId]?.scheme!=='bolivia2026')continue;c.content.subjects=c.content.subjects.map(line=>{const total=demoGradeTotal(term.id,c.classroomId,line.classSubjectId||'',c.studentId);return{...line,score:total.score,maxScore:total.max_score||100,missing:total.missing};});c.content.complete=c.content.subjects.length>0&&c.content.subjects.every(l=>!l.missing&&l.assessments>0);}
+      for(const c of cards){if(readDemoPlanning().policies[c.classroomId]?.scheme!=='bolivia2026')continue;c.content.subjects=c.content.subjects.map(line=>{const total=demoGradeTotal(term.id,c.classroomId,line.classSubjectId||'',c.studentId);return{...line,method:"bolivia2026",score:total.score,maxScore:total.max_score||100,missing:total.missing};});c.content.complete=c.content.subjects.length>0&&c.content.subjects.every(l=>!l.missing&&l.assessments>0);}
       if (cards.some((c) => !c.content.complete))
         throw new Error(
           "Completa las notas o registra las exenciones antes de publicar.",

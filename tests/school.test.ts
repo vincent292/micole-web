@@ -89,3 +89,8 @@ describe("Funciones compartidas web y Android", () => {
     expect(value.scores[0].score).toBe(0);
   });
 });
+
+it('el modelo Bolivia 2026 usa promedio anual simple aunque existan pesos distintos en los periodos',()=>{
+ const cards=[{content:{termWeight:1,subjects:[{subject:'Matemáticas',score:50,maxScore:100,method:'bolivia2026'}]}},{content:{termWeight:3,subjects:[{subject:'Matemáticas',score:100,maxScore:100,method:'bolivia2026'}]}},{content:{termWeight:1,subjects:[{subject:'Matemáticas',score:60,maxScore:100,method:'bolivia2026'}]}}] as ReportCard[];
+ expect(annualSubjects(cards)[0].score).toBe(70);
+});

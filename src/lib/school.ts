@@ -74,6 +74,7 @@ export interface AssessmentScore {
   comment: string;
 }
 export interface CardSubject {
+  method?: string;
   maxScore?: number;
   qualitative?: {title:string;value:string|null;comment?:string}[];
   classSubjectId?: string;
@@ -237,8 +238,9 @@ export function annualSubjects(cards: ReportCard[]) {
         periods: 0,
       };
       if (line.score !== null) {
-        current.sum += line.score / (line.maxScore || 100) * 100 * Number(card.content.termWeight);
-        current.weight += Number(card.content.termWeight);
+        const weight = line.method === 'bolivia2026' ? 1 : Number(card.content.termWeight);
+        current.sum += line.score / (line.maxScore || 100) * 100 * weight;
+        current.weight += weight;
         current.periods++;
       }
       lines.set(key, current);

@@ -712,6 +712,10 @@ it("la vista familiar solo expone horarios publicados y la de Secretaría no mue
       }),
     ])
   ).rows[0].id;
+  await mutate(director,'select save_academic_year($1::jsonb)',[JSON.stringify({school_id:school,year:2027,name:'Gestión futura',starts_on:'2027-01-01',ends_on:'2027-12-31'})]);
+  const defaultYear = (await as(mother,'select timetable_workspace($1,null) data',[school])).rows[0].data;
+  expect(defaultYear.years).toHaveLength(1);
+  expect(defaultYear.years[0].year).toBe(2026);
   let ws = (
     await as(mother, "select timetable_workspace($1,$2) data", [
       school,

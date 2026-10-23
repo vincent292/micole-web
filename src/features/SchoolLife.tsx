@@ -35,7 +35,6 @@ import {
   moods,
   parseDirectoryCsv,
   schoolCsv,
-  weightedSubject,
   type AcademicTerm,
   type Assessment,
   type CareRecord,
@@ -1094,60 +1093,7 @@ export function Gradebook(p: PageProps & {onOpenSheet?:()=>void}) {
               />
             </section>
           )}
-          {assessments.length > 0 && (
-            <section className="panel table-panel">
-              <SectionTitle
-                title="Promedios provisionales"
-                subtitle="Los faltantes se indican y no se convierten en cero."
-              />
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Estudiante</th>
-                      {[
-                        ...new Set(
-                          assessments.map((a) => a.classSubjectId || ""),
-                        ),
-                      ].map((s) => (
-                        <th key={s}>{subjectName(p.store.data, s)}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roster.map((h) => (
-                      <tr key={h.studentId}>
-                        <td>{h.studentName}</td>
-                        {[
-                          ...new Set(
-                            assessments.map((a) => a.classSubjectId || ""),
-                          ),
-                        ].map((s) => {
-                          const value = weightedSubject(
-                            assessments.filter(
-                              (a) => (a.classSubjectId || "") === s,
-                            ),
-                            life.data.scores,
-                            h.studentId,
-                          );
-                          return (
-                            <td key={s}>
-                              {value.score ?? "—"}
-                              {value.missing > 0 && (
-                                <small className="grade-missing">
-                                  {value.missing} pendientes
-                                </small>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
+          {assessments.length > 0 && <section className="panel"><SectionTitle title="Resultados provisionales" subtitle="Consulta la planilla para ver las dimensiones, reforzamientos y el cálculo configurado de cada materia."/>{p.onOpenSheet&&<Button variant="secondary" onClick={p.onOpenSheet}>Ver resultados en la planilla</Button>}</section>}
         </>
       )}
       {life.dialog}

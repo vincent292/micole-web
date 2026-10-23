@@ -58,4 +58,4 @@ La promoción conserva datos familiares, historial, cuotas y saldos existentes. 
 
 La plantilla conserva la referencia 2026 al copiarse. Dirección debe revisar la normativa de cada nueva gestión antes de utilizarla; copiarla no certifica cambios legales de 2027.
 
-Migraciones: 202610220007_timetables.sql y 202610220008_annual_academics.sql. Los módulos usan el canal Realtime existente con permisos en Supabase. La demo mantiene datos en el navegador sin escribir en producción. Android se actualiza en código fuente; esta entrega no genera ni instala APK.
+Migraciones: 202610220007_timetables.sql , 202610220008_annual_academics.sql y la corrección 202610230001_timetable_visible_year.sql. Los módulos usan el canal Realtime existente con permisos en Supabase. La demo mantiene datos en el navegador sin escribir en producción. Android se actualiza en código fuente; esta entrega no genera ni instala APK.
