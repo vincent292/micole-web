@@ -347,3 +347,14 @@ it('las entrevistas de la demo se guardan localmente y las respuestas no llaman 
  expect(inbox.interviews).toHaveLength(1);await demoRpc('respond_classroom_interview',{p_id:payload.id,p_revision:1,p_response:'confirmed',p_note:''});inbox=await demoRpc<any>('classroom_coordination_workspace',{p_school_id:room.schoolId,p_student_id:child.id});expect(inbox.interviews[0].responses[0].response).toBe('confirmed');
  expect(fetch).not.toHaveBeenCalled();resetDemo();setDemoRole('director');expect((await demoRpc<any>('classroom_coordination_workspace',{p_school_id:room.schoolId})).interviews).toEqual([]);
 });
+
+it('la demo genera y publica horarios sin contactar a Supabase; Familia solo los consulta',async()=>{
+ const {generateTimetable,defaultTimetable}=await import('../src/lib/timetable');
+ const ws=await demoRpc<any>('timetable_workspace',{p_school_id:'s1'});
+ const config={...defaultTimetable(),loads:ws.subjects.map((s:any)=>({classSubjectId:s.id,classroomId:s.classroomId,teacherId:s.teacherIds[0],periods:2,blockSize:1}))};
+ const result=generateTimetable(config);expect(result.status).toBe('solved');
+ const id=await demoRpc<string>('save_timetable',{p_version:{year_id:ws.years[0].id,name:'Semana de prueba',config,lessons:result.lessons}});
+ await demoRpc('publish_timetable',{p_id:id,p_revision:1});
+ setDemoRole('guardian');const family=await demoRpc<any>('timetable_workspace',{p_school_id:'s1'});expect(family.canManage).toBe(false);expect(family.versions[0].status).toBe('published');
+ await expect(demoRpc('save_timetable',{p_version:{}})).rejects.toThrow(/Dirección/);expect(fetch).not.toHaveBeenCalled();
+});

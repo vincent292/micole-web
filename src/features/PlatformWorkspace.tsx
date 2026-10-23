@@ -27,7 +27,7 @@ import { rpc } from "../lib/repository";
 import type { SupportAccount, Role } from "../lib/types";
 import type { PageProps } from "./Pages";
 const names = {
-  director: "Dirección",
+  scheduler: "Secretaría académica", director: "Dirección",
   teacher: "Docente",
   guardian: "Familia",
   student: "Estudiante",

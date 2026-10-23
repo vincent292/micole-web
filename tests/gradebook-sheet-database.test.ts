@@ -340,7 +340,7 @@ it("tarea puntuable crea columna y la revisión se guarda también en notas de f
   ).toBe("18.00");
 });
 it("la asistencia confirmada bloquea API, SQL y borrado, sin excepciones de rol", async () => {
-  const day = new Date().toISOString().slice(0, 10),
+  const day = new Intl.DateTimeFormat('en-CA',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),
     records = JSON.stringify([
       { studentId: child, status: "present", note: "" },
     ]);
@@ -448,7 +448,7 @@ it('editar el aula conserva las materias y quitar a un docente revoca su tutorí
  await expect(as(teacher,'select classroom_tutor_overview($1,null)',[room])).rejects.toThrow();
 });
 it('la tutora lee cuidados pero no puede editar actividades de Matemáticas ni cuidados de otro docente',async()=>{
- const f=await tutoringFixture(),event=id(195),care=id(196),day=new Date().toISOString().slice(0,10);
+ const f=await tutoringFixture(),event=id(195),care=id(196),day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  await mutate(f.mathUser,"insert into calendar_events(id,school_id,classroom_id,class_subject_id,title,description,event_date,type) values($1,$2,$3,$4,'Evaluación de fracciones','Preparar ejercicios',current_date,'homework')",[event,school,room,f.subject]);
  await expect(mutate(teacher,"update calendar_events set title='Cambio no autorizado' where id=$1",[event])).rejects.toThrow(/docente/);
  await mutate(f.mathUser,"update calendar_events set title='Fracciones del periodo' where id=$1",[event]);

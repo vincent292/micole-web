@@ -81,7 +81,7 @@ export function useIdentity() {
       pendingFocus = false;
       void refresh();
     };
-    const offChanges = onWorkspaceChange(change => { if (["school_memberships", "student_guardians", "student_logins", "teachers", "teacher_classrooms"].includes(change.table)) focus(); });
+    const offChanges = onWorkspaceChange(change => { if (["timetable_delegates", "school_memberships", "student_guardians", "student_logins", "teachers", "teacher_classrooms"].includes(change.table)) focus(); });
     const modalClosed = () => { if (pendingFocus) window.setTimeout(focus, 0); };
     window.addEventListener("micole:modal-closed", modalClosed);
     window.addEventListener("focus", focus);

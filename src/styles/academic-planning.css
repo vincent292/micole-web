@@ -1,0 +1,103 @@
+.planning-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: end;
+  margin: 16px 0;
+}
+.planning-filters > .field {
+  flex: 1;
+  min-width: 150px;
+}
+.planning-actions,
+.planning-days {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.planning-days {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: 6px;
+}
+.planning-days button {
+  flex-shrink: 0;
+}
+.planning-lesson,
+.planning-break {
+  display: flex;
+  align-items: start;
+  gap: 20px;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid #e3eaf6;
+  border-radius: 14px;
+  margin: 10px 0;
+}
+.planning-lesson > strong,
+.planning-break > strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #3d6ef7;
+}
+.planning-lesson h3,
+.planning-break h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.planning-lesson p {
+  margin: 4px 0;
+}
+.planning-break {
+  background: #fff8e6;
+}
+.planning-load,
+.planning-access {
+  border: 1px solid #e3eaf6;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.planning-load legend {
+  font-weight: 600;
+  padding: 0 5px;
+}
+.planning-preview {
+  margin: 12px 0;
+}
+.planning-access summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+@media (max-width: 600px) {
+  .planning-lesson,
+  .planning-break {
+    gap: 10px;
+    padding: 14px 12px;
+    flex-direction: column;
+  }
+  .planning-filters > .field {
+    min-width: 140px;
+  }
+  .planning-load {
+    padding: 12px;
+  }
+}
+.planning-page > .view-top {
+  display: none;
+}
+.planning-lessons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.planning-lessons article {
+  margin: 0;
+}
+.planning-lesson,
+.planning-break {
+  flex-direction: column;
+  gap: 8px;
+}

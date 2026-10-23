@@ -26,6 +26,7 @@ export function useGradeSheet(
           "*",
           "school_charges", "school_payments", "platform_charges", "platform_credit_accounts",
           "school_memberships", "student_guardians", "teacher_classrooms", "subject_teachers",
+          "academic_class_policies", "academic_reinforcements",
           "assessments",
           "assessment_scores",
           "academic_terms",

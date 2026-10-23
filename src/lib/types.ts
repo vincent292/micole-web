@@ -1,5 +1,5 @@
 import type { AdmissionDetails } from "./admission";
-export type Role = "superadmin" | "director" | "teacher" | "guardian" | "student";
+export type Role = "scheduler" | "superadmin" | "director" | "teacher" | "guardian" | "student";
 export type Status = "active" | "pending" | "inactive";
 export type ChargeStatus = "pending" | "paid" | "overdue" | "cancelled";
 export interface School {

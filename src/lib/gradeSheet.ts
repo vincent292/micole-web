@@ -1,3 +1,4 @@
+import type {AcademicPolicy,Reinforcement} from './academicPlanning';
 export const defaultGradeLabels = [
   "Destacado",
   "Logrado",
@@ -10,6 +11,7 @@ export const gradeMethods = {
   sum: "Suma de puntos",
 };
 export interface GradeColumn {
+  dimension?: string;
   id: string;
   term_id: string;
   classroom_id: string;
@@ -34,12 +36,16 @@ export interface GradeValue {
   corrections: number;
 }
 export interface GradeTotal {
+  classification?: string;
+  dimensions?: {code:string;max:number;score:number|null;missing:number}[];
   score: number | null;
   max_score: number | null;
   missing: number;
   qualitative: { title: string; value: string | null }[];
 }
 export interface GradeSheetData {
+  policy?: AcademicPolicy|null;
+  reinforcements?: Reinforcement[];
   canManage: boolean;
   canConfigure: boolean;
   schoolId: string;

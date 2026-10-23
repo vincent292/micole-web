@@ -48,6 +48,7 @@ export interface AcademicTerm {
   revision: number;
 }
 export interface Assessment {
+  dimension?: string;
   gradingType?: "numeric"|"qualitative";
   qualitativeOptions?: string[];
   id: string;

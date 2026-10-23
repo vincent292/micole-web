@@ -1,3 +1,4 @@
+import {readDemoPlanning} from './demo-academic-planning';
 import { canManageAssignment } from "./learning";
 import {publishWorkspaceChange} from "./workspaceEvents";
 import {defaultGradeLabels,type GradeTotal} from "./gradeSheet";
@@ -131,6 +132,7 @@ export function subscribeDemo(listener: () => void) {
 export function resetDemo() {
   const data = makeDemoSeed();
   localStorage.removeItem(extraKey);
+  localStorage.removeItem("micole_public_demo_academic_planning_v1");
   localStorage.removeItem("micole_public_demo_tutoring_v1");
   localStorage.removeItem("micole_public_demo_features_v1");
   localStorage.removeItem("micole_public_demo_sites_v1");
@@ -174,6 +176,8 @@ function requireStaff(director = false) {
     );
 }
 export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
+  const academic=await import("./demo-academic-planning");
+  if(academic.academicOperations.includes(name))return academic.demoAcademicRpc(name,parameters) as Promise<T>;
   const tutoring=await import("./demo-tutoring");
   if(tutoring.tutoringOperations.includes(name)) return tutoring.demoTutoringRpc(name,parameters) as Promise<T>;
   const attendance=await import("./demo-student-attendance");
@@ -218,7 +222,17 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
     if(a.gradingType==='qualitative'){qualitative.push({title:a.title,value:mark?.qualitativeScore||null});if(!mark?.qualitativeScore)missing++;continue;}
     maximum+=Number(a.maxScore);if(mark?.score===undefined){missing++;continue;}const weight=method==='weighted'?a.weight:1;
     points+=method==='sum'?mark.score:mark.score/a.maxScore*100*weight;denominator+=weight;
-   }return {score:denominator?Math.round((method==='sum'?points:points/denominator)*100)/100:null,max_score:method==='sum'?maximum:100,missing,qualitative};
+   }
+   const plan=readDemoPlanning(),policy=plan.policies[room];
+   if(policy?.scheme==='bolivia2026'){
+    const dimensions=Object.entries({ser:10,saber:45,hacer:40,self:5}).map(([code,max])=>{const group=columns.filter(a=>a.gradingType!=='qualitative'&&a.dimension===code);let sum=0,weight=0,missing=0;for(const a of group){const s=w.scores.find(s=>s.assessmentId===a.id&&s.studentId===student);if(s?.exempt)continue;if(s?.score===undefined){missing++;continue;}sum+=s.score/a.maxScore*max*a.weight;weight+=a.weight;}return{code,max,score:weight?sum/weight:null,missing:group.length?missing:1};});
+    let score=dimensions.every(d=>d.score!==null)?Math.round(dimensions.reduce((n,d)=>n+d.score!,0)*100)/100:null;
+    let missing=dimensions.reduce((n,d)=>n+d.missing,0)+qualitative.filter(q=>!q.value).length;
+    const r=plan.reinforcements.find(r=>r.classroom_id===room&&r.term_id===term&&r.class_subject_id===subject&&r.student_id===student);
+    if(r?.status==='approved'&&r.score!==null)score=r.method==='best'?Math.max(score??0,r.score):r.score;else if(r)missing++;
+    return{score,max_score:100,missing,qualitative,dimensions,classification:score===null?undefined:score<51?'ED':score<69?'DA':score<85?'DO':'DP'};
+   }
+   return {score:denominator?Math.round((method==='sum'?points:points/denominator)*100)/100:null,max_score:method==='sum'?maximum:100,missing,qualitative};
   };
   switch (name) {
     case 'gradebook_workspace': {
@@ -226,7 +240,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
      const year=w.years.find(y=>y.year===room.academicYear&&y.schoolId===room.schoolId),terms=w.terms.filter(t=>t.yearId===year?.id),term=terms.find(t=>t.id===p.p_term_id)||terms.find(t=>t.status==='open')||terms[0],viewer=['director','teacher'].includes(demoRole()||''),manager=demoRole()==='director'||canManageAssignment(data,{teacherIds:data.teachers.filter(t=>t.email==='docente@micole.test').map(t=>t.id)} as any,demoRole()!,{classroomId:room.id,classSubjectId:p.p_subject_id||undefined});
      const columns=w.assessments.filter(a=>a.termId===term?.id&&a.classroomId===room.id&&(a.classSubjectId||'')===(p.p_subject_id||''));
      const pupils=[...new Set(w.enrollments.filter(e=>e.classroomId===room.id&&e.yearId===year?.id&&(viewer||e.studentId===p.p_student_id)).map(e=>e.studentId))];
-     result={canManage:manager,canConfigure:demoRole()==='director',schoolId:room.schoolId,termId:term?.id||null,terms:terms.map(snake),settings:extra.gradeSettings?.[room.schoolId]||{maxCorrections:3,labels:defaultGradeLabels},method:extra.gradeRules?.[gradeRuleKey(term?.id||'',room.id,p.p_subject_id)]||'weighted',assessments:columns.map(a=>({...snake(a),grading_type:a.gradingType||'numeric',qualitative_options:a.qualitativeOptions||[]})),scores:w.scores.filter(s=>columns.some(a=>a.id===s.assessmentId)&&pupils.includes(s.studentId)).map(s=>({...snake(s),revision:s.revision||1,corrections:s.corrections||0})),roster:pupils.map(studentId=>({studentId,studentName:(()=>{const pupil=findStudent(studentId);return `${pupil.firstName} ${pupil.lastName}`;})(),total:demoGradeTotal(term?.id||'',room.id,p.p_subject_id,studentId)}))};break;
+     result={policy:readDemoPlanning().policies[room.id],reinforcements:readDemoPlanning().reinforcements.filter(r=>r.classroom_id===room.id&&r.term_id===term?.id&&r.class_subject_id===p.p_subject_id&&pupils.includes(r.student_id)),canManage:manager,canConfigure:demoRole()==='director',schoolId:room.schoolId,termId:term?.id||null,terms:terms.map(snake),settings:extra.gradeSettings?.[room.schoolId]||{maxCorrections:3,labels:defaultGradeLabels},method:extra.gradeRules?.[gradeRuleKey(term?.id||'',room.id,p.p_subject_id)]||'weighted',assessments:columns.map(a=>({...snake(a),grading_type:a.gradingType||'numeric',qualitative_options:a.qualitativeOptions||[]})),scores:w.scores.filter(s=>columns.some(a=>a.id===s.assessmentId)&&pupils.includes(s.studentId)).map(s=>({...snake(s),revision:s.revision||1,corrections:s.corrections||0})),roster:pupils.map(studentId=>({studentId,studentName:(()=>{const pupil=findStudent(studentId);return `${pupil.firstName} ${pupil.lastName}`;})(),total:demoGradeTotal(term?.id||'',room.id,p.p_subject_id,studentId)}))};break;
     }
     case 'save_gradebook_settings': {
      requireStaff(true);if(!Number.isInteger(p.p_limit)||p.p_limit<0||p.p_limit>100||!Array.isArray(p.p_labels)||p.p_labels.length<2||p.p_labels.length>12||new Set(p.p_labels).size!==p.p_labels.length)throw new Error('Revisa el límite y las etiquetas.');
@@ -602,6 +616,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
       requireStaff(true);
       const term = mutableTerm(p.p_term_id),
         cards = demoCards(data, w, term.id);
+      for(const c of cards){if(readDemoPlanning().policies[c.classroomId]?.scheme!=='bolivia2026')continue;c.content.subjects=c.content.subjects.map(line=>{const total=demoGradeTotal(term.id,c.classroomId,line.classSubjectId||'',c.studentId);return{...line,score:total.score,maxScore:total.max_score||100,missing:total.missing};});c.content.complete=c.content.subjects.length>0&&c.content.subjects.every(l=>!l.missing&&l.assessments>0);}
       if (cards.some((c) => !c.content.complete))
         throw new Error(
           "Completa las notas o registra las exenciones antes de publicar.",

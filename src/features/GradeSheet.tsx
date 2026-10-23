@@ -1,3 +1,5 @@
+import {AcademicPolicyButton,ReinforcementCell} from './AcademicPlanning';
+import {dimensions} from '../lib/academicPlanning';
 import { useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Button, Empty, Field, Modal, SectionTitle } from "../components/UI";
@@ -170,6 +172,7 @@ export function Gradebook(p: PageProps) {
               </Button>
             )}
           </div>
+          {data&&room&&<AcademicPolicyButton room={room.id} data={data} refresh={ws.refresh}/>}
           {(ws.error || error) && (
             <div role="alert" className="message error">
               {ws.error || error}
@@ -208,7 +211,7 @@ export function Gradebook(p: PageProps) {
                   <Field label="Cálculo de notas numéricas" name="sheetMethod">
                     <select
                       value={data.method}
-                      disabled={!data.canManage || closed || busy}
+                      disabled={!data.canManage || closed || busy || data.policy?.scheme==='bolivia2026'}
                       onChange={(e) =>
                         void write("save_gradebook_rule", {
                           p_term_id: data.termId,
@@ -238,6 +241,7 @@ export function Gradebook(p: PageProps) {
                   data={data}
                   search={search}
                   closed={closed}
+                  room={room?.id||""} subject={subject}
                   refresh={ws.refresh}
                   editColumn={chooseColumn}
                 />
@@ -291,6 +295,7 @@ export function Gradebook(p: PageProps) {
                 assessment_date: f.get("date"),
                 max_score: kind === "qualitative" ? 100 : Number(f.get("max")),
                 weight: Number(f.get("weight")),
+                dimension: f.get("dimension") || undefined,
                 grading_type: kind,
                 qualitative_options:
                   kind === "qualitative"
@@ -342,6 +347,7 @@ export function Gradebook(p: PageProps) {
                   defaultValue={editing?.title}
                 />
               </Field>
+              {kind==='numeric'&&<Field label="Dimensión de evaluación" name="dimension"><select name="dimension" required={data.policy?.scheme==='bolivia2026'} defaultValue={editing?.dimension||''} disabled={!!editing?.dimension&&data.scores.some(s=>s.assessment_id===editing.id)}><option value="">Sin dimensión (flexible)</option>{Object.entries(dimensions).map(([v,l])=><option value={v} key={v}>{l}</option>)}</select></Field>}
               <div className="form-grid">
                 <Field label="Tipo de calificación" name="type">
                   <select
@@ -423,13 +429,13 @@ function SheetTable({
   search,
   closed,
   refresh,
-  editColumn,
+  editColumn, room, subject,
 }: {
   data: GradeSheetData;
   search: string;
   closed: boolean;
   refresh: () => void;
-  editColumn: (column: GradeColumn) => void;
+  editColumn: (column: GradeColumn) => void; room:string; subject:string;
 }) {
   const scoreIndex=new Map(data.scores.map(value=>[`${value.assessment_id}:${value.student_id}`,value]));
   return (
@@ -445,7 +451,7 @@ function SheetTable({
             <th className="grade-sheet-name">Estudiante</th>
             {data.assessments.map((a) => (
               <th key={a.id}>
-                <span>{a.title}</span>
+                <span>{a.title}</span>{a.dimension&&<small>{dimensions[a.dimension as keyof typeof dimensions]}</small>}
                 <small>
                   {a.grading_type === "qualitative"
                     ? "Cualitativa"
@@ -462,6 +468,7 @@ function SheetTable({
                 )}
               </th>
             ))}
+            {data.policy?.scheme==='bolivia2026'&&<th>Reforzamiento<small>Individual y autorizado</small></th>}
             <th>
               Resultado<small>{gradeMethods[data.method]}</small>
             </th>
@@ -491,8 +498,9 @@ function SheetTable({
                     />
                   </td>
                 ))}
+                {data.policy?.scheme==='bolivia2026'&&<td><ReinforcementCell data={data} studentId={student.studentId} room={room} subject={subject} closed={closed} refresh={refresh}/></td>}
                 <td className="grade-sheet-result">
-                  <strong>{totalLabel(student.total)}</strong>
+                  <strong>{totalLabel(student.total)} {data.policy?.scheme==='bolivia2026'?student.total.classification:''}</strong>{student.total.dimensions?.map(d=><small key={d.code}>{dimensions[d.code as keyof typeof dimensions]}: {d.score??'Pendiente'}</small>)}
                   <small>
                     {student.total.missing
                       ? `${student.total.missing} pendientes`
