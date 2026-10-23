@@ -1,3 +1,4 @@
+import { Interviews } from "./features/Tutoring";
 import {NotificationTests} from "./features/NotificationTests";
 import {clearDrafts} from "./lib/sessionDraft";
 import { StaffWorkspaceScreen } from "./features/StaffWorkspace";
@@ -211,6 +212,7 @@ const nav: {
     group: "TU ESPACIO",
   },
   {key:"studentRecord",label:"Expediente del alumno",icon:BookOpen,roles:["director","teacher","guardian"],group:"TU ESPACIO",hidden:true},
+  {key:"interviews",label:"Entrevistas",icon:CalendarDays,roles:["director","teacher","guardian"],group:"COMUNIDAD"},
   {key:"studentAttendance",label:"Asistencia de alumnos",icon:ListChecks,roles:["director","teacher","guardian"],group:"COMUNIDAD"},
   {key:"staffAttendance",label:"Asistencia del equipo",icon:CalendarDays,roles:["director","teacher"],group:"EQUIPO"},
   {key:"staffPayroll",label:"Boletas de pago",icon:Wallet,roles:["director","teacher"],group:"EQUIPO"},
@@ -450,7 +452,7 @@ function Workspace({
   const studentLocked = !paymentBypass && role === "student" && store.data.studentPortalAccess?.allowed === false;
   const locked = !paymentBypass && role === "guardian" && !access.allowed;
   const startupLocked=liveMode&&role!=="superadmin"&&!identity.support&&school?.platformEnabled===false;
-  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["overview","payments","cash","invoices","requests","studentAttendance","studentRecord"]:["overview","requests"];
+  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["overview","payments","cash","invoices","requests","studentAttendance","studentRecord","interviews"]:["overview","requests"];
   const needsProfile =
     !paymentBypass && role === "guardian" && !!student && !student.profileComplete;
   const requestedPage = location.pathname.split("/")[2] || "overview";
@@ -460,12 +462,12 @@ function Workspace({
       n.roles.includes(role) &&
       (!startupLocked||startupAllowed.includes(n.key))&&
       (n.key !== "support" || identity.canSupport) &&
-      (!locked || ["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord"].includes(n.key)) &&
-      (!needsProfile || ["overview", "payments", "cash", "invoices", "family", "studentAttendance", "studentRecord"].includes(n.key)),
+      (!locked || ["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(n.key)) &&
+      (!needsProfile || ["overview", "payments", "cash", "invoices", "family", "studentAttendance", "studentRecord", "interviews"].includes(n.key)),
   );
   const validPage = startupLocked ? (startupAllowed.includes(page)?page:role==="director"?"credit":startupAllowed[0]) : studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
-    ? (["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord"].includes(page) ? page : "payments")
-    : needsProfile && !["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord"].includes(page)
+    ? (["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(page) ? page : "payments")
+    : needsProfile && !["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(page)
       ? "family"
       : navItems.some((n) => n.key === page)
         ? page
@@ -949,7 +951,7 @@ function Workspace({
             </Button>
           </div>
         )}
-        <main className={`main-content ${validPage === "studentAttendance" ? "attendance-page" : validPage === "gradebook" ? "gradebook-page" : ""}`}>
+        <main className={`main-content ${validPage === "studentAttendance" ? "attendance-page" : validPage === "gradebook" ? "gradebook-page" : validPage === "classrooms" && location.search.includes("classroom=") ? "classroom-page" : ""}`}>
           {startupLocked&&validPage!=="credit"&&<div className="platform-startup-notice" role="status"><b>Crédito inicial pendiente de confirmación</b><p>Dirección debe completar el adelanto de Bs 500 para habilitar la institución. El importe se utilizará para cubrir licencias mensuales.</p></div>}
           {publicDemo && <details className="demo-tour"><summary>Qué puedes probar como {roleNames[role]}</summary><p>{role==="director"?"Crea aulas, inscribe un estudiante con su plan, registra un cobro y consulta los reportes. También puedes probar avisos con confirmación, formularios de inscripción, importación de calendarios, facturas e historial de consultas.":role==="teacher"?"Explora tus aulas, publica una tarea, revisa una entrega y registra los cuidados del día. Publica un aviso obligatorio y cambia a Familia para aceptarlo; al volver podrás ver el reporte de confirmaciones.":role==="guardian"?"Consulta a Sofía y Diego, sus tareas, agenda, cuidados y libretas. Prueba un permiso o un pago simulado; la información académica es de lectura.":"Consulta las tareas de Sofía, escribe una respuesta y entrégala. Luego cambia a Docente para revisar tu entrega."}</p><div className="demo-tour-links">{(role==="director"?[["students","Estudiantes"],["cash","Caja y cobros"],["announcements","Avisos y confirmaciones"],["sites","Sedes"],["admissionForms","Ficha de inscripción"],["calendarImport","Calendario anual"],["invoices","Facturas"],["viewHistory","Historial de consultas"],["reports","Reportes"]]:role==="teacher"?[["assignments","Tareas y entregas"],["announcements","Avisos y confirmaciones"],["care","Cuidados diarios"],["gradebook","Evaluación"],["viewHistory","Historial de consultas"]]:role==="guardian"?[["family","Mis hijos"],["calendar","Agenda"],["gradebook","Libretas"],["cash","Pagos"]]:[["assignments","Entregar una tarea"],["calendar","Agenda"]]).map(([key,label])=><button key={key} onClick={()=>go(key)}>{label}</button>)}</div></details>}
           {resetOpen && <section className="panel" role="alert"><h2>¿Restablecer los datos de la demo?</h2><p>Se borrarán tus cambios locales y volverán los ejemplos iniciales. Los datos de la plataforma real no se modifican.</p><div className="demo-reset-actions"><Button onClick={()=>{store.reset();setResetOpen(false);setModal(null);go("overview");setToast("Demo restablecida. Puedes empezar de nuevo.");}}>Sí, restablecer</Button><Button variant="secondary" onClick={()=>setResetOpen(false)}>Conservar mis pruebas</Button></div></section>}
@@ -1105,6 +1107,7 @@ function Workspace({
               {validPage === "classrooms" && <ClassroomEntry {...props}/>}
               {validPage === "studentRecord" && <StudentRecord {...props}/>}
               {validPage === "notificationTests" && <NotificationTests {...props}/>}
+              {validPage === "interviews" && <Interviews key={`${school?.id}:${student?.id}:${role}`} {...props}/>}
               {validPage === "studentAttendance" && <StudentAttendance key={`${school?.id}-${student?.id}-${role}`} {...props} />}
               {validPage === "subjects" && <Subjects key={`${school?.id}-${student?.id}`} {...props} />}
               {validPage === "assignments" && <Assignments key={`${school?.id}-${student?.id}`} {...props} />}

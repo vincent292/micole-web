@@ -261,6 +261,7 @@ export function WorkspaceModal({
   const [noticeRequired,setNoticeRequired]=useState(!!recovered?.requiresAcknowledgment),[noticeHourly,setNoticeHourly]=useState(!!recovered?.remindHourly);
   const [noticeSearch,setNoticeSearch]=useState('');
   const [noticeTargets,setNoticeTargets]=useState<string[]>(()=>{try{return JSON.parse(String(recovered?._targets||'[]'));}catch{return [];}});
+  const [eventRoomId,setEventRoomId]=useState(String(recovered?.classroomId||store.data.events.find(e=>e.id===id)?.classroomId||contextRoom||""));
   const [admissionRoomId, setAdmissionRoomId] = useState(id ? store.data.students.find(s => s.id === id)?.classroomId || "" : String(recovered?.classroomId||contextRoom));
   const [gradeStudentId,setGradeStudentId]=useState(student?.id||students[0]?.id||"");
   const [planStudentId, setPlanStudentId] = useState(student?.id || "");
@@ -443,9 +444,8 @@ export function WorkspaceModal({
           startTime: val("startTime"), endTime: val("endTime"),
           weekdays: formData.getAll("weekdays").map(Number),
           capacity: num("capacity"), monthlyFee: num("classroomMonthlyFee"), academicYear: num("academicYear"), active: f.classroomActive === "on",
-          teacherIds: formData
-            .getAll("teacherIds")
-            .map(String),
+          tutorTeacherId: val("tutorTeacherId"),
+          teacherIds: [...new Set([...formData.getAll("teacherIds").map(String), ...(val("tutorTeacherId") ? [val("tutorTeacherId")] : [])])],
         });
       if (type === "charge")
         await store.save("charges", {
@@ -521,6 +521,7 @@ export function WorkspaceModal({
           id: id || requestIds.id,
           schoolId,
           classroomId: val("classroomId"),
+          classSubjectId: val("classSubjectId") || undefined,
           title: val("title"),
           description: val("description"),
           date: val("date"),
@@ -956,6 +957,7 @@ export function WorkspaceModal({
           </div>
           <Field label="Días de clase" name="weekdays"><div className="weekday-options">{["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"].map((day,i)=><label key={day}><input type="checkbox" name="weekdays" value={i+1} defaultChecked={(editClassroom?.weekdays || [1,2,3,4,5]).includes(i+1)} />{day}</label>)}</div></Field>
           <label className="check-field"><input type="checkbox" name="classroomActive" defaultChecked={editClassroom?.active !== false} /> Admitir inscripciones en esta aula</label>
+          <Field label="Tutora o jefe de aula" name="tutorTeacherId"><select name="tutorTeacherId" defaultValue={editClassroom?.tutorTeacherId || ""}><option value="">Sin tutora asignada</option>{teachers.filter(t=>t.status!=="inactive").map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select><small>Se vinculará automáticamente al aula. Podrá consultar todas las materias; solo editará las que tenga asignadas.</small></Field>
           <Field label="Docentes asignadas" name="teacherIds">
             <div className="checkbox-list">
               {teachers.map((t) => (
@@ -1145,10 +1147,7 @@ export function WorkspaceModal({
             <Field label="Aula" name="classroomId">
               <select
                 name="classroomId"
-                defaultValue={
-                  editEvent?.classroomId || contextRoom ||
-                  (role === "teacher" ? rooms[0]?.id : "")
-                }
+                value={eventRoomId||(role==="teacher"?rooms[0]?.id||"":"")} onChange={e=>setEventRoomId(e.target.value)}
               >
                 {role !== "teacher" && (
                   <option value="">Toda la institución</option>
@@ -1161,8 +1160,9 @@ export function WorkspaceModal({
               </select>
             </Field>
           </div>
-          {type === "event" && (
-            <Field label="Tipo" name="eventType">
+          {type === "event" && (<>
+            <Field label="Materia (opcional)" name="classSubjectId"><select key={eventRoomId} name="classSubjectId" defaultValue={editEvent?.classSubjectId||""}><option value="">Actividad general del aula</option>{subjectOptions(data,eventRoomId||(role==="teacher"?rooms[0]?.id||"":""),identity,role).map(s=><option key={s.value} value={s.value}>{s.label}</option>)}</select></Field>
+          <Field label="Tipo" name="eventType">
               <select
                 name="eventType"
                 defaultValue={editEvent?.type || "event"}
@@ -1171,7 +1171,7 @@ export function WorkspaceModal({
                 <option value="homework">Tarea</option>
               </select>
             </Field>
-          )}
+          </>)}
           <Field
             label={
               type === "materials"

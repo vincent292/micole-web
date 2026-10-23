@@ -365,3 +365,95 @@ it("la asistencia confirmada bloquea API, SQL y borrado, sin excepciones de rol"
     /definitiva/,
   );
 });
+async function tutoringFixture(){
+ const mathUser=id(170),mathTeacher=id(171),father=id(172);
+ await q("insert into auth.users(id,email,email_confirmed_at) values($1,'math@school.test',now()),($2,'father@school.test',now())",[mathUser,father]);
+ await q("insert into school_memberships(school_id,user_id,role) values($1,$2,'teacher')",[school,mathUser]);
+ await q("insert into teachers(id,school_id,user_id,name,email,status) values($1,$2,$3,'Profesor de Matemáticas','math@school.test','active')",[mathTeacher,school,mathUser]);
+ await q('insert into teacher_classrooms(school_id,teacher_id,classroom_id) values($1,$2,$3)',[school,mathTeacher,room]);
+ await q("update students set father_name='Padre de prueba',father_email='father@school.test' where id=$1",[child]);
+ await mutate(father,'select workspace_identity()');
+ await mutate(director,'select set_classroom_tutor($1,$2)',[room,teacherId]);
+ const subject=(await mutate(director,"select configure_class_subject($1,'Matemáticas',$2::uuid[],true) id",[room,[mathTeacher]])).rows[0].id;
+ const assessment=id(173);
+ await mutate(mathUser,'select save_assessment($1::jsonb)',[JSON.stringify({id:assessment,term_id:id(61),classroom_id:room,class_subject_id:subject,title:'Matemáticas del periodo',assessment_date:'2026-10-22',max_score:100,weight:1})]);
+ await mutate(mathUser,'select save_assessment_scores($1,$2::jsonb)',[assessment,JSON.stringify([{student_id:child,score:42,comment:'Necesita practicar fracciones',revision:0}])]);
+ return {mathUser,mathTeacher,father,subject,assessment};
+}
+const interviewPayload=(f:{subject:string;mathTeacher:string})=>({id:id(180),classroom_id:room,student_id:child,class_subject_id:f.subject,teacher_id:f.mathTeacher,title:'Apoyo en Matemáticas',reason:'Revisar las tareas y coordinar el apoyo.',starts_at:new Date(Date.now()+86400000).toISOString(),ends_at:new Date(Date.now()+88200000).toISOString(),location:'Sala de reuniones'});
+it('la tutora consulta todas las notas sin obtener permiso para calificar otra materia',async()=>{
+ const f=await tutoringFixture();
+ const sheet=(await as(teacher,'select gradebook_workspace($1,$2,$3,null) value',[room,f.subject,id(61)])).rows[0].value;
+ expect(sheet.canManage).toBe(false);expect(sheet.roster).toHaveLength(1);expect(Number(sheet.scores[0].score)).toBe(42);
+ expect((await as(teacher,'select learning_can_manage($1,$2) value',[room,f.subject])).rows[0].value).toBe(false);
+ await expect(mutate(teacher,'select save_assessment_scores($1,$2::jsonb)',[f.assessment,JSON.stringify([{student_id:child,score:100,revision:1}])])).rejects.toThrow();
+ await expect(mutate(teacher,'select set_classroom_tutor($1,$2)',[room,teacherId])).rejects.toThrow(/Dirección/);
+ const overview=(await as(teacher,'select classroom_tutor_overview($1,$2) value',[room,child])).rows[0].value;
+ expect(overview.subjects[0].name).toBe('Matemáticas');expect(overview.feedback[0].comment).toBe('Necesita practicar fracciones');
+ await expect(as(f.mathUser,'select classroom_tutor_overview($1,null)',[room])).rejects.toThrow(/tutora/);
+ await expect(as(stranger,'select gradebook_workspace($1,$2,$3,null)',[room,f.subject,id(61)])).rejects.toThrow();
+});
+it('entrevistas avisan solo a familia y docentes participantes, incluso con deuda, sin eventos públicos',async()=>{
+ const f=await tutoringFixture(),p=interviewPayload(f);
+ await q("insert into school_charges(school_id,student_id,concept,due_date,amount,status) values($1,$2,'Cuota pendiente',current_date-3,100,'overdue')",[school,child]);
+ await mutate(teacher,'select save_classroom_interview($1::jsonb)',[JSON.stringify(p)]);
+ const recipients=(await q("select user_id from notifications where source_id=$1 and kind='interview_1' order by user_id",[p.id])).rows.map(r=>r.user_id);
+ expect(recipients.sort()).toEqual([mother,f.father,teacher,f.mathUser].sort());
+ expect((await q('select count(*)::int n from calendar_events where id=$1',[p.id])).rows[0].n).toBe(0);
+ expect((await as(mother,'select classroom_coordination_workspace($1,null,$2) value',[school,child])).rows[0].value.interviews).toHaveLength(1);
+ const notice=(await q("select id from notifications where source_id=$1 and user_id=$2 and kind='interview_1'",[p.id,mother])).rows[0].id;
+ expect((await q('select aulanexo_private.push_notice_visible($1) value',[notice])).rows[0].value).toBe(true);
+ expect((await as(mother,'select resolve_push_notification($1) value',[notice])).rows[0].value.target).toBe('interviews');
+ await expect(as(stranger,'select classroom_coordination_workspace($1,null,null)',[school])).rejects.toThrow();
+ await expect(mutate(mother,'select save_classroom_interview($1::jsonb)',[JSON.stringify({...p,id:id(181)})])).rejects.toThrow();
+ await expect(mutate(mother,"update classroom_interviews set title='Alterado' where id=$1",[p.id])).rejects.toThrow();
+});
+it('las confirmaciones son personales y una reprogramación exige confirmar la nueva revisión',async()=>{
+ const f=await tutoringFixture(),p=interviewPayload(f);
+ await mutate(teacher,'select save_classroom_interview($1::jsonb)',[JSON.stringify(p)]);
+ await mutate(teacher,'select save_classroom_interview($1::jsonb)',[JSON.stringify(p)]);
+ expect((await q('select revision from classroom_interviews where id=$1',[p.id])).rows[0].revision).toBe(1);
+ await mutate(mother,"select respond_classroom_interview($1,1,'confirmed','')",[p.id]);
+ expect((await q('select user_id from interview_responses where interview_id=$1',[p.id])).rows.map(r=>r.user_id)).toEqual([mother]);
+ await expect(mutate(f.father,"select respond_classroom_interview($1,1,'request_change','')",[p.id])).rejects.toThrow(/motivo/);
+ const updated={...p,revision:1,starts_at:new Date(Date.now()+172800000).toISOString(),ends_at:new Date(Date.now()+174600000).toISOString()};
+ await mutate(teacher,'select save_classroom_interview($1::jsonb)',[JSON.stringify(updated)]);
+ await expect(mutate(mother,"select respond_classroom_interview($1,1,'confirmed','')",[p.id])).rejects.toThrow(/cambió/);
+ const inbox=(await as(mother,'select classroom_coordination_workspace($1,null,$2) value',[school,child])).rows[0].value;
+ expect(inbox.interviews[0].revision).toBe(2);expect(inbox.interviews[0].responses).toHaveLength(0);
+ await expect(mutate(mother,"select close_classroom_interview($1,2,'cancelled')",[p.id])).rejects.toThrow();
+ await mutate(teacher,"select close_classroom_interview($1,2,'cancelled')",[p.id]);
+ expect((await q('select status from classroom_interviews where id=$1',[p.id])).rows[0].status).toBe('cancelled');
+});
+it('la coordinación interna no expone los mensajes a las familias ni permite suplantar al emisor',async()=>{
+ const f=await tutoringFixture(),msg={id:id(190),classroom_id:room,student_id:child,class_subject_id:f.subject,recipient_teacher_id:f.mathTeacher,body:'Revisemos las tareas pendientes de fracciones.'};
+ await mutate(teacher,'select send_classroom_staff_message($1::jsonb)',[JSON.stringify(msg)]);
+ await mutate(teacher,'select send_classroom_staff_message($1::jsonb)',[JSON.stringify(msg)]);
+ expect((await q('select count(*)::int n from classroom_staff_messages')).rows[0].n).toBe(1);
+ expect((await as(mother,'select * from classroom_staff_messages')).rows).toHaveLength(0);
+ expect((await as(f.mathUser,'select * from classroom_staff_messages')).rows).toHaveLength(1);
+ await expect(mutate(mother,'select send_classroom_staff_message($1::jsonb)',[JSON.stringify({...msg,id:id(191)})])).rejects.toThrow();
+ await expect(mutate(teacher,'select send_classroom_staff_message($1::jsonb)',[JSON.stringify({...msg,body:'Alterado'})])).rejects.toThrow(/identificador/);
+ const reply={...msg,id:id(192),recipient_teacher_id:teacherId,body:'Coordinemos una entrevista con la familia.'};
+ await mutate(f.mathUser,'select send_classroom_staff_message($1::jsonb)',[JSON.stringify(reply)]);
+ expect((await as(teacher,'select * from classroom_staff_messages')).rows).toHaveLength(2);
+});
+it('editar el aula conserva las materias y quitar a un docente revoca su tutoría',async()=>{
+ const f=await tutoringFixture(),payload={id:room,school_id:school,name:'Primero A',level:'Primaria'};
+ await mutate(director,'select save_classroom($1::jsonb,$2::uuid[])',[JSON.stringify(payload),[teacherId,f.mathTeacher]]);
+ expect((await q('select tutor_teacher_id from classrooms where id=$1',[room])).rows[0].tutor_teacher_id).toBe(teacherId);
+ expect((await q('select teacher_id from subject_teachers where class_subject_id=$1',[f.subject])).rows.map(r=>r.teacher_id)).toEqual([f.mathTeacher]);
+ await mutate(director,'select save_classroom($1::jsonb,$2::uuid[])',[JSON.stringify(payload),[f.mathTeacher]]);
+ expect((await q('select tutor_teacher_id from classrooms where id=$1',[room])).rows[0].tutor_teacher_id).toBeNull();
+ await expect(as(teacher,'select classroom_tutor_overview($1,null)',[room])).rejects.toThrow();
+});
+it('la tutora lee cuidados pero no puede editar actividades de Matemáticas ni cuidados de otro docente',async()=>{
+ const f=await tutoringFixture(),event=id(195),care=id(196),day=new Date().toISOString().slice(0,10);
+ await mutate(f.mathUser,"insert into calendar_events(id,school_id,classroom_id,class_subject_id,title,description,event_date,type) values($1,$2,$3,$4,'Evaluación de fracciones','Preparar ejercicios',current_date,'homework')",[event,school,room,f.subject]);
+ await expect(mutate(teacher,"update calendar_events set title='Cambio no autorizado' where id=$1",[event])).rejects.toThrow(/docente/);
+ await mutate(f.mathUser,"update calendar_events set title='Fracciones del periodo' where id=$1",[event]);
+ await mutate(f.mathUser,'select save_care_record($1::jsonb)',[JSON.stringify({id:care,student_id:child,entry_date:day,kind:'mood',occurred_at:'09:00',mood:'tired',note:'Llegó con sueño a la clase.'})]);
+ const overview=(await as(teacher,'select classroom_tutor_overview($1,$2) value',[room,child])).rows[0].value;
+ expect(overview.care[0].note).toBe('Llegó con sueño a la clase.');
+ await expect(mutate(teacher,'select save_care_record($1::jsonb)',[JSON.stringify({id:care,student_id:child,entry_date:day,kind:'mood',occurred_at:'09:00',mood:'happy',note:'Cambiar comentario ajeno.'})])).rejects.toThrow(/autor/);
+});

@@ -30,6 +30,7 @@ export interface School {
   activeStudentCount?: number;
 }
 export interface Classroom {
+  tutorTeacherId?: string;
   subjectsEnabled?: boolean;
   id: string;
   schoolId: string;
@@ -191,6 +192,8 @@ export interface FamilyRequest {
   createdAt: string;
 }
 export interface CalendarEvent {
+  classSubjectId?: string;
+  createdBy?: string;
   endDate?: string;
   id: string;
   schoolId: string;

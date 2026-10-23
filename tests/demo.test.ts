@@ -338,3 +338,12 @@ it("filtra las consultas por el día de Bolivia después de medianoche UTC", asy
     expect(next.total).toBe(0);
   } finally { vi.useRealTimers(); }
 });
+it('las entrevistas de la demo se guardan localmente y las respuestas no llaman a Supabase',async()=>{
+ const d=readDemoData(),child=d.students.find(s=>[s.motherEmail,s.fatherEmail,s.guardianEmail].includes('familia@micole.test'))!,room=d.classrooms.find(r=>r.id===child.classroomId)!,subject=d.classSubjects.find(s=>s.classroomId===room.id),assigned=d.subjectTeachers.find(t=>t.classSubjectId===subject?.id),teacher=d.teachers.find(t=>t.id===(assigned?.teacherId||room.teacherIds[0]))!;
+ const start=new Date(Date.now()+86400000).toISOString(),payload={id:'demo-interview-local',classroom_id:room.id,student_id:child.id,class_subject_id:subject?.id||null,teacher_id:teacher.id,title:'Apoyo familiar',reason:'Coordinar tareas pendientes.',starts_at:start,ends_at:new Date(Date.parse(start)+1800000).toISOString(),location:'Dirección'};
+ await demoRpc('save_classroom_interview',{p_interview:payload});
+ let inbox=await demoRpc<any>('classroom_coordination_workspace',{p_school_id:room.schoolId,p_classroom_id:room.id});expect(inbox.interviews).toHaveLength(1);
+ setDemoRole('guardian');inbox=await demoRpc<any>('classroom_coordination_workspace',{p_school_id:room.schoolId,p_student_id:child.id});expect(inbox.messages).toEqual([]);
+ expect(inbox.interviews).toHaveLength(1);await demoRpc('respond_classroom_interview',{p_id:payload.id,p_revision:1,p_response:'confirmed',p_note:''});inbox=await demoRpc<any>('classroom_coordination_workspace',{p_school_id:room.schoolId,p_student_id:child.id});expect(inbox.interviews[0].responses[0].response).toBe('confirmed');
+ expect(fetch).not.toHaveBeenCalled();resetDemo();setDemoRole('director');expect((await demoRpc<any>('classroom_coordination_workspace',{p_school_id:room.schoolId})).interviews).toEqual([]);
+});

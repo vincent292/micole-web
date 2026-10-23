@@ -58,6 +58,7 @@ export function subjectOptions(
   classroomId: string,
   identity?: Identity,
   role?: Role,
+  readAll = false,
 ) {
   return data.classSubjects
     .filter(
@@ -65,6 +66,7 @@ export function subjectOptions(
         cs.classroomId === classroomId &&
         cs.active &&
         (role !== "teacher" ||
+          (readAll && !!identity?.teacherIds.includes(data.classrooms.find(r=>r.id===classroomId)?.tutorTeacherId || "")) ||
           data.subjectTeachers.some(
             (st) =>
               st.classSubjectId === cs.id &&

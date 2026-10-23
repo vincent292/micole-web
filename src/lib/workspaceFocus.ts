@@ -3,6 +3,8 @@ import { studentAccess, today } from "./billing";
 import { ownerPaymentAccess } from "./support-access";
 export const classroomTabs = {
   students: "Alumnos",
+  tutoring: "Tutoría",
+  interviews: "Entrevistas",
   studentAttendance: "Asistencia",
   subjects: "Materias",
   assignments: "Tareas",
@@ -18,6 +20,7 @@ export const studentTabs = {
   attendance: "Asistencia",
   documents: "Documentos",
   learning: "Seguimiento",
+  tutoring: "Tutoría",
   account: "Cuotas y recibos",
   invoices: "Facturas",
 } as const;
@@ -71,7 +74,7 @@ export function recordAcademicAccess(
   );
 }
 export function recordTabs(role: Role) {
-  return (Object.keys(studentTabs) as StudentTab[]).filter(
+  return (Object.keys(studentTabs) as StudentTab[]).filter(k=>k!=="tutoring"||role==="teacher"||role==="director").filter(
     (k) =>
       role !== "teacher" || !["documents", "account", "invoices"].includes(k),
   );

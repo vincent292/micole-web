@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Button, Empty, Field, Modal, SectionTitle } from "../components/UI";
 import type { PageProps } from "./Pages";
@@ -18,9 +19,10 @@ import {
 } from "../lib/gradeSheet";
 import "../styles/grade-sheet.css";
 export function Gradebook(p: PageProps) {
+  const params = new URLSearchParams(useLocation().search);
   const [view, setView] = useState("sheet"),
-    [roomId, setRoomId] = useState(""),
-    [subjectId, setSubjectId] = useState(""),
+    [roomId, setRoomId] = useState(params.get("classroom")||""),
+    [subjectId, setSubjectId] = useState(params.get("subject")||""),
     [termId, setTermId] = useState(""),
     [dialog, setDialog] = useState<"column" | "settings" | null>(null),
     [editing, setEditing] = useState<GradeColumn | null>(null),
@@ -39,7 +41,7 @@ export function Gradebook(p: PageProps) {
   );
   const room = rooms.find((r) => r.id === roomId) || rooms[0];
   const subjects = room
-    ? subjectOptions(p.store.data, room.id, p.identity, p.role)
+    ? subjectOptions(p.store.data, room.id, p.identity, p.role, true)
     : [];
   const subject =
     subjects.find((s) => s.value === subjectId)?.value ||

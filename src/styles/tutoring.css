@@ -1,0 +1,11 @@
+.classroom-page > .view-top{display:none}
+.classroom-page .focus-heading{padding:16px 20px;margin-top:12px}
+.classroom-page .focus-heading h2{font-size:24px}
+.tutor-workspace{display:grid;gap:16px}
+.tutor-workspace > .panel{margin:0;padding:18px 20px}
+.tutor-workspace > p{margin:0}
+.tutor-subjects{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px}
+.tutor-subjects .entity-card{padding:20px;gap:8px}
+.tutor-subjects .entity-card h3{margin:0}
+.tutor-subjects .request-actions{gap:6px;flex-wrap:wrap}
+@media(max-width:600px){.classroom-page .focus-heading{padding:14px}.tutor-workspace > .panel{padding:16px}.tutor-subjects .entity-card{padding:16px}}

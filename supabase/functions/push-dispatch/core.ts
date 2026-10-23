@@ -52,6 +52,8 @@ export function firebaseMessage(item: Delivery) {
     title = "Actualización de asistencia";
     body = "Revisa el registro de asistencia en tu cuenta de MiCole.";
   }
+  if (kind.startsWith("interview_")) { title="Entrevista familiar en MiCole"; body="Revisa la convocatoria o respuesta y su horario dentro de MiCole."; }
+  if (kind === "classroom_message") { title="Coordinación del aula"; body="Tienes un mensaje privado del equipo docente en MiCole."; }
   if (kind === "grade") title = "Nueva nota o recomendación";
   if (kind === "daily_task") title = "Nueva tarea en MiCole";
   if (kind === "payment_receipt") {

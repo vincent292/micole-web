@@ -10,3 +10,10 @@ describe('FCM delivery contract',()=>{
 
 it('cada escenario de prueba conserva su canal e icono con texto ficticio y sin datos personales',()=>{for(const t of notificationTestTemplates){const m=firebaseMessage({token:'synthetic-token',recipientId:'owner',notificationId:'notice',category:t.category,kind:'push_test',isTest:true,testKind:t.kind,testLabel:t.label,alertType:t.alertType});expect(m.message.notification.title).toBe('[PRUEBA] '+t.label);expect(m.message.notification.body).toContain('ficticio');expect(m.message.android.notification.channel_id).toBe(`micole-${t.alertType==='general'?'alerts':t.alertType}`);expect(m.message.data).toEqual({notificationId:'notice',recipientId:'owner'});}});
 it('los metadatos de prueba no alteran una notificación real sin la marca de servidor',()=>{const base={token:'synthetic',recipientId:'parent',notificationId:'notice',category:'academic',kind:'grade'};expect(firebaseMessage({...base,testLabel:'No autorizado',testKind:'message'})).toEqual(firebaseMessage(base));});
+it('entrevistas y coordinación docente usan avisos privados sin revelar el motivo ni notas',()=>{
+ for(const kind of ['interview_1','interview_response_1_2','classroom_message']){
+  const message=firebaseMessage({token:'synthetic',recipientId:'family',notificationId:'notice',category:kind==='classroom_message'?'messages':'academic',kind}).message;
+  expect(message.notification.title).toBe(kind==='classroom_message'?'Coordinación del aula':'Entrevista familiar en MiCole');
+  expect(message.data).toEqual({recipientId:'family',notificationId:'notice'});expect(message.notification.body).not.toMatch(/Matemáticas|Lucía|42/);
+ }
+});

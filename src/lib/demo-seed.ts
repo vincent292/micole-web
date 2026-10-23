@@ -55,6 +55,7 @@ export function makeDemoSeed(): AppData {
     endTime: "12:30",
     teacherIds: ["t1", "t3"],
     subjectsEnabled: true,
+    tutorTeacherId: "t1",
   });
   data.teachers = data.teachers
     .filter((t) => t.schoolId === "s1")

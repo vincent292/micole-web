@@ -1,3 +1,4 @@
+import { canManageAssignment } from "./learning";
 import {publishWorkspaceChange} from "./workspaceEvents";
 import {defaultGradeLabels,type GradeTotal} from "./gradeSheet";
 import { makeDemoSeed, makeDemoWorkspace, demoCards } from "./demo-seed";
@@ -130,6 +131,7 @@ export function subscribeDemo(listener: () => void) {
 export function resetDemo() {
   const data = makeDemoSeed();
   localStorage.removeItem(extraKey);
+  localStorage.removeItem("micole_public_demo_tutoring_v1");
   localStorage.removeItem("micole_public_demo_features_v1");
   localStorage.removeItem("micole_public_demo_sites_v1");
   localStorage.removeItem("micole_public_demo_staff_v1");
@@ -172,6 +174,8 @@ function requireStaff(director = false) {
     );
 }
 export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
+  const tutoring=await import("./demo-tutoring");
+  if(tutoring.tutoringOperations.includes(name)) return tutoring.demoTutoringRpc(name,parameters) as Promise<T>;
   const attendance=await import("./demo-student-attendance");
   if(attendance.studentAttendanceOperations.includes(name)) return attendance.demoStudentAttendanceRpc(name,parameters) as Promise<T>;
   const staff=await import("./demo-staff");
@@ -219,9 +223,9 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
   switch (name) {
     case 'gradebook_workspace': {
      mutation=false;const room=data.classrooms.find(r=>r.id===p.p_classroom_id);if(!room)throw new Error('Selecciona un aula.');
-     const year=w.years.find(y=>y.year===room.academicYear&&y.schoolId===room.schoolId),terms=w.terms.filter(t=>t.yearId===year?.id),term=terms.find(t=>t.id===p.p_term_id)||terms.find(t=>t.status==='open')||terms[0],manager=['director','teacher'].includes(demoRole()||'');
+     const year=w.years.find(y=>y.year===room.academicYear&&y.schoolId===room.schoolId),terms=w.terms.filter(t=>t.yearId===year?.id),term=terms.find(t=>t.id===p.p_term_id)||terms.find(t=>t.status==='open')||terms[0],viewer=['director','teacher'].includes(demoRole()||''),manager=demoRole()==='director'||canManageAssignment(data,{teacherIds:data.teachers.filter(t=>t.email==='docente@micole.test').map(t=>t.id)} as any,demoRole()!,{classroomId:room.id,classSubjectId:p.p_subject_id||undefined});
      const columns=w.assessments.filter(a=>a.termId===term?.id&&a.classroomId===room.id&&(a.classSubjectId||'')===(p.p_subject_id||''));
-     const pupils=[...new Set(w.enrollments.filter(e=>e.classroomId===room.id&&e.yearId===year?.id&&(manager||e.studentId===p.p_student_id)).map(e=>e.studentId))];
+     const pupils=[...new Set(w.enrollments.filter(e=>e.classroomId===room.id&&e.yearId===year?.id&&(viewer||e.studentId===p.p_student_id)).map(e=>e.studentId))];
      result={canManage:manager,canConfigure:demoRole()==='director',schoolId:room.schoolId,termId:term?.id||null,terms:terms.map(snake),settings:extra.gradeSettings?.[room.schoolId]||{maxCorrections:3,labels:defaultGradeLabels},method:extra.gradeRules?.[gradeRuleKey(term?.id||'',room.id,p.p_subject_id)]||'weighted',assessments:columns.map(a=>({...snake(a),grading_type:a.gradingType||'numeric',qualitative_options:a.qualitativeOptions||[]})),scores:w.scores.filter(s=>columns.some(a=>a.id===s.assessmentId)&&pupils.includes(s.studentId)).map(s=>({...snake(s),revision:s.revision||1,corrections:s.corrections||0})),roster:pupils.map(studentId=>({studentId,studentName:(()=>{const pupil=findStudent(studentId);return `${pupil.firstName} ${pupil.lastName}`;})(),total:demoGradeTotal(term?.id||'',room.id,p.p_subject_id,studentId)}))};break;
     }
     case 'save_gradebook_settings': {

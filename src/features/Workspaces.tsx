@@ -1,3 +1,5 @@
+import { Interviews, Tutoring } from "./Tutoring";
+import { isClassroomTutor } from "../lib/tutoring";
 import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ArrowLeft, ArrowRight, FileText, Heart, Phone } from "lucide-react";
@@ -141,12 +143,14 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
       <Tabs
         label="Trabajo del aula"
         value={tab}
-        options={Object.entries(classroomTabs)}
+        options={Object.entries(classroomTabs).filter(([key])=>key!=="tutoring"||p.role==="director"||isClassroomTutor(p.store.data,p.identity,p.role,room.id))}
         onChange={setTab}
       />
       <div key={`${room.id}:${tab}`} className="focus-content">
         {tab === "students" && <Directory page="students" {...childProps} />}
         {tab === "subjects" && <Subjects {...childProps} />}
+        {tab === "tutoring" && <Tutoring {...childProps} roomId={room.id}/>}
+        {tab === "interviews" && <Interviews {...childProps} roomId={room.id} childId={params.get("student")||undefined}/>}
         {tab === "assignments" && <Assignments {...childProps} />}
         {tab === "studentAttendance" && <StudentAttendance {...childProps} />}
         {tab === "gradebook" && <Gradebook {...childProps} />}
@@ -166,7 +170,7 @@ export function StudentRecord(p: PageProps) {
         : params.get("student") || p.student?.id;
   const child = p.students.find((s) => s.id === requestedId),
     room = p.store.data.classrooms.find((r) => r.id === child?.classroomId);
-  const tabs = recordTabs(p.role),
+  const tabs = recordTabs(p.role).filter(key=>key!=="tutoring"||p.role==="director"||(room&&isClassroomTutor(p.store.data,p.identity,p.role,room.id))),
     requested = params.get("tab") || "summary",
     tab = tabs.includes(requested as StudentTab)
       ? (requested as StudentTab)
@@ -476,6 +480,7 @@ export function StudentRecord(p: PageProps) {
             )}
           </section>
         )}
+        {tab === "tutoring" && <Tutoring {...focused} roomId={room.id} childId={child.id}/>}
         {tab === "learning" &&
           (academic ? (
             <RecordLearning {...focused} />

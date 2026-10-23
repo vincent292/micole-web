@@ -1,3 +1,6 @@
+import { useCoordination } from "../lib/useTutoring";
+import { canManageAssignment } from "../lib/learning";
+import { interviewCalendar } from "../lib/tutoring";
 import {ContentSeen} from '../components/ContentSeen';
 import {openAnnouncement} from '../lib/announcementEvents';
 import {noticeCategories} from '../lib/announcements';
@@ -842,6 +845,7 @@ export function Community({
       role === "teacher" || role === "director" || role === "superadmin";
   const [body, setBody] = useState("");
   const [threadId, setThreadId] = useState("");
+  const interviewFeed = useCoordination(school?.id,undefined,role==="guardian"?student?.id:undefined,page==="calendar"&&role!=="student"&&role!=="superadmin");
   const [month, setMonth] = useState(today().slice(0, 7));
   const [selectedDay, setSelectedDay] = useState("");
   const changeMonth = (value: string) => { if (value) { setMonth(value); setSelectedDay(""); } };
@@ -1000,7 +1004,7 @@ export function Community({
         description: fullName(s),
         type: "birthday",
       }));
-    const agenda = (page === "calendar" ? [...expandCalendarEvents(events,month), ...birthdays, ...taskDates] : events)
+    const agenda = (page === "calendar" ? [...expandCalendarEvents(events,month), ...birthdays, ...taskDates, ...interviewCalendar(interviewFeed.data?.interviews||[]).filter(e=>rooms.some(r=>r.id===e.classroomId))] : events)
       .filter((e) => e.date.startsWith(month))
       .sort((a, b) => a.date.localeCompare(b.date));
     return (
@@ -1068,7 +1072,8 @@ export function Community({
                 <p>{e.description}</p>
               </div>
               {e.id.startsWith("assignment-") && <Button variant="ghost" onClick={()=>go("assignments")}>Ver tarea</Button>}
-              {canWrite && !e.id.startsWith("birthday-") && !e.id.startsWith("assignment-") && (
+              {e.id.startsWith("interview-") && <Button variant="ghost" onClick={()=>go("interviews")}>Ver entrevista</Button>}
+              {canWrite && (role!=="teacher" || ("classSubjectId" in e && e.classSubjectId ? canManageAssignment(data,identity,role,{classroomId:String("classroomId" in e?e.classroomId:""),classSubjectId:String(e.classSubjectId)}) : "createdBy" in e && e.createdBy===identity.id)) && !e.id.startsWith("interview-") && !e.id.startsWith("birthday-") && !e.id.startsWith("assignment-") && (
                 <button
                   className="icon-button"
                   title="Editar evento"

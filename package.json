@@ -48,7 +48,8 @@
     "supabase:migrate:testing-accounts": "node scripts/migrate-persisted-testing.mjs --apply",
     "supabase:setup:testing-accounts": "node scripts/setup-testing-accounts.mjs --apply",
     "supabase:migrate:gradebook-sheet": "node scripts/migrate-gradebook-sheet.mjs --apply",
-    "supabase:migrate:realtime": "node scripts/migrate-realtime.mjs --apply"
+    "supabase:migrate:realtime": "node scripts/migrate-realtime.mjs --apply",
+    "supabase:migrate:tutoring": "node scripts/migrate-tutoring.mjs --apply"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
