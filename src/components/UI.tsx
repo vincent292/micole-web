@@ -323,9 +323,9 @@ export function Modal({
     const focusable = () =>
       [
         ...(dialog.current?.querySelectorAll<HTMLElement>(
-          "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]",
+          "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]",
         ) || []),
-      ].filter((node) => node.getClientRects().length > 0);
+      ].filter((node) => node.tabIndex >= 0 && !node.matches(":disabled") && !node.closest("[inert]") && node.getClientRects().length > 0);
     const modalToken = token.current;
     if (!modalStack.length)
       bodyOverflowBeforeModals = document.body.style.overflow;
@@ -355,10 +355,13 @@ export function Modal({
         const items = focusable();
         const first = items[0],
           last = items.at(-1);
-        if (e.shiftKey && document.activeElement === first) {
+        if (!items.length) {
+          e.preventDefault();
+          dialog.current?.focus({ preventScroll: true });
+        } else if (e.shiftKey && (document.activeElement === first || !items.includes(document.activeElement as HTMLElement))) {
           e.preventDefault();
           last?.focus({ preventScroll: true });
-        } else if (!e.shiftKey && document.activeElement === last) {
+        } else if (!e.shiftKey && (document.activeElement === last || !items.includes(document.activeElement as HTMLElement))) {
           e.preventDefault();
           first?.focus({ preventScroll: true });
         }

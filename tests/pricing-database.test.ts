@@ -209,6 +209,7 @@ async function reserve(items:any[],user=mother,kind='school',invoice:any={}){
  return (await acting(user,()=>q("select reserve_baneco_payment($1,$2,$3,$4::jsonb,$5::jsonb) as value",[kind,school,kind==='school'?child:null,JSON.stringify(items),JSON.stringify(invoice)]))).rows[0].value;
 }
 async function generated(r:any,qr='QR-UNICO'){
+ await server(()=>q('select bank_generation_context($1,$2)',[r.id,r.operationToken]));
  return server(()=>q('select bank_finish_generation($1,$2,$3,$4,null,false)',[r.id,r.operationToken,qr,'data:image/png;base64,iVBORw0KGgo=']));
 }
 async function paid(r:any,transaction='BANCO-001'){

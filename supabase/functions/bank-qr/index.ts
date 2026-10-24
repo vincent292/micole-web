@@ -9,8 +9,9 @@ async function connection(version:string){const c=await call<{environment:'test'
 async function generate(reservation:{id:string;generate:boolean;operationToken?:string}){
  if(!reservation.generate)return;
  const p={p_id:reservation.id,p_token:reservation.operationToken!};let qrId:string|null=null,image:string|null=null,attempted=false;
+ // A losing/replayed claim must never finish or release another invocation’s reservation.
+ const row=await call<{id:string;connectionId:string;transactionId:string;amount:number;currency:'BOB';dueDate:string;description:string}>(db,'bank_generation_context',p);
  try{
-  const row=await call<{id:string;connectionId:string;transactionId:string;amount:number;currency:'BOB';dueDate:string;description:string}>(db,'bank_generation_context',p);
   const {bank,branchCode}=await connection(row.connectionId);
   attempted=true;
   const qr=await bank.generate({transactionId:row.transactionId,amount:Number(row.amount),currency:'BOB',dueDate:row.dueDate,description:row.description,branchCode});qrId=qr.qrId;image=qr.image;

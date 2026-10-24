@@ -1,3 +1,5 @@
+import {useAttendanceDraft} from "../lib/useAttendanceDraft";
+import {draftKey} from "../lib/sessionDraft";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { CalendarCheck, Download, CheckCheck, RefreshCw } from "lucide-react";
@@ -61,19 +63,15 @@ export function StudentAttendance({
     family ? student?.id : undefined,
     school?.id,
   );
-  const key = `${room?.id}:${day}`;
-  const [draft, setDraft] = useState<{
-      key: string;
-      marks: AttendanceMark[];
-      revision: number;
-    } | null>(null),
-    [confirm, setConfirm] = useState<string | null>(null),
+  const key = draftKey(identity.id, role, school?.id || "", `${room?.id}:${day}`, "student-attendance");
+  const confirmed = data?.session?.status === "confirmed";
+  const [draft, setDraft] = useAttendanceDraft(key, confirmed);
+  const [confirm, setConfirm] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
-  const confirmed = data?.session?.status === "confirmed";
-  const dirty = draft?.key === key && !confirmed;
-  const marks = dirty ? draft.marks : data ? attendanceMarks(data, day) : [];
+  const dirty = !!data && draft?.key === key && !confirmed;
+  const marks = dirty ? draft.marks.filter(mark => data?.roster.some(child => child.student_id === mark.studentId)) : data ? attendanceMarks(data, day) : [];
   const counts = attendanceCounts(marks);
   useEffect(() => {
     if (!dirty) return;

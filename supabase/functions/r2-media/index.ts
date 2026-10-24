@@ -54,7 +54,11 @@ Deno.serve(async (req: Request) => {
       await s3.send(new PutObjectCommand({Bucket:bucket,Key:finalKey,Body:bytes,ContentType:file.mime_type}));
       const server=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
       const {data:finished,error:finishError}=await server.rpc('finish_financial_file',{p_id:file.id,p_size:bytes.length,p_mime_type:file.mime_type,p_object_key:finalKey});
-      if(finishError||finished!==true){await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:finalKey})).catch(()=>{});return reply({error:'No se pudo confirmar el documento. Revisa el estado antes de volver a intentar.'},400);}
+      if(finishError||finished!==true){
+        // Delete only after an explicit, successful RPC rejection, never after transport failure.
+        if(!finishError)await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:finalKey})).catch(()=>{});
+        return reply({error:'No se pudo confirmar el documento. Revisa el estado antes de volver a intentar.'},400);
+      }
       await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:file.staging_key})).catch(()=>{});return reply({id:file.id});
     }
     if (body.action === 'pickup_download') {
@@ -102,8 +106,21 @@ Deno.serve(async (req: Request) => {
       const {data:asset,error}=await db.rpc('assignment_file_for_upload',{p_id:body.assetId});if(error||!asset)return reply({error:error?.message||'Esta carga no está autorizada.'},403);
       const head=await s3.send(new HeadObjectCommand({Bucket:bucket,Key:asset.object_key}));
       if(head.ContentLength!==asset.size_bytes||head.ContentType!==asset.mime_type){await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:asset.object_key}));return reply({error:'El archivo no coincide con la carga autorizada.'},400);}
+      const object=await s3.send(new GetObjectCommand({Bucket:bucket,Key:asset.object_key,IfMatch:head.ETag}));
+      const bytes=await object.Body!.transformToByteArray();
+      if(bytes.length!==asset.size_bytes||!financialDocumentMatches(bytes,asset.mime_type))return reply({error:'Adjunta un PDF, JPG, PNG o WebP válido.'},400);
+      const ext=asset.mime_type==='application/pdf'?'pdf':asset.mime_type==='image/jpeg'?'jpg':asset.mime_type==='image/png'?'png':'webp';
+      const finalKey=`${asset.school_id}/assignments/ready/${asset.id}/${crypto.randomUUID()}.${ext}`;
+      await s3.send(new PutObjectCommand({Bucket:bucket,Key:finalKey,Body:bytes,ContentType:asset.mime_type}));
       const server=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
-      const {error:finishError}=await server.rpc('finish_assignment_file',{p_id:asset.id,p_size:head.ContentLength,p_mime_type:head.ContentType});if(finishError)return reply({error:'No se pudo confirmar el archivo; verifica el plazo de la tarea.'},400);
+      const {error:finishError}=await server.rpc('finish_assignment_file',{p_id:asset.id,p_size:bytes.length,p_mime_type:asset.mime_type,p_object_key:finalKey});
+      if(finishError){
+        // A lost RPC response may hide a committed update. Never delete its final object.
+        const {data:current}=await db.from('assignment_files').select('status,object_key').eq('id',asset.id).maybeSingle();
+        if(current?.status==='ready'&&current.object_key===finalKey)return reply({id:asset.id});
+        return reply({error:'No se pudo confirmar el archivo; verifica el estado y el plazo de la tarea antes de reintentar.'},400);
+      }
+      await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:asset.object_key})).catch(()=>{});
       return reply({id:asset.id});
     }
     const isDocument = String(body.action).startsWith('document_');
@@ -124,7 +141,7 @@ Deno.serve(async (req: Request) => {
       if (!validTypes.includes(body.mimeType) || !Number.isInteger(body.size) || body.size <= 0 || body.size > 5 * 1024 * 1024) return reply({ error: isDocument ? 'Usa PDF, JPG, PNG o WebP de hasta 5 MB.' : 'Usa JPG, PNG o WebP de hasta 5 MB.' }, 400);
       const ext = body.mimeType === 'application/pdf' ? 'pdf' : body.mimeType === 'image/jpeg' ? 'jpg' : body.mimeType === 'image/png' ? 'png' : 'webp';
       const objectKey = `${prefix}${crypto.randomUUID()}.${ext}`;
-      const url = await getSignedUrl(s3, new PutObjectCommand({ Bucket: bucket, Key: objectKey, ContentType: body.mimeType }), { expiresIn: 120 });
+      const url = await getSignedUrl(s3, new PutObjectCommand({ Bucket: bucket, Key: objectKey, ContentType: body.mimeType, ContentLength: body.size }), { expiresIn: 120 });
       return reply({ url, objectKey });
     }
     const key = String(body.objectKey || '');

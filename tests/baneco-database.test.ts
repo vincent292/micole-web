@@ -209,6 +209,7 @@ async function reserve(items:any[],user=mother,kind='school',invoice:any={}){
  return (await acting(user,()=>q("select reserve_baneco_payment($1,$2,$3,$4::jsonb,$5::jsonb) as value",[kind,school,kind==='school'?child:null,JSON.stringify(items),JSON.stringify(invoice)]))).rows[0].value;
 }
 async function generated(r:any,qr='QR-UNICO'){
+ await server(()=>q('select bank_generation_context($1,$2)',[r.id,r.operationToken]));
  return server(()=>q('select bank_finish_generation($1,$2,$3,$4,null,false)',[r.id,r.operationToken,qr,'data:image/png;base64,iVBORw0KGgo=']));
 }
 async function paid(r:any,transaction='BANCO-001'){
@@ -334,4 +335,34 @@ describe('conexiones Baneco separadas y cobros verificados',()=>{
   expect(stored.credentials).toEqual(credentials);
  });
 
+});
+
+describe('recuperación segura de reservas interrumpidas',()=>{
+ it('libera una reserva nunca reclamada por el servidor y permite cobrar de nuevo',async()=>{
+  await connect();const c=await charge(),r=await reserve([{chargeId:c,amount:500}]);
+  await q("update aulanexo_private.bank_qr_intents set operation_until=now()-interval '1 second' where id=$1",[r.id]);
+  const retry=await reserve([{chargeId:c,amount:500}]);
+  expect(retry.generate).toBe(true);expect(retry.id).not.toBe(r.id);
+  expect((await q('select reserved from aulanexo_private.bank_qr_allocations where intent_id=$1',[r.id])).rows[0].reserved).toBe(false);
+  await expect(server(()=>q('select bank_generation_context($1,$2)',[r.id,r.operationToken]))).rejects.toThrow(/busy/);
+ });
+ it('solo el servidor reclama una generación y solo una vez; no libera un envío incierto',async()=>{
+  await connect();const c=await charge(),r=await reserve([{chargeId:c,amount:500}]);
+  await expect(as(mother,()=>q('select bank_generation_context($1,$2)',[r.id,r.operationToken]))).rejects.toThrow(/permission denied/);
+  await server(()=>q('select bank_generation_context($1,$2)',[r.id,r.operationToken]));
+  await expect(server(()=>q('select bank_generation_context($1,$2)',[r.id,r.operationToken]))).rejects.toThrow(/busy/);
+  await q("update aulanexo_private.bank_qr_intents set operation_until=now()-interval '1 second' where id=$1",[r.id]);
+  await server(()=>q('select bank_claim_reconciliation($1,false)',[r.id]));
+  expect((await q('select status from aulanexo_private.bank_qr_intents where id=$1',[r.id])).rows[0].status).toBe('unknown');
+  expect((await q('select reserved from aulanexo_private.bank_qr_allocations where intent_id=$1',[r.id])).rows[0].reserved).toBe(true);
+  expect((await reserve([{chargeId:c,amount:500}])).id).toBe(r.id);
+ });
+ it('recupera también el enlace público que quedó reservado sin generación',async()=>{
+  await connect();const c=await charge();
+  const token=(await acting(director,()=>q("select create_payment_link($1,$2::jsonb) as value",[child,JSON.stringify([{chargeId:c,amount:500}])]))).rows[0].value;
+  const r=(await server(()=>q("select reserve_baneco_link($1,'{}') as value",[token]))).rows[0].value;
+  await q("update aulanexo_private.bank_qr_intents set operation_until=now()-interval '1 second' where id=$1",[r.id]);
+  const retry=(await server(()=>q("select reserve_baneco_link($1,'{}') as value",[token]))).rows[0].value;
+  expect(retry.generate).toBe(true);expect(retry.id).not.toBe(r.id);
+ });
 });

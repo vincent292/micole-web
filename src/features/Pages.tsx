@@ -593,9 +593,11 @@ export function Payments({
   const {rates}=usePlatformTariffs(school?.id);
   const usable = charges.filter((c) => c.status !== "cancelled");
   const sum = (paid: boolean) =>
-    usable
-      .filter((c) => (c.status === "paid") === paid)
-      .reduce((a, c) => a + (platform&&!paid?platformBalance(c):c.amount), 0);
+    usable.reduce((total, charge) => {
+      const isPlatform = platform || store.data.platformCharges.some((item) => item.id === charge.id);
+      const balance = isPlatform ? platformBalance(charge) : chargeBalance(charge);
+      return total + (paid ? Math.max(0, charge.amount - balance) : balance);
+    }, 0);
   return (
     <>
       {platform&&<TariffSettings schools={store.data.schools}/>}
@@ -644,7 +646,7 @@ export function Payments({
       />
       <div className="stats-grid three">
         <StatCard
-          label="Pagos registrados"
+          label="Importe cubierto"
           value={money(sum(true))}
           icon={CheckCircle2}
         />

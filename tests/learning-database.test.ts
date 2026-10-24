@@ -406,17 +406,26 @@ describe("materias y entregas privadas", () => {
     const file = (await reserve()).rows[0].value;
     await expect(
       as(kid, () =>
-        q("select finish_assignment_file($1,100,$2)", [
+        q("select finish_assignment_file($1,100,$2,$3)", [
           file.id,
           "application/pdf",
+          `${school}/assignments/ready/${file.id}/${id(999)}.pdf`,
         ]),
       ),
     ).rejects.toThrow(/permission denied/);
     await expect(submit(id(100), "")).rejects.toThrow(/respuesta o adjunta/);
-    await q("select finish_assignment_file($1,100,$2)", [
+    await q("select finish_assignment_file($1,100,$2,$3)", [
       file.id,
       "application/pdf",
+      `${school}/assignments/ready/${file.id}/${id(999)}.pdf`,
     ]);
+    const finalKey=(await q('select object_key from assignment_files where id=$1',[file.id])).rows[0].object_key;
+    expect(finalKey).not.toBe(file.objectKey);
+    expect(finalKey).toContain('/assignments/ready/');
+    await expect(as(kid,()=>q('select assignment_file_for_upload($1)',[file.id]))).rejects.toThrow(/autorizada|caducó/);
+    await db.exec('savepoint rejected_finalize');
+    await expect(q('select finish_assignment_file($1,100,$2,$3)',[file.id,'application/pdf',`${school}/assignments/ready/${file.id}/${id(998)}.pdf`])).rejects.toThrow(/autorización/);
+    await db.exec('rollback to savepoint rejected_finalize;release savepoint rejected_finalize');
     await submit(id(100), "");
     expect(
       (await as(mother, () => q("select file_name from assignment_files")))
