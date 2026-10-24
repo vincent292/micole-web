@@ -1,3 +1,5 @@
+import {attendanceSubmissionId,clearAttendanceSubmission} from "../lib/attendanceSubmission";
+import {AttendanceCorrections} from "./AttendanceCorrections";
 import {useAttendanceDraft} from "../lib/useAttendanceDraft";
 import {draftKey} from "../lib/sessionDraft";
 import { useEffect, useState } from "react";
@@ -116,17 +118,9 @@ export function StudentAttendance({
     setBusy(true);
     setError("");
     try {
-      const result = await rpc<{ notifications: number }>(
-        "save_student_attendance",
-        {
-          p_classroom_id: room.id,
-          p_day: day,
-          p_records: marks,
-          p_revision: dirty ? draft.revision : data.session?.revision || 0,
-          p_confirm: final,
-          p_reason: "",
-        },
-      );
+      const payload={p_classroom_id:room.id,p_day:day,p_records:marks,p_revision:dirty ? draft.revision : data.session?.revision || 0,p_confirm:final,p_reason:""};
+      const result=await rpc<{notifications:number}>("save_student_attendance",{...payload,p_request_id:attendanceSubmissionId(key,payload,()=>crypto.randomUUID())});
+      clearAttendanceSubmission(key);
       setDraft(null);
       setConfirm(null);
 
@@ -406,7 +400,7 @@ export function StudentAttendance({
                   <div className="attendance-savebar">
                     <span>
                       {dirty
-                        ? "Cambios sin guardar"
+                        ? "Cambios sin enviar · se conservan durante esta sesión"
                         : confirmed
                           ? "Lista confirmada. Registro definitivo y de solo lectura."
                           : "Guardar borrador no envía notificaciones."}
@@ -507,6 +501,7 @@ export function StudentAttendance({
                         <strong>
                           {r.status ? attendanceLabels[r.status] : "Sin marcar"}
                         </strong>
+                        {r.correctionId && <small>Corrección aprobada por Dirección</small>}
                         {r.note && <p>{r.note}</p>}
                       </article>
                     ))}
@@ -522,6 +517,7 @@ export function StudentAttendance({
           </>
         )
       )}
+      {data && <AttendanceCorrections data={data} refresh={refresh}/>}
       {confirm === key && !confirmed && (
         <Modal
           title="Confirmar asistencia del día"
@@ -541,7 +537,7 @@ export function StudentAttendance({
           </p>
           <div className="soft-note">
             Se avisará a las familias de las faltas confirmadas. Al confirmar,
-            la lista quedará cerrada y no podrá modificarse. Revisa los datos
+            la lista quedará cerrada. Una corrección posterior requerirá aprobación de Dirección. Revisa los datos
             antes de continuar.
           </div>
         </Modal>

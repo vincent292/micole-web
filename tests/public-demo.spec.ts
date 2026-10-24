@@ -393,13 +393,13 @@ test('aviso obligatorio registra aceptación de la familia y reporte del docente
  await login(page,'teacher');await route(page,'announcements');
  await page.getByRole('button',{name:'Nuevo comunicado',exact:true}).click();let d=page.getByRole('dialog');
  await d.getByLabel('Título').fill('Confirmar excursión de ejemplo');
- await d.getByLabel('Comunicado',{exact:true}).fill('Salida ficticia para probar la aceptación personal.');
+ await d.getByLabel('Comunicado',{exact:true}).fill('Salida ficticia para probar la confirmación de lectura personal.');
  await d.getByRole('button',{name:'Siguiente',exact:true}).click();await d.getByLabel('Aula destinataria').selectOption('c1');
  await d.getByRole('button',{name:'Siguiente',exact:true}).click();await d.getByRole('checkbox',{name:/Exigir confirmación/}).check();
  await d.getByRole('button',{name:'Guardar',exact:true}).click();await expect(d).toHaveCount(0);
  await role(page,'guardian');d=page.getByRole('dialog');await expect(d).toContainText('Confirmar excursión de ejemplo');
- await expect(d.getByRole('button',{name:'Confirmar: estoy de acuerdo',exact:true})).toBeDisabled();
- await d.getByRole('checkbox',{name:'He leído el aviso y estoy de acuerdo.'}).check();await d.getByRole('button',{name:'Confirmar: estoy de acuerdo',exact:true}).click();await expect(d).toHaveCount(0);
+ await expect(d.getByRole('button',{name:'Confirmar lectura',exact:true})).toBeDisabled();
+ await d.getByRole('checkbox',{name:'He leído el aviso.'}).check();await d.getByRole('button',{name:'Confirmar lectura',exact:true}).click();await expect(d).toHaveCount(0);
  await role(page,'teacher');await route(page,'announcements');
  await page.locator('article').filter({has:page.getByRole('heading',{name:'Confirmar excursión de ejemplo',exact:true})}).getByRole('button',{name:'Ver aviso y lecturas'}).click();
  d=page.getByRole('dialog');await d.getByRole('button',{name:'Ver lecturas y confirmaciones'}).click();await expect(d).toContainText('1 confirmados');await expect(d).toContainText('Daniela Martínez');await expect(d).toContainText('Sofía Martínez');await expect(d).toContainText('sin confirmar');

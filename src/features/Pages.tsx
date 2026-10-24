@@ -965,7 +965,7 @@ export function Community({
                   />
                 </div>
                 <h3>{a.title}</h3>
-                <small>{noticeCategories[a.category||'general']}{a.requiresAcknowledgment?' · Confirmación requerida':''}</small><p>{role!=='student'&&a.content.length>250?a.content.slice(0,250)+'…':a.content}</p>
+                <small>{noticeCategories[a.category||'general']}{a.requiresAcknowledgment?' · Confirmación de lectura requerida':''}</small><p>{role!=='student'&&a.content.length>250?a.content.slice(0,250)+'…':a.content}</p>
                 <div className="entity-footer">
                   <small>{dateLabel(a.createdAt)}</small>{role!=='student'&&<Button variant="secondary" onClick={()=>openAnnouncement(a.id)}>{canWrite?'Ver aviso y lecturas':'Leer aviso'}</Button>}
                 </div>

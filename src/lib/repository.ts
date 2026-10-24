@@ -201,6 +201,12 @@ export async function loadData(platform = false, student = false, collections?: 
           ].includes(table),
       )
       .map(async (table) => {
+        if (table === "students") {
+          const rows = await rpc<Record<string, unknown>[]>("student_directory", {});
+          if (!Array.isArray(rows)) throw new Error("No pudimos cargar el directorio de alumnos.");
+          result.students = rows.map(row => fromRow("students", row)) as unknown as AppData["students"];
+          return;
+        }
         let query = client().from(tables[table]).select("*");
         if (["notifications", "auditEvents"].includes(table))
           query = query

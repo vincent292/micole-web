@@ -11,7 +11,7 @@ import {
   consumeAnnouncement,
 } from "../src/lib/announcementEvents";
 describe("Avisos y presentación privada", () => {
-  it("mantiene pendiente un aviso leído hasta la aceptación personal", () => {
+  it("mantiene pendiente un aviso leído hasta la confirmación de lectura personal", () => {
     expect(
       pendingConfirmation({
         requiresAcknowledgment: true,

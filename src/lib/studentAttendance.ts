@@ -18,6 +18,7 @@ export interface AttendanceRecord extends Omit<AttendanceMark, "status"> {
   sessionId: string;
   confirmed: boolean;
   revision: number;
+  correctionId?: string | null;
 }
 export interface AttendanceSession {
   id: string;
@@ -27,6 +28,8 @@ export interface AttendanceSession {
 }
 export interface AttendanceWorkspace {
   canManage: boolean;
+  canReview?: boolean;
+  corrections?: AttendanceCorrection[];
   session: AttendanceSession | null;
   roster: { student_id: string; student_name: string }[];
   records: AttendanceRecord[];
@@ -73,4 +76,12 @@ export function attendanceCsv(records: AttendanceRecord[]) {
 }
 export function attendanceMonth(day: string) {
   return day.slice(0, 7) + "-01";
+}
+
+export interface AttendanceCorrection {
+ id:string;record_id:string;studentName:string;date:string;
+ previous_status:AttendanceStatus;proposed_status:AttendanceStatus;
+ previous_note:string;proposed_note:string;reason:string;review_note:string;
+ status:'pending'|'approved'|'rejected';requested_by:string;requested_at:string;
+ reviewed_by?:string;reviewed_at?:string;
 }

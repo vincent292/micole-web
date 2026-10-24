@@ -26,7 +26,7 @@ export function useStudentAttendance(
           "*",
           "school_charges", "school_payments", "platform_charges", "platform_credit_accounts",
           "school_memberships", "student_guardians", "teacher_classrooms", "subject_teachers",
-          "student_attendance_sessions",
+          "student_attendance_sessions", "student_attendance_corrections",
           "students",
           "enrollment_history",
           "classrooms",

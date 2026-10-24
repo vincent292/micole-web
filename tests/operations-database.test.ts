@@ -213,3 +213,26 @@ it('los módulos de personal y formularios emiten revisiones aisladas sin public
  expect((await q("select count(*)::int n from pg_trigger where not tgisinternal and tgname='realtime_bank_payment_changed'")).rows[0].n).toBe(1);
  await expect(as(mother,()=>q('select * from aulanexo_private.bank_qr_intents'))).rejects.toThrow();
 });
+
+describe('autorización explícita de actividades',()=>{
+ it('una respuesta familiar no se deduce de un pago ni cambia cobros existentes',async()=>{
+  const rid=await request('activity',100);await approve(rid);
+  const charge=(await q('select id,amount from school_charges where academic_request_id=$1 and student_id=$2',[rid,child])).rows[0];
+  await checkout([{chargeId:charge.id,amount:Number(charge.amount)}],id(981));
+  const respond=()=>q('select set_activity_participation($1,$2,false,$3,true)',[rid,child,'No podrá asistir a esta salida']);
+  await expect(as(teacher,respond)).rejects.toThrow(/familia verificada/);
+  await acting(mother,respond);await acting(mother,respond);
+  const participation=(await q('select * from activity_participations where request_id=$1 and student_id=$2',[rid,child])).rows[0];
+  expect(participation.authorization_response).toBe(false);expect(participation.authorization_by).toBe(mother);expect(participation.participating).toBe(true);
+  expect((await q('select status from school_charges where id=$1',[charge.id])).rows[0].status).toBe('paid');
+  expect((await q('select count(*)::int n from activity_authorization_events where request_id=$1',[rid])).rows[0].n).toBe(1);
+  await expect(as(mother,()=>q('delete from activity_authorization_events'))).rejects.toThrow(/permission denied/);
+ });
+ it('permite autorizar una salida gratuita y mantiene separado el cambio administrativo',async()=>{
+  const rid=await request('activity',0);await approve(rid);
+  await acting(mother,()=>q("select set_activity_participation($1,$2,true,'',true)",[rid,child]));
+  expect((await q('select authorization_response from activity_participations where request_id=$1 and student_id=$2',[rid,child])).rows[0].authorization_response).toBe(true);
+  expect((await q('select count(*)::int n from school_charges where academic_request_id=$1',[rid])).rows[0].n).toBe(0);
+  await expect(as(stranger,()=>q("select set_activity_participation($1,$2,true,'',true)",[rid,child]))).rejects.toThrow(/acceso/);
+ });
+});

@@ -4,6 +4,7 @@ import { Button } from "../components/UI";
 import {
   askGuide,
   guideActions,
+  guideReviewNotice,
   type GuideAction,
   type GuideMessage,
   type GuideReply,
@@ -97,14 +98,16 @@ export function DirectorAssistant({
           </header>
           <div className="assistant-conversation" aria-live="polite">
             <p>
-              Te explico cómo usar el sistema y puedo abrir el formulario que
-              necesitas. Tú revisas y guardas cada registro.
+              Puedo orientarte y preparar borradores de texto. Los botones abren
+              páginas o formularios; cada registro se guarda desde su módulo.
             </p>
+            <p className="assistant-review-note">{guideReviewNotice}</p>
+            <p>Evita incluir datos personales de alumnos, contraseñas o claves.</p>
             {!answers.length && (
               <div className="assistant-suggestions">
                 {[
                   "¿Cómo inscribo a un estudiante?",
-                  "¿Cómo publico un comunicado obligatorio?",
+                  "Prepara un borrador de invitación a una reunión, sin datos personales.",
                   "¿Cómo agrego otra sede?",
                 ].map((q) => (
                   <Button
@@ -128,6 +131,14 @@ export function DirectorAssistant({
                       <li key={n}>{s}</li>
                     ))}
                   </ol>
+                )}
+                {entry.reply.draft && (
+                  <section className="assistant-draft" aria-label="Borrador pendiente de revisión">
+                    <b>Borrador · pendiente de revisión</b>
+                    <p>{entry.reply.draft.title}</p>
+                    <p className="preserve-lines">{entry.reply.draft.body}</p>
+                    <small>Revisa y completa el texto antes de usarlo. Este borrador no se ha guardado ni publicado.</small>
+                  </section>
                 )}
                 <div className="assistant-actions">
                   {entry.reply.actions.map((id) => (

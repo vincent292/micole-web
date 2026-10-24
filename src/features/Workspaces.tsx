@@ -1,3 +1,6 @@
+import {Care} from "./SchoolLife";
+import {classroomWork} from "../lib/classroomWork";
+import {schoolRoom} from "../lib/bolivia";
 import { Interviews, Tutoring } from "./Tutoring";
 import { isClassroomTutor } from "../lib/tutoring";
 import { useMemo, useState } from "react";
@@ -64,7 +67,7 @@ export function ClassroomEntry(p: PageProps) {
 }
 function ClassroomCenter(p: PageProps & { roomId: string }) {
   const params = new URLSearchParams(useLocation().search),
-    requested = params.get("tab") || "students",
+    requested = params.get("tab") || (p.role === "teacher" ? "today" : "students"),
     tab = Object.hasOwn(classroomTabs, requested)
       ? (requested as ClassroomTab)
       : "students";
@@ -147,6 +150,21 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
         onChange={setTab}
       />
       <div key={`${room.id}:${tab}`} className="focus-content">
+        {tab === "today" && <>
+          <SectionTitle title="Tu jornada en el aula" subtitle={schoolRoom(room,p.school)?"Trabaja por materia y revisa las entregas pendientes.":"Asistencia, cuidados y actividades cotidianas del grupo."}/>
+          <div className="focus-shortcuts">
+            <button onClick={()=>setTab("studentAttendance")}>Pasar lista <ArrowRight size={18}/></button>
+            <button onClick={()=>setTab("students")}>Alumnos y emergencias <Heart size={18}/></button>
+            <button onClick={()=>setTab("calendar")}>Calendario del aula <ArrowRight size={18}/></button>
+          </div>
+          <div className="focus-grid">
+           {classroomWork(p.store.data,room,p.identity,p.role).map(subject=><article key={subject.id} className="panel focus-card">
+            <h3>{subject.name}</h3><p>{subject.pending} entregas por revisar · {subject.canWrite?"A tu cargo":"Consulta de tutoría"}</p>
+            <div className="focus-actions"><Button onClick={()=>setTab("assignments",`subject=${subject.id}`)}>Tareas y entregas</Button><Button variant="secondary" onClick={()=>setTab("gradebook",`subject=${subject.id}`)}>Evaluaciones</Button></div>
+           </article>)}
+          </div>
+          {!room.subjectsEnabled&&<div className="focus-actions"><Button onClick={()=>setTab("assignments")}>Actividades del grupo</Button><Button variant="secondary" onClick={()=>setTab("care")}>Cuidados diarios</Button><Button variant="secondary" onClick={()=>setTab("journal")}>Cuaderno digital</Button><Button variant="secondary" onClick={()=>setTab("gradebook")}>Evaluaciones y seguimiento</Button></div>}
+        </>}
         {tab === "students" && <Directory page="students" {...childProps} />}
         {tab === "subjects" && <Subjects {...childProps} />}
         {tab === "tutoring" && <Tutoring {...childProps} roomId={room.id}/>}
@@ -155,6 +173,8 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
         {tab === "studentAttendance" && <StudentAttendance {...childProps} />}
         {tab === "gradebook" && <Gradebook {...childProps} />}
         {tab === "calendar" && <Community page="calendar" {...childProps} />}
+        {tab === "care" && <Care {...childProps}/>}
+        {tab === "journal" && <Community page="journal" {...childProps}/>}
         {tab === "materials" && (
           <LearningRequests page="materials" {...childProps} />
         )}
@@ -361,7 +381,7 @@ export function StudentRecord(p: PageProps) {
                         ? "No"
                         : "Pendiente",
                   ],
-                  ["Número de seguro", child.insuranceNumber],
+                  ...(p.role === "teacher" ? [] : [["Número de seguro", child.insuranceNumber]]),
                 ].map(([k, v]) => (
                   <div key={k}>
                     <small>{k}</small>
@@ -400,14 +420,14 @@ export function StudentRecord(p: PageProps) {
                 <article className="panel focus-card" key={title}>
                   <h3>{title}</h3>
                   <p>{name || "Pendiente"}</p>
-                  <p className="wrap-anywhere">{email || "Correo pendiente"}</p>
+                  {p.role !== "teacher" && <p className="wrap-anywhere">{email || "Correo pendiente"}</p>}
                   <Contact name="Teléfono" phone={phone} />
                 </article>
               ))}
             </div>
             <section className="panel focus-card">
               <h3>Personas autorizadas y datos adicionales</h3>
-              {admissionRows(child.admissionDetails).map(([label, value]) => (
+              {p.role !== "teacher" && admissionRows(child.admissionDetails).map(([label, value]) => (
                 <p key={label}>
                   <b>{label}:</b> {value}
                 </p>

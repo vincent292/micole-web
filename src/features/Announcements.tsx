@@ -201,7 +201,7 @@ export function AnnouncementGate({
       title={n.title}
       subtitle={
         inbox.required
-          ? "Confirmación personal requerida"
+          ? "Confirmación de lectura requerida"
           : noticeCategories[n.category || "general"]
       }
       dismissible={!inbox.required}
@@ -212,7 +212,7 @@ export function AnnouncementGate({
         else inbox.close();
       }}
       submitLabel={
-        inbox.required ? "Confirmar: estoy de acuerdo" : "Cerrar aviso"
+        inbox.required ? "Confirmar lectura" : "Cerrar aviso"
       }
       submitDisabled={inbox.required && !inbox.agree}
       busy={inbox.busy}
@@ -232,14 +232,14 @@ export function AnnouncementGate({
       <p className="notice-content">{n.content}</p>
       {n.acknowledgedAt && (
         <div className="soft-note">
-          Confirmado el {new Date(n.acknowledgedAt).toLocaleString("es-BO")}
+          Lectura confirmada el {new Date(n.acknowledgedAt).toLocaleString("es-BO")}
         </div>
       )}
       {inbox.required && (
         <>
           <p className="muted">
-            Esta confirmación se registra en tu cuenta. Leer el aviso no
-            equivale a aceptarlo.
+            Esta confirmación registra que has leído el comunicado. Las autorizaciones
+            de actividades y recojos se registran por separado.
           </p>
           <label className="notice-consent">
             <input
@@ -247,7 +247,7 @@ export function AnnouncementGate({
               checked={inbox.agree}
               onChange={(e) => inbox.setAgree(e.target.checked)}
             />{" "}
-            He leído el aviso y estoy de acuerdo.
+            He leído el aviso.
           </label>
           <Button
             variant="ghost"
@@ -275,7 +275,7 @@ export function AnnouncementGate({
             variant="secondary"
             onClick={() => void inbox.action("report")}
           >
-            Ver lecturas y confirmaciones
+            Ver lecturas y pendientes
           </Button>
           <Button
             variant="danger"
@@ -319,18 +319,18 @@ function ReceiptList({
       <h3>Destinatarios · {rows.length}</h3>
       <p>
         {required
-          ? `${rows.filter((r) => r.acknowledgedAt).length} confirmados · ${rows.filter((r) => !r.acknowledgedAt).length} sin confirmar · `
+          ? `${rows.filter((r) => r.acknowledgedAt).length} lecturas confirmadas · ${rows.filter((r) => !r.acknowledgedAt).length} pendientes de confirmar lectura · `
           : ""}
         {rows.filter((r) => r.readAt).length} leídos ·{" "}
         {rows.filter((r) => !r.readAt).length} sin leer
       </p>
       {required && (
         <label className="field">
-          <span>Estado de confirmación</span>
+          <span>Estado de lectura</span>
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="all">Todos</option>
-            <option value="confirmed">Confirmados</option>
-            <option value="pending">Sin confirmar</option>
+            <option value="confirmed">Lectura confirmada</option>
+            <option value="pending">Pendientes de confirmar lectura</option>
           </select>
         </label>
       )}
@@ -338,19 +338,19 @@ function ReceiptList({
         variant="secondary"
         onClick={() =>
           exportTable(
-            "confirmaciones-aviso.csv",
-            ["Persona", "Correo", "Niños", "Estado", "Leído el", "Confirmó el"],
+            "lecturas-aviso.csv",
+            ["Persona", "Correo", "Niños", "Estado", "Leído el", "Confirmó lectura el"],
             shown.map((r) => [
               r.name,
               r.email || "",
               r.children?.join(" · ") || "",
               r.acknowledgedAt
-                ? "Confirmado"
+                ? "Lectura confirmada"
                 : r.accountPending
                   ? "Pendiente de ingreso"
                   : r.readAt
                     ? required
-                      ? "Leído sin confirmar"
+                      ? "Leído sin confirmar lectura"
                       : "Leído"
                     : "Sin leer",
               r.readAt || "",
@@ -359,12 +359,12 @@ function ReceiptList({
           )
         }
       >
-        Exportar confirmaciones CSV
+        Exportar lecturas CSV
       </Button>
       {required && (
         <small>
-          Sin confirmar indica que aún no se registró aceptación; no significa
-          rechazo.
+          Pendiente indica que falta confirmar la lectura. Confirmar lectura no
+          autoriza salidas, recojos ni otras actividades.
         </small>
       )}
       {!rows.length && (
@@ -379,10 +379,10 @@ function ReceiptList({
           )}
           <small>
             {r.acknowledgedAt
-              ? `Confirmó: ${new Date(r.acknowledgedAt).toLocaleString("es-BO")}`
+              ? `Confirmó lectura: ${new Date(r.acknowledgedAt).toLocaleString("es-BO")}`
               : r.readAt
                 ? required
-                  ? "Leído · pendiente de confirmar"
+                  ? "Leído · pendiente de confirmar lectura"
                   : "Leído"
                 : "Pendiente de lectura"}
           </small>

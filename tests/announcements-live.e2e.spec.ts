@@ -467,7 +467,7 @@ async function inboxFixture(page: Page, required = true) {
   return { ...context, n, reads };
 }
 for (const width of [390, 768, 1440])
-  test(`aviso obligatorio ${width}px: deuda, lectura y aceptación personal`, async ({
+  test(`aviso obligatorio ${width}px: deuda, lectura y confirmación de lectura personal`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 844 });
@@ -478,7 +478,7 @@ for (const width of [390, 768, 1440])
     });
     await expect(dialog).toBeVisible();
     await expect(
-      dialog.getByRole("button", { name: "Confirmar: estoy de acuerdo" }),
+      dialog.getByRole("button", { name: "Confirmar lectura" }),
     ).toBeDisabled();
     expect(reads).toEqual([false]);
     await page.keyboard.press("Escape");
@@ -487,7 +487,7 @@ for (const width of [390, 768, 1440])
       dialog.getByRole("button", { name: "Cerrar", exact: true }),
     ).toHaveCount(0);
     await dialog
-      .getByRole("checkbox", { name: "He leído el aviso y estoy de acuerdo." })
+      .getByRole("checkbox", { name: "He leído el aviso." })
       .check();
     await page.screenshot({
       path: `/private/tmp/micole-notice-work/mandatory-${width}.png`,
@@ -498,7 +498,7 @@ for (const width of [390, 768, 1440])
       ),
     ).toBe(true);
     await dialog
-      .getByRole("button", { name: "Confirmar: estoy de acuerdo" })
+      .getByRole("button", { name: "Confirmar lectura" })
       .click();
     await expect(dialog).toHaveCount(0);
     expect(reads).toEqual([false, true]);

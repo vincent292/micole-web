@@ -2,10 +2,13 @@ import type { AppData, Classroom, Identity, Role, Student } from "./types";
 import { studentAccess, today } from "./billing";
 import { ownerPaymentAccess } from "./support-access";
 export const classroomTabs = {
+  today: "Tu jornada",
   students: "Alumnos",
   tutoring: "Tutoría",
   interviews: "Entrevistas",
   studentAttendance: "Asistencia",
+  care: "Cuidados diarios",
+  journal: "Cuaderno digital",
   subjects: "Materias",
   assignments: "Tareas",
   gradebook: "Evaluaciones",

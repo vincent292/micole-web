@@ -392,3 +392,50 @@ describe("Asistencia de alumnos: acceso, confirmación, avisos y respaldo", () =
     await expect(as(owner, () => workspace())).rejects.toThrow("acceso");
   });
 });
+
+describe('correcciones aprobadas y reintentos',()=>{
+ it('docente solicita; solo Dirección aprueba; conserva original y notifica una vez',async()=>{
+  await acting(teacher,()=>save(marks('absent'),0,true));
+  const record=(await q('select id from student_attendance_records where student_id=$1',[child])).rows[0].id;
+  const request=()=>q('select request_attendance_correction($1,$2,$3,$4,$5)',[id(950),record,'present','Llegó a tiempo','Error al marcar la casilla']);
+  await acting(teacher,request);await acting(teacher,request);
+  expect((await as(mother,()=>workspace(room,child))).rows[0].result.records[0].status).toBe('absent');
+  await expect(as(teacher,()=>q('select review_attendance_correction($1,true,$2)',[id(950),'Verificado con el docente']))).rejects.toThrow(/Solo Dirección/);
+  await expect(as(stranger,request)).rejects.toThrow(/acceso/);
+  const review=()=>q('select review_attendance_correction($1,true,$2)',[id(950),'Verificado con el docente']);
+  await acting(director,review);await acting(director,review);
+  expect((await q('select status from student_attendance_records where id=$1',[record])).rows[0].status).toBe('absent');
+  const family=(await as(mother,()=>workspace(room,child))).rows[0].result;
+  expect(family.records[0].status).toBe('present');expect(family.corrections).toEqual([]);
+  expect((await q("select count(*)::int n from notifications where kind='attendance_corrected' and source_id=$1 and user_id=$2",[id(950),mother])).rows[0].n).toBe(1);
+  const old=(await q("select id from notifications where kind='attendance_absent' and student_id=$1 limit 1",[child])).rows[0].id;
+  expect((await q('select aulanexo_private.push_notice_visible($1) visible',[old])).rows[0].visible).toBe(false);
+  await expect(as(director,()=>q("update student_attendance_corrections set proposed_status='absent'"))).rejects.toThrow(/permission denied/);
+ });
+ it('rechazar conserva la asistencia; reintento de guardar no duplica registros ni avisos',async()=>{
+  const args=[room,day,JSON.stringify(marks('absent')),0,true,'',id(951)];
+  const send=()=>q('select save_student_attendance($1,$2,$3::jsonb,$4,$5,$6,$7) result',args);
+  const first=(await acting(teacher,send)).rows[0].result;
+  expect((await acting(teacher,send)).rows[0].result).toEqual(first);
+  expect((await q('select count(*)::int n from student_attendance_sessions')).rows[0].n).toBe(1);
+  const record=(await q('select id from student_attendance_records where student_id=$1',[child])).rows[0].id;
+  await acting(teacher,()=>q('select request_attendance_correction($1,$2,$3,$4,$5)',[id(952),record,'present','','Creo que asistió al aula']));
+  await acting(director,()=>q('select review_attendance_correction($1,false,$2)',[id(952),'No se pudo verificar la presencia']));
+  expect((await as(mother,()=>workspace(room,child))).rows[0].result.records[0].status).toBe('absent');
+  expect((await q("select count(*)::int n from notifications where kind='attendance_corrected'")).rows[0].n).toBe(0);
+ });
+});
+
+describe('privacidad del directorio docente',()=>{
+ it('oculta campos privados en servidor y conserva cuidados operativos en su aula',async()=>{
+  await q("update students set identity_number='CI-PRIVADO',insurance_number='SEGURO-PRIVADO',allergies='Alergia importante',admission_details='{\"extra\":\"dato privado\"}' where id=$1",[child]);
+  const rows=(await as(teacher,()=>q('select student_directory() result'))).rows[0].result;
+  const pupil=rows.find((s:any)=>s.id===child);
+  expect(pupil.allergies).toBe('Alergia importante');expect(pupil).not.toHaveProperty('identity_number');expect(pupil).not.toHaveProperty('insurance_number');expect(pupil).not.toHaveProperty('mother_email');expect(pupil).not.toHaveProperty('admission_details');
+  expect(rows.some((s:any)=>s.id===otherChild)).toBe(false);
+  await expect(as(teacher,()=>q('select identity_number from students'))).rejects.toThrow(/permission denied/);
+  expect((await as(director,()=>q('select student_directory() result'))).rows[0].result.find((s:any)=>s.id===child).identity_number).toBe('CI-PRIVADO');
+  expect((await as(mother,()=>q('select student_directory() result'))).rows[0].result.find((s:any)=>s.id===child).insurance_number).toBe('SEGURO-PRIVADO');
+  expect((await as(owner,()=>q('select student_directory() result'))).rows[0].result).toEqual([]);
+ });
+});

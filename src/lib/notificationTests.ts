@@ -61,7 +61,7 @@ export const notificationTestTemplates: NotificationTestTemplate[] = [
     kind: "announcement",
     alertType: "announcement",
     category: "alerts",
-    body: "Ejemplo de un aviso que pide «Estoy de acuerdo». La confirmación solo pertenece a esta prueba.",
+    body: "Ejemplo de un aviso que pide «He leído». La confirmación solo pertenece a esta prueba.",
     requiresAcknowledgment: true,
   },
   {

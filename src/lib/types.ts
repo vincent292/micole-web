@@ -357,6 +357,10 @@ export interface AcademicRequest {
 export interface ActivityParticipation {
  id: string; requestId: string; studentId: string; schoolId: string;
  participating: boolean; reason: string;
+  authorizationResponse?: boolean;
+  authorizationReason?: string;
+  authorizationBy?: string;
+  authorizationAt?: string;
 }
 export interface SchoolReceipt {
  id: string; schoolId: string; studentId: string; total: number;

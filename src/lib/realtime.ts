@@ -26,6 +26,7 @@ const changes: Record<string, Collection[]> = {
   gradebook_rules: [], gradebook_settings: [], assessment_score_changes: [],
   assessment_scores: [], assessments: [], academic_terms: [], report_cards: [], care_records: [],
   student_attendance_sessions: [],
+  student_attendance_corrections: [],
   staff_attendance_settings: [], staff_work_profiles: [], staff_attendance_records: [],
   staff_attendance_changes: [], staff_payrolls: [],
   admission_templates: [], document_imports: [], content_view_events: [],

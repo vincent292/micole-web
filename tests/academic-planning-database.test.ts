@@ -270,7 +270,7 @@ it("Secretaría solo prepara horarios; Dirección delega la publicación y revoc
   ).rows[0].data;
   expect(ws.canManage).toBe(true);
   expect(ws.canApprove).toBe(false);
-  expect((await as(stranger, "select * from students")).rows).toHaveLength(0);
+  expect((await as(stranger, "select id from students")).rows).toHaveLength(0);
   await expect(
     as(
       stranger,

@@ -191,7 +191,7 @@ function ConnectedTests({ store, identity }: PageProps) {
               <p>{template.body}</p>
               {template.requiresAcknowledgment && (
                 <small>
-                  Podrás probar «Estoy de acuerdo» al abrirla desde este panel.
+                  Podrás probar «He leído» al abrirla desde este panel.
                 </small>
               )}
             </div>
@@ -343,7 +343,7 @@ function ConnectedTests({ store, identity }: PageProps) {
           error={error}
           submitLabel={
             view.requiresAcknowledgment && !view.acknowledgedAt
-              ? "Estoy de acuerdo (prueba)"
+              ? "He leído (prueba)"
               : "Cerrar"
           }
           onSubmit={async (e) => {

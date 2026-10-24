@@ -6,6 +6,7 @@ import {
 } from "../../supabase/functions/_shared/assistant-guide";
 export {
   guideActions,
+  guideReviewNotice,
   type GuideAction,
   type GuideMessage,
   type GuideReply,
