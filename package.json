@@ -52,7 +52,8 @@
     "supabase:migrate:tutoring": "node scripts/migrate-tutoring.mjs --apply",
     "supabase:migrate:academic-planning": "node scripts/migrate-academic-planning.mjs --apply",
     "supabase:migrate:security": "node scripts/migrate-security.mjs --apply",
-    "supabase:migrate:workflows": "node scripts/migrate-workflows.mjs --apply"
+    "supabase:migrate:workflows": "node scripts/migrate-workflows.mjs --apply",
+    "supabase:migrate:staff-arrival": "node scripts/migrate-staff-arrival.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

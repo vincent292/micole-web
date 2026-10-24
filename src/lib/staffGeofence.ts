@@ -18,17 +18,17 @@ export function staffLocationEligibility(
   settings:
     | Pick<
         StaffSettings,
-        "latitude" | "longitude" | "radius_m" | "max_accuracy_m"
+        "arrival_enabled" | "latitude" | "longitude" | "radius_m" | "max_accuracy_m"
       >
     | null
     | undefined,
   now = Date.now(),
 ): { allowed: boolean; message: string; distance?: number } {
-  if (!settings)
+  if (!settings || settings.arrival_enabled !== true)
     return {
       allowed: false,
       message:
-        "Dirección debe configurar la ubicación y el rango de esta sede.",
+        "El control de llegada está desactivado en esta sede. Dirección puede habilitarlo de forma opcional.",
     };
   if (!point)
     return {

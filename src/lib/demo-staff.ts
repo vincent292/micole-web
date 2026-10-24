@@ -70,6 +70,7 @@ function seed(schoolId: string): StaffWorkspace {
   }));
   const settings = {
     school_id: schoolId,
+    arrival_enabled: true,
     latitude: -16.5,
     longitude: -68.1,
     radius_m: 150,
@@ -142,6 +143,9 @@ export async function demoStaffRpc(
     throw new Error("Sede no disponible.");
   const state = all[schoolId] || seed(schoolId),
     manager = role === "director";
+  // Existing local demos already had configured arrival control.
+  if (state.settings && state.settings.arrival_enabled === undefined)
+    state.settings.arrival_enabled = true;
   const ownTeacher = d.teachers.find((t) => t.schoolId === schoolId)?.id;
   const permitted = (teacherId: string) => manager || teacherId === ownTeacher;
   const commit = () => {
@@ -185,6 +189,8 @@ export async function demoStaffRpc(
   if (name === "mark_staff_attendance") {
     if (role !== "teacher" || !permitted(p.p_teacher_id))
       throw new Error("La marcación corresponde al docente.");
+    if (!state.settings?.arrival_enabled)
+      throw new Error("El control de llegada está desactivado en esta sede.");
     if (p.p_kind === "out") {
       const r = state.records.find(
         (r) => r.teacher_id === p.p_teacher_id && !r.check_out,
@@ -241,6 +247,7 @@ export async function demoStaffRpc(
     const v = p.p_values;
     state.settings = {
       school_id: schoolId,
+      arrival_enabled: v.arrivalEnabled ?? state.settings?.arrival_enabled ?? false,
       latitude: v.latitude,
       longitude: v.longitude,
       radius_m: v.radiusM,

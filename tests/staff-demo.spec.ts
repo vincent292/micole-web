@@ -118,6 +118,39 @@ test("Docente marca entrada y salida simuladas sin solicitar ubicación real", a
   ).toBeVisible();
   await expect(page.locator("main")).toContainText("Turno cerrado");
 });
+test("Dirección desactiva y reactiva llegada sin borrar boletas ni pedir GPS al docente", async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.geolocation.getCurrentPosition = () => {
+      throw new Error("El control desactivado no debe solicitar GPS.");
+    };
+  });
+  await login(page);
+  await page.goto("/app/staffAttendance");
+  await page.getByRole("button", { name: "Configurar ubicación y reglas", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox", { name: "Activar control de llegada en esta sede" }).uncheck();
+  await dialog.getByRole("button", { name: "Siguiente", exact: true }).click();
+  await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator("main")).toContainText("Control de llegada desactivado en esta sede");
+  await page.getByRole("combobox", { name: "Rol de demostración" }).selectOption("teacher");
+  await page.goto("/app/staffAttendance");
+  await expect(page.getByRole("button", { name: "Marcar entrada", exact: true })).toBeDisabled();
+  await page.goto("/app/staffPayroll");
+  await expect(page.getByRole("button", { name: "Ver boleta", exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Rol de demostración" }).selectOption("director");
+  await page.goto("/app/staffAttendance");
+  await page.getByRole("button", { name: "Configurar ubicación y reglas", exact: true }).click();
+  await expect(dialog.getByRole("checkbox", { name: "Activar control de llegada en esta sede" })).not.toBeChecked();
+  await expect(dialog.getByLabel("Latitud", { exact: false })).toHaveValue("-16.5");
+  await dialog.getByRole("checkbox", { name: "Activar control de llegada en esta sede" }).check();
+  await dialog.getByRole("button", { name: "Siguiente", exact: true }).click();
+  await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole("combobox", { name: "Rol de demostración" }).selectOption("teacher");
+  await page.goto("/app/staffAttendance");
+  await expect(page.getByRole("button", { name: "Marcar entrada", exact: true })).toBeEnabled();
+});
 for (const width of [390, 1024])
   test(`formulario de horario se desplaza y conserva sus pasos a ${width}px`, async ({
     page,

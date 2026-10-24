@@ -269,11 +269,18 @@ function StaffWorkspaceContent({
         <>
           {!data.settings ? (
             <div className="soft-note">
-              Dirección debe configurar la ubicación de esta sede antes de
-              habilitar marcaciones.
+              El control de llegada es opcional y está desactivado. Dirección
+              puede configurar la ubicación y activarlo para esta sede.
+            </div>
+          ) : !data.settings.arrival_enabled ? (
+            <div className="soft-note" role="status">
+              Control de llegada desactivado en esta sede. El historial, las
+              correcciones y las boletas siguen disponibles. Si quedó una
+              entrada sin salida, solicita su cierre justificado a Dirección.
             </div>
           ) : (
             <div className="soft-note">
+              <strong>Control de llegada activado.</strong>{" "}
               Rango autorizado: {data.settings.radius_m} m · Precisión máxima
               aceptada: {data.settings.max_accuracy_m} m. La ubicación se
               solicita únicamente al pulsar una marcación.
@@ -310,9 +317,11 @@ function StaffWorkspaceContent({
                     </p>
                   </div>
                   <Button
-                    disabled={busy || !p || !data.settings}
+                    disabled={busy || !p || !data.settings?.arrival_enabled}
                     onClick={() =>
                       void act(async () => {
+                        if (!data.settings?.arrival_enabled)
+                          throw new Error("El control de llegada está desactivado en esta sede.");
                         const point = await location();
                         await rpc("mark_staff_attendance", {
                           p_teacher_id: t.id,
@@ -546,6 +555,7 @@ function StaffWorkspaceContent({
               await rpc("save_staff_settings", {
                 p_school_id: school.id,
                 p_values: {
+                  arrivalEnabled: f.has("arrivalEnabled"),
                   latitude: Number(f.get("latitude")),
                   longitude: Number(f.get("longitude")),
                   radiusM: Number(f.get("radiusM")),
@@ -562,6 +572,19 @@ function StaffWorkspaceContent({
           }}
         >
           <FormSection title="Ubicación de la sede">
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                name="arrivalEnabled"
+                defaultChecked={data?.settings?.arrival_enabled ?? false}
+              />
+              Activar control de llegada en esta sede
+            </label>
+            <p>
+              Es opcional e independiente de las boletas. Al desactivarlo se
+              conservan la configuración y el historial. Las entradas sin
+              salida deberán cerrarse mediante una corrección de Dirección.
+            </p>
             <Button
               variant="secondary"
               disabled={busy}

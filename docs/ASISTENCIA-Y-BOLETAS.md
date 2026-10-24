@@ -4,7 +4,7 @@ Dirección administra cada sede desde computadora o Android. Cada docente consul
 
 ## Preparación
 
-1. En **Asistencia del equipo → Configurar ubicación y reglas**, define latitud, longitud, rango permitido y precisión máxima GPS. «Usar mi ubicación» sirve estando físicamente en la sede; no necesita una clave de Google Maps.
+1. El control de llegada es **opcional por sede**, tanto para colegios como para kínder y guarderías. En **Asistencia del equipo → Configurar ubicación y reglas**, define latitud, longitud, rango permitido y precisión máxima GPS, y marca **Activar control de llegada en esta sede** cuando quieras usarlo. Una sede nueva comienza desactivada; las sedes que ya tenían configuración conservan la activación. «Usar mi ubicación» sirve estando físicamente en la sede; no necesita una clave de Google Maps.
 2. Define tolerancia y valor por minuto. Con 10 minutos de tolerancia y 15 de atraso, «Solo minutos adicionales» calcula 5 minutos; «Toda la tardanza» calcula 15. Tolerancia cero permite contar todo el atraso. Los descuentos están desactivados hasta que Dirección los habilita e indica su respaldo en el reglamento o acuerdo aplicable.
 3. Configura a cada docente: sueldo mensual o por horas, días, uno o más turnos por día, entrada, salida y descanso no remunerado. Los turnos no se superponen ni cruzan medianoche.
 
@@ -18,6 +18,10 @@ Una coordenada reportada por un dispositivo no constituye una prueba infalible d
 
 Una entrada pendiente debe cerrarse antes de abrir otra. Las entradas de más de 24 horas requieren corrección de Dirección. Ante GPS impreciso, falta de permisos u olvido, Dirección registra o corrige la asistencia con un motivo obligatorio. Las correcciones conservan el registro previo y se auditan. Puede justificar una tardanza para excluir su descuento.
 
+Desactivar el control impide nuevas marcaciones GPS de entrada y salida, incluso desde una APK anterior o una llamada directa al servidor. Conserva las coordenadas, los horarios, el historial y las boletas; las entradas que queden abiertas deben cerrarse mediante una corrección justificada de Dirección. El cálculo y la consulta de boletas no exigen activar el control GPS.
+
+Si hay varios turnos en el día, se descartan primero los que están fuera de la ventana permitida (desde dos horas antes del inicio hasta la salida programada). Se prioriza un turno que ya comenzó frente a uno futuro; solo se consideran turnos pendientes. Así un turno posterior no bloquea una llegada al turno vigente.
+
 ## Boletas
 
 - En **Boletas de pago**, selecciona mes y docente y prepara un borrador.
@@ -30,7 +34,7 @@ Una entrada pendiente debe cerrarse antes de abrir otra. Las entradas de más de
 
 ## Publicación y Android
 
-Aplicar `npm run supabase:migrate:staff`, publicar la web y desplegar `guide-assistant` para incluir las nuevas instrucciones. La demo usa registros simulados en el navegador, sin consultas GPS, Supabase ni pagos reales; «Restablecer demo» elimina estos ejemplos.
+En una instalación nueva, aplicar primero `npm run supabase:migrate:staff`. Para añadir el interruptor y la corrección de turnos: `node scripts/migrate-staff-arrival.mjs` valida y revierte; `node scripts/migrate-staff-arrival.mjs --apply` aplica la migración 202610240005. Después publicar la web y actualizar Android. La demo usa registros simulados en el navegador, sin consultas GPS, Supabase ni pagos reales; «Restablecer demo» elimina estos ejemplos.
 
 Android usa el mismo backend. Se incorporó `expo-location` compatible con SDK 57 con permisos solo durante el uso. Los cambios de permisos y la dependencia nativa requieren generar e instalar una APK nueva; no están presentes automáticamente en una APK anterior. No se genera ninguna APK como parte de este cambio.
 

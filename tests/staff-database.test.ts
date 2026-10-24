@@ -24,6 +24,7 @@ const [school, otherSchool, room, otherRoom, child, otherChild] = [
 ].map(id);
 const q = (sql: string, args: unknown[] = []) => db.query<any>(sql, args);
 let serial = 0;
+let inheritedArrival: boolean | undefined;
 async function as<T>(
   user: string | null,
   task: () => Promise<T>,
@@ -79,12 +80,23 @@ beforeAll(async () => {
   for (const file of readdirSync(migrations)
     .filter((f) => f.endsWith(".sql"))
     .sort())
+  {
+    if (file === "202610240005_optional_staff_arrival.sql") {
+      await q("insert into auth.users(id,email,email_confirmed_at) values($1,'legacy-arrival@test.bo',now())", [id(901)]);
+      await q("insert into schools(id,name,slug,status) values($1,'Sede ya configurada','legacy-arrival','active')", [id(900)]);
+      await q("insert into staff_attendance_settings(school_id,latitude,longitude,updated_by) values($1,-16.5,-68.1,$2)", [id(900),id(901)]);
+    }
     await db.exec(
       readFileSync(new URL(file, migrations), "utf8").replace(
         "create extension if not exists pgcrypto;",
         "",
       ),
     );
+    if (file === "202610240005_optional_staff_arrival.sql") {
+      inheritedArrival = (await q("select arrival_enabled from staff_attendance_settings where school_id=$1",[id(900)])).rows[0].arrival_enabled;
+      await q("delete from staff_attendance_settings where school_id=$1",[id(900)]);
+    }
+  }
   await enableActivationFixture(db);
   await q(
     "insert into aulanexo_private.platform_admin_allowlist(email) values('ops-owner@test.bo')",
@@ -158,6 +170,7 @@ afterAll(async () => {
 
 const month = "2026-09-01";
 const rules = {
+  arrivalEnabled: true,
   latitude: -16.5,
   longitude: -68.1,
   radiusM: 150,
@@ -539,4 +552,117 @@ it("conserva el valor por hora de cada marcación cuando cambia el sueldo", asyn
   expect(
     (await q("select base_amount,net_amount from staff_payrolls")).rows[0],
   ).toMatchObject({ base_amount: "1215.00", net_amount: "1195.00" });
+});
+
+
+describe("activación opcional de llegada por sede", () => {
+  const location = () => JSON.stringify({
+    latitude: -16.5,
+    longitude: -68.1,
+    accuracy: 15,
+    capturedAt: new Date().toISOString(),
+  });
+  const saveRules = (values: Record<string, unknown>, site = school) =>
+    acting(director, () => q("select save_staff_settings($1,$2::jsonb)", [site, JSON.stringify(values)]));
+
+  it("mantiene sedes configuradas y deja nuevas configuraciones desactivadas por defecto", async () => {
+    expect(inheritedArrival).toBe(true);
+    const { arrivalEnabled: _enabled, ...oldPayload } = rules;
+    await saveRules(oldPayload);
+    expect((await q("select arrival_enabled,deductions_enabled from staff_attendance_settings where school_id=$1", [school])).rows[0])
+      .toEqual({arrival_enabled:false,deductions_enabled:true});
+    await saveProfile();
+    for (const kind of ["in", "out"])
+      await expect(as(teacher, () => q("select mark_staff_attendance($1,$2,$3::jsonb,$4)", [id(50),kind,location(),id(410)])))
+        .rejects.toThrow("control de llegada está desactivado");
+  });
+
+  it("preserva la elección al guardar desde clientes anteriores y registra la opción en auditoría", async () => {
+    const { arrivalEnabled: _enabled, ...oldPayload } = rules;
+    await saveRules({...rules,arrivalEnabled:false});
+    await saveRules({...oldPayload,radiusM:180});
+    expect((await q("select arrival_enabled,radius_m from staff_attendance_settings where school_id=$1",[school])).rows[0])
+      .toEqual({arrival_enabled:false,radius_m:180});
+    await saveRules(rules);
+    await saveRules({...oldPayload,radiusM:200});
+    expect((await q("select arrival_enabled from staff_attendance_settings where school_id=$1",[school])).rows[0].arrival_enabled).toBe(true);
+    const audits = (await q("select summary->>'arrivalEnabled' as enabled from audit_events where school_id=$1 and entity='staff_attendance_settings' order by created_at,id",[school])).rows;
+    expect(audits.map((row: {enabled:string}) => row.enabled).sort()).toEqual(["false","false","true","true"]);
+  });
+
+  it("solo Dirección puede activar y la selección no se propaga a otra sede", async () => {
+    await settings();
+    for (const user of [teacher,mother,kid,stranger])
+      await expect(as(user, () => q("select save_staff_settings($1,$2::jsonb)",[school,JSON.stringify({...rules,arrivalEnabled:false})])))
+        .rejects.toThrow("Dirección");
+    await expect(as(teacher, () => q("update staff_attendance_settings set arrival_enabled=false where school_id=$1",[school]))).rejects.toThrow();
+    await expect(as(director, () => q("select save_staff_settings($1,$2::jsonb)",[otherSchool,JSON.stringify(rules)]))).rejects.toThrow("Dirección");
+    await q("insert into school_memberships(school_id,user_id,role) values($1,$2,'director')",[otherSchool,director]);
+    await saveRules({...rules,arrivalEnabled:false},otherSchool);
+    expect((await q("select school_id,arrival_enabled from staff_attendance_settings order by school_id")).rows)
+      .toEqual([{school_id:school,arrival_enabled:true},{school_id:otherSchool,arrival_enabled:false}]);
+    await saveRules({...rules,arrivalEnabled:false});
+    expect((await as(teacher,() => q("select staff_workspace($1,$2::date) as workspace",[school,month]))).rows[0].workspace.settings.arrival_enabled).toBe(false);
+  });
+
+  it("bloquea entrada y salida incluso con identificador previo, conservando historial y correcciones manuales", async () => {
+    await settings();
+    await saveProfile({...profile,schedule:schedule.map(s=>({...s,start:"00:00",end:"23:59",breakMinutes:0}))});
+    await acting(teacher, () => q("select mark_staff_attendance($1,'in',$2::jsonb,$3)",[id(50),location(),id(411)]));
+    const original = (await q("select check_in,check_out from staff_attendance_records where id=$1",[id(411)])).rows[0];
+    await saveRules({...rules,arrivalEnabled:false});
+    for (const kind of ["in","out"])
+      await expect(as(teacher,() => q("select mark_staff_attendance($1,$2,$3::jsonb,$4)",[id(50),kind,location(),id(411)])))
+        .rejects.toThrow("control de llegada está desactivado");
+    expect((await as(teacher,() => q("select check_in,check_out from staff_attendance_records where id=$1",[id(411)]))).rows[0]).toEqual(original);
+    const record = (await q("select check_in::text,attendance_date::text,shift_key from staff_attendance_records where id=$1",[id(411)])).rows[0];
+    await acting(director,() => q("select correct_staff_attendance($1,$2::jsonb,$3)",[
+      school,JSON.stringify({teacherId:id(50),id:id(411),checkIn:record.check_in,checkOut:record.check_in,shiftStart:"00:00"}),
+      "Cierre manual al desactivar llegada de la sede",
+    ]));
+    expect((await q("select check_out is not null as closed,source from staff_attendance_records where id=$1",[id(411)])).rows[0]).toEqual({closed:true,source:"manual"});
+    expect((await q("select count(*)::int n from staff_attendance_changes where record_id=$1",[id(411)])).rows[0].n).toBe(1);
+  });
+
+  it("permite boletas y registros manuales sin exigir control GPS ni activar descuentos", async () => {
+    await saveRules({...rules,arrivalEnabled:false,deductionsEnabled:false,policyNote:""});
+    await saveProfile();
+    await manual();
+    const payroll = await prepare();
+    await acting(director,() => q("select approve_staff_payroll($1)",[payroll]));
+    expect((await as(teacher,() => q("select net_amount,late_deduction,status from staff_payrolls where id=$1",[payroll]))).rows[0])
+      .toEqual({net_amount:"3000.00",late_deduction:"0.00",status:"approved"});
+    expect((await as(teacher,() => q("select count(*)::int n from staff_attendance_records"))).rows[0].n).toBe(1);
+    await saveRules({...rules,arrivalEnabled:true,deductionsEnabled:false,policyNote:""});
+    expect((await q("select arrival_enabled,deductions_enabled from staff_attendance_settings where school_id=$1",[school])).rows[0])
+      .toEqual({arrival_enabled:true,deductions_enabled:false});
+  });
+});
+
+describe("selección de turno de llegada con reloj fijo", () => {
+  const shifts = [
+    {weekday:1,start:"08:00",end:"12:00",breakMinutes:0},
+    {weekday:1,start:"13:00",end:"17:00",breakMinutes:0},
+  ];
+  const select = async (at: string, completed: string[] = [], values = shifts) =>
+    (await q("select aulanexo_private.staff_arrival_shift($1::jsonb,'2026-10-26'::date,$2::timestamptz,$3::text[]) as shift",
+      [JSON.stringify(values),at,completed])).rows[0].shift;
+  it("elige el turno vigente aunque el futuro esté más cerca o fuera de su ventana",async () => {
+    expect((await select("2026-10-26T10:30:00-04:00")).start).toBe("08:00");
+    expect((await select("2026-10-26T11:30:00-04:00")).start).toBe("08:00");
+    expect((await select("2026-10-26T13:30:00-04:00")).start).toBe("13:00");
+  });
+  it("filtra turnos vencidos, completados, de otro día y fuera de las dos horas previas",async () => {
+    expect(await select("2026-10-26T05:59:59-04:00")).toBeNull();
+    expect((await select("2026-10-26T06:00:00-04:00")).start).toBe("08:00");
+    expect((await select("2026-10-26T12:00:00-04:00")).start).toBe("08:00");
+    expect((await select("2026-10-26T12:00:01-04:00")).start).toBe("13:00");
+    expect(await select("2026-10-26T17:00:01-04:00")).toBeNull();
+    expect(await select("2026-10-26T10:30:00-04:00",["08:00-12:00"])).toBeNull();
+    expect((await select("2026-10-26T11:30:00-04:00",["08:00-12:00"])).start).toBe("13:00");
+    expect(await select("2026-10-26T11:30:00-04:00",[],shifts.map(s=>({...s,weekday:2})))).toBeNull();
+  });
+  it("mantiene el selector interno sin acceso para clientes autenticados",async () => {
+    await expect(as(teacher,()=>select("2026-10-26T11:30:00-04:00"))).rejects.toThrow();
+  });
 });

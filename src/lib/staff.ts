@@ -6,6 +6,7 @@ export interface WorkShift {
 }
 export interface StaffSettings {
   school_id: string;
+  arrival_enabled: boolean;
   latitude: number;
   longitude: number;
   radius_m: number;

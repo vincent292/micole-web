@@ -5,6 +5,7 @@ import {
 } from "../src/lib/staffGeofence";
 const now = Date.parse("2026-10-22T12:00:00Z"),
   settings = {
+    arrival_enabled: true,
     latitude: -16.5,
     longitude: -68.1,
     radius_m: 150,
@@ -16,6 +17,25 @@ const now = Date.parse("2026-10-22T12:00:00Z"),
     accuracy: 10,
     capturedAt: new Date(now).toISOString(),
   };
+it("desactiva las marcaciones por sede incluso con una ubicación válida", () => {
+  expect(
+    staffLocationEligibility(point, { ...settings, arrival_enabled: false }, now),
+  ).toMatchObject({
+    allowed: false,
+    message: expect.stringContaining("desactivado"),
+  });
+  expect(
+    staffLocationEligibility(undefined, { ...settings, arrival_enabled: false }, now),
+  ).toMatchObject({
+    allowed: false,
+    message: expect.stringContaining("desactivado"),
+  });
+  expect(staffLocationEligibility(point, null, now)).toMatchObject({
+    allowed: false,
+    message: expect.stringContaining("opcional"),
+  });
+  expect(staffLocationEligibility(point, settings, now).allowed).toBe(true);
+});
 it("habilita la marcación solo con ubicación precisa y reciente dentro del rango", () => {
   expect(staffLocationEligibility(point, settings, now)).toMatchObject({
     allowed: true,
