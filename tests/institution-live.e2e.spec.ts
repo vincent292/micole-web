@@ -15,7 +15,7 @@ test("una base pendiente de migrar mantiene el formulario y no descarta datos nu
   await page.route("**/rest/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const name = url.pathname.split("/").at(-1);
-    if (name === "schools" && url.searchParams.get("select") === "nit,address,website,show_on_landing") {
+    if (name === "schools" && url.searchParams.get("select") === "nit,address,website,show_on_landing,public_description,show_public_contact") {
       schemaChecks++;
       await route.fulfill({ status: 400, json: { code: "42703", message: "column schools.nit does not exist" } });
       return;
@@ -32,9 +32,12 @@ test("una base pendiente de migrar mantiene el formulario y no descarta datos nu
   const modal = page.getByRole("dialog");
   await showFormSection(page,'NIT (opcional)'); await modal.getByLabel("NIT (opcional)", { exact: true }).fill("987654321");
   await showFormSection(page,'Dirección de la institución'); await modal.getByLabel("Dirección de la institución", { exact: true }).fill("Calle de prueba 123");
+  await showFormSection(page,'Presentación'); await modal.getByLabel("Presentación (opcional)").fill("Una presentación que debe conservarse.");
+  await showFormSection(page,'Mostrar institución');
   await modal.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(modal.getByRole("alert")).toContainText("requiere una actualización");
-  await expect(modal.getByLabel("NIT (opcional)", { exact: true })).toHaveValue("987654321");
+  await showFormSection(page,'NIT (opcional)'); await expect(modal.getByLabel("NIT (opcional)", { exact: true })).toHaveValue("987654321");
+  await showFormSection(page,'Presentación'); await expect(modal.getByLabel("Presentación (opcional)")).toHaveValue("Una presentación que debe conservarse.");
   expect(schemaChecks).toBe(1);
   expect(saves).toBe(0);
 });

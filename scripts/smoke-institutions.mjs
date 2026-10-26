@@ -33,6 +33,7 @@ async function denied(fn) {
 }
 const save = payload => db.query("select public.save_school($1::jsonb)", [JSON.stringify(payload)]);
 const listing = async () => (await db.query("select public.landing_institutions() as institutions")).rows[0].institutions;
+const profile = async () => (await db.query("select public.landing_institution($1) as institution", [`institution-public-${suffix}`])).rows[0].institution;
 const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jPZsAAAAASUVORK5CYII=";
 try {
   db = databaseClient();
@@ -42,13 +43,14 @@ try {
   for (const role of ["owner", "director", "teacher", "guardian"]) {
     await db.query("insert into auth.users(id,email,aud,role,email_confirmed_at,raw_user_meta_data) values($1,$2,'authenticated','authenticated',now(),$3::jsonb)", [ids[role], `micole-institution-${role}-${suffix}@example.invalid`, JSON.stringify({ full_name: `Institución temporal ${role}` })]);
   }
-  await db.query("insert into public.platform_admins(user_id) values($1)", [ids.owner]);
+  await db.query("insert into aulanexo_private.platform_admin_allowlist(email) values($1) on conflict do nothing", [`micole-institution-owner-${suffix}@example.invalid`]);
+  await db.query("insert into public.platform_admins(user_id) values($1) on conflict do nothing", [ids.owner]);
   await db.query("insert into public.schools(id,name,slug,status,show_on_landing,director_name) values($1,$2,$3,'active',true,'Directora Privada'),($4,$5,$6,'active',false,''),($7,$8,$9,'pending',true,'')", [ids.school, `Institución pública ${suffix}`, `institution-public-${suffix}`, ids.hidden, `Institución oculta ${suffix}`, `institution-hidden-${suffix}`, ids.pending, `Institución pendiente ${suffix}`, `institution-pending-${suffix}`]);
   await db.query("insert into public.school_memberships(school_id,user_id,role) values($1,$2,'director'),($1,$3,'teacher'),($1,$4,'guardian'),($5,$2,'director')", [ids.school, ids.director, ids.teacher, ids.guardian, ids.pending]);
   const initial = await asUser(null, listing, "anon");
   check("La landing anónima contiene la institución activa", initial.some(s => s.id === ids.school));
   check("Instituciones ocultas o pendientes no son públicas", !initial.some(s => [ids.hidden, ids.pending].includes(s.id)));
-  check("La respuesta publica únicamente cinco campos", initial.every(s => Object.keys(s).sort().join(",") === "city,id,logoUrl,name,website"));
+  check("Las tarjetas incluyen solo los campos públicos de identidad", initial.every(s => Object.keys(s).sort().join(",") === "bannerUrl,city,color,educationLevels,id,logoUrl,name,siteName,slug,website"));
   check("Anon no puede leer schools directamente", (await asUser(null, () => db.query("select id from public.schools"), "anon")).rows.length === 0);
   await asUser(ids.owner, () => save({ id: ids.created, name: `Institución creada ${suffix}`, slug: `institution-created-${suffix}`, status: "active", nit: "1122334455", address: "Dirección privada de prueba", website: "https://institucion.example.org", logo_url: png }));
   const created = (await db.query("select show_on_landing,nit,address,logo_url from public.schools where id=$1", [ids.created])).rows[0];
@@ -58,6 +60,13 @@ try {
   await asUser(ids.director, () => save({ id: ids.school, nit: "987654321", address: "Dirección de prueba", website: "https://colegio.example.org", logo_url: png, status: "inactive", director_name: "Cambio indebido", slug: "cambio-indebido" }));
   const updated = (await db.query("select nit,address,status,director_name,slug from public.schools where id=$1", [ids.school])).rows[0];
   check("Dirección guarda identidad y conserva estado y privilegios", updated.nit === "987654321" && updated.address === "Dirección de prueba" && updated.status === "active" && updated.director_name === "Directora Privada" && updated.slug === `institution-public-${suffix}`);
+  await asUser(ids.director, () => save({ id: ids.school, public_description: "Aprendemos jugando.", education_levels: ["Guardería", "Inicial"], phone: "+591 70000000", maps_url: "https://www.google.com/maps/embed?pb=example" }));
+  const privateContact = await asUser(null, profile, "anon");
+  check("La página publica presentación y niveles sin contacto por defecto", privateContact.description === "Aprendemos jugando." && privateContact.educationLevels.includes("Inicial") && privateContact.address === "" && privateContact.phone === "" && privateContact.mapsUrl === "");
+  await asUser(ids.director, () => save({ id: ids.school, show_public_contact: true }));
+  const publicContact = await asUser(null, profile, "anon");
+  check("Dirección puede habilitar dirección, mapa y teléfono institucionales", publicContact.address === "Dirección de prueba" && publicContact.phone === "+591 70000000" && publicContact.mapsUrl === "https://www.google.com/maps/embed?pb=example");
+  check("La página no contiene datos privados de Dirección ni NIT", !JSON.stringify(publicContact).includes("Directora Privada") && !JSON.stringify(publicContact).includes("987654321") && !Object.keys(publicContact).some(key => /director|nit|student|billing/i.test(key)));
   await asUser(ids.director, () => save({ id: ids.school, city: "La Paz" }));
   check("Los campos omitidos no se borran", (await db.query("select nit,address,logo_url from public.schools where id=$1", [ids.school])).rows[0].nit === "987654321");
   await asUser(ids.director, () => save({ id: ids.pending, status: "active" }));
@@ -70,6 +79,7 @@ try {
   check("NIT inválido y logo falso se rechazan", await asUser(ids.director, async () => (await denied(() => save({ id: ids.school, nit: "123-45" }))) && (await denied(() => save({ id: ids.school, logo_url: "data:image/png;base64,aGVsbG8=" })))));
   await asUser(ids.director, () => save({ id: ids.school, show_on_landing: false }));
   check("La preferencia de visibilidad retira la institución", !(await asUser(null, listing, "anon")).some(s => s.id === ids.school));
+  check("La institución oculta tampoco se abre por enlace directo", await asUser(null, profile, "anon") === null);
   await db.query("rollback");
   transaction = false;
   console.log(JSON.stringify({ ok: true, checks: checks.length, passed: checks, rolledBack: true }));

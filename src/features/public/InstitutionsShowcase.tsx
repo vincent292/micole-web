@@ -1,20 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Building2, ChevronLeft, ChevronRight, ExternalLink, MapPin, RefreshCw } from "lucide-react";
+import { ArrowRight, Building2, ChevronLeft, ChevronRight, MapPin, RefreshCw } from "lucide-react";
 import { useReducedMotion } from "motion/react";
-import { fetchPublicInstitutions } from "../../lib/publicInstitutions";
+import { fetchPublicInstitutions, institutionPath } from "../../lib/publicInstitutions";
 import type { PublicInstitution } from "../../lib/publicInstitutions";
+import { InstitutionCover, InstitutionLogo } from "./InstitutionVisuals";
 
 function InstitutionCard({ institution }: { institution: PublicInstitution }) {
-  const [broken, setBroken] = useState(false);
-  useEffect(() => { setBroken(false); }, [institution.logoUrl]);
   const content = <>
-    <div className="affiliate-logo">{institution.logoUrl && !broken ? <img loading="lazy" decoding="async" src={institution.logoUrl} alt={`Logo de ${institution.name}`} onError={() => setBroken(true)} /> : <span aria-hidden="true">{institution.name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase()}</span>}</div>
+    <InstitutionCover src={institution.bannerUrl} className="affiliate-cover" />
+    <InstitutionLogo name={institution.name} src={institution.logoUrl} />
     <h3>{institution.name}</h3>
     {institution.city && <p><MapPin size={13} />{institution.city}</p>}
-    {institution.website && <span className="affiliate-website">Conocer institución <ExternalLink size={12} /></span>}
+    {institution.siteName && <small className="affiliate-site">{institution.siteName}</small>}
+    <span className="affiliate-website">Conocer institución <ArrowRight size={14} /></span>
   </>;
-  return <li className="affiliate-card" data-testid="affiliate-card">{institution.website ? <a href={institution.website} target="_blank" rel="noopener noreferrer" aria-label={`Conocer ${institution.name} (abre en otra pestaña)`}>{content}</a> : <div>{content}</div>}</li>;
+  return <li className="affiliate-card" data-testid="affiliate-card" style={{ "--institution-accent": institution.color } as CSSProperties}><Link to={institutionPath(institution)} aria-label={`Conocer ${institution.name}`}>{content}</Link></li>;
 }
 
 export function InstitutionsShowcase() {
@@ -45,8 +46,9 @@ export function InstitutionsShowcase() {
     const refresh = () => { void load(); };
     void load();
     document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
     window.addEventListener("micole:refresh-affiliates", refresh);
-    return () => { active = false; controller?.abort(); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("micole:refresh-affiliates", refresh); };
+    return () => { active = false; controller?.abort(); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); window.removeEventListener("micole:refresh-affiliates", refresh); };
   }, []);
 
   const update = useCallback(() => {

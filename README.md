@@ -14,6 +14,7 @@ npm run dev
 ```
 
 - `/`: landing pública.
+- `/instituciones/SLUG`: página informativa pública de cada institución visible y activa, con portada, presentación, niveles y contacto opcional.
 - `/login`: ingreso por los métodos habilitados en Supabase.
 - `/auth/callback`: retorno de Google o del enlace de correo.
 - `/app/overview`: panel privado; demás módulos bajo `/app/`.
@@ -89,6 +90,7 @@ El selector de perfil ofrece únicamente los roles autorizados de la cuenta. En 
 - Instituciones, identidad visual, logo, NIT, dirección, teléfono y sitio web. Crear y editar desde superadmin; Dirección edita su institución. Logo y banner por HTTPS o archivo PNG/JPG/WebP hasta 10 MB, convertidos y reducidos a WebP en el navegador. Incluye Google Maps y contacto privado de Dirección.
 - Landing con Motion: hero escalonado, revelado al scroll, interacciones, barra de lectura y vista ilustrativa navegable con teclado. Animaciones finitas y respeto a movimiento reducido.
 - Instituciones afiliadas: sección vacía hasta que existan instituciones reales; directorio público automático de instituciones activas con visibilidad habilitada, carrusel táctil/teclado, logos e iniciales como alternativa. No se muestran registros de ejemplo como clientes.
+- Páginas institucionales: las tarjetas abren una página propia dentro de MiCole, con logo, portada, colores, presentación, niveles, ubicación y enlaces de contacto. Dirección edita su presentación desde «Editar identidad» y elige si publica teléfono, dirección y mapa; esos datos de contacto están ocultos por defecto. Desactivar la visibilidad también oculta el enlace directo. No se publican datos de Dirección, familias ni galerías privadas. Actualización de base: `npm run supabase:migrate:public-institutions` (comprobar sin guardar con `node scripts/migrate-public-institutions.mjs`).
 - Solicitud y aprobación de incorporación con cuenta verificada y asignación controlada de dirección.
 - Docentes, estado e invitaciones, aulas con varias maestras y maestras en varios cursos.
 - Inscripción transaccional con activación pendiente, alta/baja y acceso temporal por deuda.

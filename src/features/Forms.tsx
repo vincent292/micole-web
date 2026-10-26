@@ -212,6 +212,17 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
         <textarea name="mapsUrl" rows={2} maxLength={4500} defaultValue={institution?.mapsUrl || ""} placeholder="Pega el enlace de Google Maps o Compartir → Insertar un mapa" />
       </Field>
       </FormSection>
+      <FormSection title="Página pública de la institución">
+        <Field label="Presentación (opcional)" name="publicDescription">
+          <textarea name="publicDescription" rows={5} maxLength={2500} defaultValue={institution?.publicDescription || ""} placeholder="Cuenta a las familias sobre su propuesta educativa, sus espacios y lo que hace especial a tu institución." />
+        </Field>
+        <p className="muted">Esta presentación acompaña al logo, la portada y los niveles educativos en tu página informativa.</p>
+        <label className="institution-check">
+          <input type="checkbox" name="showPublicContact" defaultChecked={institution?.showPublicContact === true} />
+          <span>Publicar el teléfono institucional, la dirección y el mapa para que nuevas familias puedan contactarnos.</span>
+        </label>
+        {institution?.slug && <a className="landing-secondary" href={`/instituciones/${encodeURIComponent(institution.slug)}`} target="_blank" rel="noopener noreferrer">Ver página pública <Link size={15} /></a>}
+      </FormSection>
       <FormSection title="Dirección y publicación">
       <input type="hidden" name="privateContactReady" value={String(contactReady)} />
       <fieldset disabled={!contactReady} className="form-grid">
@@ -226,7 +237,7 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
           <span><strong>Mostrar institución en la página de MiCole</strong></span>
         </label>
         <p id="institution-visibility-help" className="institution-visibility-help">
-          El nombre, logo, ciudad y sitio web se muestran cuando la institución está activa.
+          Cuando la institución está activa, su tarjeta abre una página con nombre, logo, portada, presentación, ciudad, niveles y sitio web. El teléfono, la dirección y el mapa se muestran solo si eliges publicarlos. Al desmarcar esta opción, también se oculta su página pública.
         </p>
       </div>
       </FormSection>
@@ -341,7 +352,7 @@ export function WorkspaceModal({
           if (!supabase) throw new Error("La conexión de MiCole no está configurada.");
           // An older save_school RPC would silently discard the new identity fields.
           const { error: schemaError } = await supabase.from("schools")
-            .select("nit,address,website,show_on_landing").limit(0);
+            .select("nit,address,website,show_on_landing,public_description,show_public_contact").limit(0);
           if (schemaError) {
             if (["42703", "PGRST204"].includes(schemaError.code))
               throw new Error("La identidad institucional requiere una actualización de MiCole. Tus datos no se han guardado; puedes conservar este formulario y reintentar cuando se aplique.");

@@ -205,7 +205,7 @@ test.describe("instituciones públicas conectadas", () => {
     await page.locator("#instituciones").scrollIntoViewIfNeeded();
     await expect(page.getByRole("img", { name: "Logo de Colegio Conectado 1" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Colegio Conectado 1", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Conocer Colegio Conectado 1 (abre en otra pestaña)", exact: true })).toHaveAttribute("href", institution(1).website);
+    await expect(page.getByRole("link", { name: "Conocer Colegio Conectado 1", exact: true })).toHaveAttribute("href", `/instituciones/${institution(1).id}`);
     await expect(page.getByRole("button", { name: /Instituciones anteriores|Instituciones siguientes/ })).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText("PRIVATE_NIT_729");
     await expect(page.locator("body")).not.toContainText("DIRECCIÓN PRIVADA PARA PRUEBA");
@@ -222,7 +222,7 @@ test.describe("instituciones públicas conectadas", () => {
     await expect(page.getByTestId("affiliate-card")).toHaveCount(7);
     await page.locator("#instituciones").scrollIntoViewIfNeeded();
     await expect(page.getByTestId("affiliate-card").first().locator(".affiliate-logo > span")).toHaveText("CC");
-    await expect(page.getByTestId("affiliate-card").nth(1).locator("a")).toHaveCount(0);
+    await expect(page.getByTestId("affiliate-card").nth(1).locator("a")).toHaveAttribute("href", `/instituciones/${institution(2).id}`);
     const track = page.locator(".affiliate-track");
     const left = () => track.evaluate(element => element.scrollLeft);
     await expect(page.getByRole("button", { name: "Instituciones anteriores" })).toBeDisabled();

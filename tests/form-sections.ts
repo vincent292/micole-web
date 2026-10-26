@@ -27,6 +27,7 @@ export async function showFormSection(page: Page, label: string) {
   )
     title = "Dirección y publicación";
   else if (/Logo|logo|banner|portada/.test(label)) title = "Logo y portada";
+  else if (/Presentación|Publicar el teléfono/.test(label)) title = "Página pública de la institución";
   else if (
     /Nombres|Apellidos|Fecha de nacimiento|Aula|RUDE|CI del niño/.test(label)
   )

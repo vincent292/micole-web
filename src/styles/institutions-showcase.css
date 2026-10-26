@@ -40,3 +40,18 @@
 @media (max-width:1024px) { .affiliate-card { flex-basis: calc((100% - 36px)/3); min-width: 210px; } .affiliates-empty { padding: 30px; gap: 25px; grid-template-columns: 180px minmax(0,1fr); } }
 @media (max-width:760px) { .institutions-section { padding-top: 52px; padding-bottom: 52px; scroll-margin-top: 90px; } .institutions-heading { align-items: flex-start; flex-direction: column; gap: 15px; margin-bottom: 22px; } .institutions-heading h2 { font-size: 26px; } .institutions-heading p { font-size: 13px; } .affiliate-card { flex-basis: 72%; min-width: 200px; } .affiliate-card > a,.affiliate-card > div { padding: 24px 16px; } .affiliates-empty { grid-template-columns: minmax(0,1fr); padding: 24px; gap: 14px; text-align: center; } .affiliates-empty-visual { height: 135px; } .affiliate-orbit { width: 126px; height: 126px; } .affiliate-orbit.second { width: 96px; height: 96px; } .affiliate-empty-icon { width: 70px; height: 70px; } .affiliate-empty-dot.mint { top: 0; left: calc(50% - 40px); } .affiliate-empty-dot.yellow { bottom: 0; right: calc(50% - 48px); } .affiliates-empty h3 { font-size: 21px; } .affiliates-empty p { font-size: 13px; } .affiliates-empty .landing-secondary { justify-content: center; } .affiliate-controls p { max-width: 170px; font-size: 11px; } .affiliates-loading { grid-template-columns: repeat(2,minmax(0,1fr)); } .affiliate-skeleton:nth-child(3) { display: none; } .affiliate-error { flex-wrap: wrap; } }
 @media (prefers-reduced-motion:reduce) { .affiliate-card { transition: none; } .affiliate-track { scroll-behavior: auto; } }
+
+.institution-cover { position: relative; overflow: hidden; background: linear-gradient(115deg,color-mix(in srgb,var(--institution-accent,#3d6ef7) 30%,#eaf2fc),color-mix(in srgb,var(--institution-accent,#3d6ef7) 9%,#f5faf4)); }
+.institution-cover > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.institution-cover-orbit { position: absolute; width: 350px; height: 350px; border: 1px solid #ffffff80; border-radius: 50%; right: 7%; top: -130px; box-shadow: 0 0 0 55px #ffffff12,0 0 0 110px #ffffff18; }
+.institution-cover-dot { position: absolute; width: 90px; height: 90px; border-radius: 24px; background: #ffffff42; transform: rotate(25deg); bottom: -34px; left: 14%; }
+.institution-cover.has-image > span { display: none; }
+.affiliate-card { overflow: hidden; }
+.affiliate-card > a { padding: 0 18px 23px; }
+.affiliate-cover { height: 105px; width: calc(100% + 36px); flex-shrink: 0; margin-bottom: -28px; }
+.affiliate-card .affiliate-logo { position: relative; width: 76px; height: 76px; border: 5px solid #fff; border-radius: 18px; background: #fff; margin-bottom: 15px; flex-shrink: 0; }
+.affiliate-card .affiliate-logo img { max-height: 64px; max-width: 64px; }
+.affiliate-card .affiliate-logo > span { width: 100%; height: 100%; border-radius: 13px; font-size: 23px; color: color-mix(in srgb,var(--institution-accent) 50%,#203449); background: color-mix(in srgb,var(--institution-accent) 9%,white); }
+.affiliate-site { margin-top: 7px; color: #7d8c9c; font-size: 10px; }
+.affiliate-card .affiliate-website { margin-top: auto; padding-top: 19px; font-weight: 600; }
+@media (max-width:760px) { .affiliate-card > a { padding: 0 16px 23px; } .affiliate-cover { width: calc(100% + 32px); } }

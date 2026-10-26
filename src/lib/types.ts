@@ -27,6 +27,8 @@ export interface School {
   address?: string;
   website?: string;
   showOnLanding?: boolean;
+  publicDescription?: string;
+  showPublicContact?: boolean;
   activeStudentCount?: number;
 }
 export interface Classroom {

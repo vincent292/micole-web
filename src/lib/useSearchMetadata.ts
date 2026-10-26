@@ -10,7 +10,7 @@ export function useSearchMetadata() {
     let robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
     if(!robots){robots=document.createElement('meta');robots.name='robots';document.head.append(robots);}
     robots.content=visible?'index, follow, max-image-preview:large':'noindex, nofollow';
-    document.title=visible?meta.title:import.meta.env.VITE_PUBLIC_DEMO==='true'?'Demo MiCole · Explora tu comunidad':pathname==='/login'?'Ingresar | MiCole':'MiCole · Espacio privado';
+    document.title=visible?meta.title:import.meta.env.VITE_PUBLIC_DEMO==='true'?'Demo MiCole · Explora tu comunidad':pathname.startsWith('/instituciones/')?'Instituciones | MiCole':pathname==='/login'?'Ingresar | MiCole':'MiCole · Espacio privado';
     document.querySelectorAll('link[rel="canonical"],meta[property^="og:"],meta[name^="twitter:"],#micole-search-schema').forEach(node=>{
       // Private SPA routes never retain public sharing or structured metadata.
       if(!visible)node.remove();

@@ -80,6 +80,8 @@ export async function readInstitutionIdentity(
   if (phone.length > 40)
     throw new Error("El teléfono puede tener hasta 40 caracteres.");
   const website = validateInstitutionHttpsUrl(text("website"), "El sitio web");
+  const publicDescription = text("publicDescription");
+  if (publicDescription.length > 2500) throw new Error("La presentación admite hasta 2500 caracteres.");
 
   let logoUrl = "";
   if (!form.has("removeLogo")) {
@@ -108,5 +110,7 @@ export async function readInstitutionIdentity(
     website,
     logoUrl,
     showOnLanding: form.get("showOnLanding") === "on",
+    publicDescription,
+    showPublicContact: form.get("showPublicContact") === "on",
   };
 }

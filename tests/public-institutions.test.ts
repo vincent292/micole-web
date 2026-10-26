@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchPublicInstitutions, publicInstitutionList, staticInstitutions } from "../src/lib/publicInstitutions";
+import { fetchPublicInstitution, fetchPublicInstitutions, institutionPath, publicInstitutionList, publicInstitutionProfile, staticInstitutions } from "../src/lib/publicInstitutions";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe("instituciones públicas de la landing", () => {
@@ -10,7 +10,7 @@ describe("instituciones públicas de la landing", () => {
   it("proyecta únicamente los campos públicos y elimina duplicados", () => {
     const row = { id: "school", name: " Colegio MiCole ", city: "La Paz", logoUrl: "https://assets.example.org/logo.png", website: "https://colegio.example.org", nit: "12345", address: "Dirección privada", students: [{ name: "Nombre privado" }], director: "Persona privada" };
     const result = publicInstitutionList([row, row, null, { id: "bad" }, { id: "empty", name: " " }]);
-    expect(result).toEqual([{ id: "school", name: "Colegio MiCole", city: "La Paz", logoUrl: "https://assets.example.org/logo.png", website: "https://colegio.example.org" }]);
+    expect(result).toEqual([{ id: "school", name: "Colegio MiCole", city: "La Paz", logoUrl: "https://assets.example.org/logo.png", website: "https://colegio.example.org", slug: "school", bannerUrl: "", color: "#3D6EF7", educationLevels: [], siteName: "" }]);
     expect(JSON.stringify(result)).not.toContain("privada");
     expect(JSON.stringify(result)).not.toContain("12345");
   });
@@ -41,5 +41,30 @@ describe("instituciones públicas de la landing", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
     await expect(fetchPublicInstitutions()).rejects.toThrow("No pudimos cargar");
     expect(() => publicInstitutionList({ data: [] })).toThrow();
+  });
+  it("la ficha permite únicamente campos institucionales y neutraliza mapas e imágenes peligrosas", () => {
+    const row = { id: "s", slug: "mi-colegio", name: "Mi colegio", description: " Nuestra propuesta ", phone: "+591 70000000", address: "Av. Arce 123", mapsUrl: "https://www.google.com.evil.org/maps?q=x", bannerUrl: "https://assets.example.org/cover.svg", color: "red;display:none", educationLevels: ["Inicial", "Inicial", 5], directorIdentity: "PRIVATE_CI", directorPhone: "PRIVATE_PHONE", students: ["PRIVATE_STUDENT"], nit: "PRIVATE_NIT" };
+    const profile = publicInstitutionProfile(row)!;
+    expect(profile).toMatchObject({ description: "Nuestra propuesta", address: "Av. Arce 123", phone: "+591 70000000", mapsUrl: "", bannerUrl: "", color: "#3D6EF7", educationLevels: ["Inicial"] });
+    expect(JSON.stringify(profile)).not.toContain("PRIVATE_");
+    expect(institutionPath(profile)).toBe("/instituciones/mi-colegio");
+    expect(publicInstitutionProfile({ ...row, mapsUrl: "https://www.google.com/maps/embed?pb=example" })?.mapsUrl).toContain("/maps/embed?");
+    expect(publicInstitutionProfile(null)).toBeNull();
+    expect(() => publicInstitutionProfile({})).toThrow();
+  });
+  it("abre una institución por slug con una petición pública independiente de sesión", async () => {
+    vi.stubEnv("VITE_APP_MODE", "live");
+    vi.stubEnv("VITE_SUPABASE_URL", "https://school-test.supabase.co");
+    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "publishable-test");
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "s", slug: "mi-colegio", name: "Mi colegio" }) });
+    vi.stubGlobal("fetch", fetch);
+    const controller = new AbortController();
+    expect(await fetchPublicInstitution("mi-colegio", controller.signal)).toMatchObject({ slug: "mi-colegio" });
+    expect(fetch).toHaveBeenCalledWith("https://school-test.supabase.co/rest/v1/rpc/landing_institution", { method: "POST", credentials: "omit", signal: controller.signal, headers: { apikey: "publishable-test", "Content-Type": "application/json" }, body: '{"p_slug":"mi-colegio"}' });
+    fetch.mockClear();
+    expect(await fetchPublicInstitution("../app")).toBeNull();
+    vi.stubEnv("VITE_APP_MODE", "demo");
+    expect(await fetchPublicInstitution("mi-colegio")).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
