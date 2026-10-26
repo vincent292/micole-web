@@ -66,7 +66,16 @@ describe("páginas públicas por institución", () => {
     expect(await profile()).toBeNull();
     expect(await profile("inexistente")).toBeNull();
   });
-  it("excluye las instituciones de prueba aun cuando se marca su visibilidad", async () => {
+  it("publica una institución real en modo de prueba cuando está activa y tiene visibilidad habilitada", async () => {
+    await q("insert into aulanexo_private.test_institutions(school_id,updated_by) values($1,$2)", [other, owner]);
+    expect(await profile("cole-ajeno")).toMatchObject({ name: "Cole Ajeno", slug: "cole-ajeno", address: "", phone: "" });
+    const rows = (await as(null, "select landing_institutions() as value")).rows[0].value;
+    expect(rows.some((row: { id: string }) => row.id === other)).toBe(true);
+    await q("update schools set show_on_landing=false where id=$1", [other]);
+    expect(await profile("cole-ajeno")).toBeNull();
+    expect((await as(null, "select landing_institutions() as value")).rows[0].value.some((row: { id: string }) => row.id === other)).toBe(false);
+  });
+  it("excluye el entorno dedicado de pruebas aun cuando se marca su visibilidad", async () => {
     await q("insert into aulanexo_private.test_institutions(school_id,updated_by) values($1,$2)", [testSchool, owner]);
     await q("insert into aulanexo_private.persisted_test_workspaces(school_id,created_by) values($1,$2)", [testSchool, owner]);
     await q("update schools set show_on_landing=true where id=$1", [testSchool]);
