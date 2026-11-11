@@ -3,6 +3,8 @@ import {
   staffLateDeduction,
   staffPayrollHtml,
   previousPayrollMonth,
+  staffWorkspaceForAccount,
+  type StaffWorkspace,
   type StaffPayroll,
 } from "../src/lib/staff";
 import { demoStaffRpc } from "../src/lib/demo-staff";
@@ -17,6 +19,19 @@ const record = {
   deductions_enabled: true,
   late_waived: false,
 };
+it("la vista personal ignora privilegios de gestión y descarta registros de otra persona o sede", () => {
+  const own={school_id:'school',teacher_id:'janeth'}, other={school_id:'school',teacher_id:'other'}, foreign={school_id:'another-school',teacher_id:'janeth'};
+  const workspace={canManage:true,settings:{school_id:'school'},teachers:[{id:'janeth',name:'Janeth Arias'},{id:'other',name:'Otra profesora'}],profiles:[own,other,foreign],records:[own,other,foreign],openRecords:[own,other,foreign],payrolls:[{...own,status:'approved'},{...own,status:'draft'},{...other,status:'approved'},{...foreign,status:'approved'}]} as unknown as StaffWorkspace;
+  const personal=staffWorkspaceForAccount(workspace,'teacher',['janeth'],'school');
+  expect(personal.canManage).toBe(false);expect(personal.teachers.map(t=>t.id)).toEqual(['janeth']);
+  expect(personal.records).toEqual([own]);expect(personal.profiles).toEqual([own]);expect(personal.openRecords).toEqual([own]);
+  expect(personal.payrolls).toEqual([{...own,status:'approved'}]);
+  expect(staffWorkspaceForAccount(workspace,'teacher',[],'school').teachers).toEqual([]);
+  for(const role of ['guardian','student','superadmin']) expect(staffWorkspaceForAccount(workspace,role,['janeth'],'school').records).toEqual([]);
+  const manager=staffWorkspaceForAccount(workspace,'director',[],'school');
+  expect(manager.canManage).toBe(true);expect(manager.records).toEqual([own,other]);
+  expect(workspace.records).toHaveLength(3);
+});
 it("aplica tolerancia y las dos reglas, con opción de no descontar o justificar", () => {
   expect(staffLateDeduction(record)).toBe(10);
   expect(

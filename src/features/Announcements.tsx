@@ -1,6 +1,7 @@
 import { exportTable } from "../lib/financialApi";
 import { publicDemo, setDemoRole } from "../lib/demo-config";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {InstitutionPdfButton} from '../components/InstitutionPdfButton';
 import {
   Cross,
   Car,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button, Modal } from "../components/UI";
 import { rpc } from "../lib/repository";
+import { withFamilyPaymentAlerts } from "../lib/paymentNotices";
 import { liveMode, supabase } from "../lib/supabase";
 import {
   alertType,
@@ -63,11 +65,13 @@ export function AnnouncementGate({
   role,
   schoolId,
   store,
+  onPaymentOpen,
 }: {
   identity: Identity;
   role: Role;
   schoolId?: string;
   store: AppStore;
+  onPaymentOpen: (studentId: string) => void;
 }) {
   const scope = [
     identity.id,
@@ -77,7 +81,7 @@ export function AnnouncementGate({
   ].join(":");
   const api = useMemo<NoticeApi>(() => {
     if (liveMode || publicDemo)
-      return {
+      return withFamilyPaymentAlerts({
         pending: () =>
           identity.support
             ? Promise.resolve([])
@@ -89,7 +93,7 @@ export function AnnouncementGate({
         withdraw: async (id) => {
           await rpc("withdraw_announcement", { p_id: id });
         },
-      };
+      }, schoolId, liveMode && role === "guardian" && !identity.support, rpc);
     const key = `micole.notice.receipts.${identity.id}.${role}`;
     const receipts = (): Record<
       string,
@@ -186,6 +190,19 @@ export function AnnouncementGate({
       !document.querySelector('[aria-modal="true"]'),
     onChanged: () => void store.refresh(["announcements", "notifications"]),
   });
+  useEffect(() => {
+    const recheck = () => {
+      if (document.visibilityState !== "hidden") inbox.retry();
+    };
+    window.addEventListener("focus", recheck);
+    window.addEventListener("online", recheck);
+    document.addEventListener("visibilitychange", recheck);
+    return () => {
+      window.removeEventListener("focus", recheck);
+      window.removeEventListener("online", recheck);
+      document.removeEventListener("visibilitychange", recheck);
+    };
+  }, [inbox.retry]);
   const n = inbox.notice;
   if (!n)
     return inbox.error ? (
@@ -204,15 +221,15 @@ export function AnnouncementGate({
           ? "Confirmación de lectura requerida"
           : noticeCategories[n.category || "general"]
       }
-      dismissible={!inbox.required}
+      dismissible={!inbox.required && !inbox.mustRead}
       onClose={inbox.close}
       onSubmit={(e) => {
         e.preventDefault();
         if (inbox.required) void inbox.action("accept");
-        else inbox.close();
+        else void inbox.action("read");
       }}
       submitLabel={
-        inbox.required ? "Confirmar lectura" : "Cerrar aviso"
+        inbox.required ? "Confirmar lectura" : n.canAcknowledge && !n.readAt ? "Marcar como leído" : "Cerrar aviso"
       }
       submitDisabled={inbox.required && !inbox.agree}
       busy={inbox.busy}
@@ -221,15 +238,26 @@ export function AnnouncementGate({
       <div className={`notice-heading notice-${n.category || "general"}`}>
         <AlertIcon
           notice={{
-            alertType: n.category === "general" ? "announcement" : n.category,
+            alertType: n.payment ? "payments" : n.category === "general" ? "announcement" : n.category,
           }}
         />
         <b>
-          {noticeCategories[n.category || "general"]}
+          {n.payment ? "Pagos de tu familia" : noticeCategories[n.category || "general"]}
           {n.urgent ? " · Urgente" : ""}
         </b>
       </div>
       <p className="notice-content">{n.content}</p>
+      {!n.payment&&store.data.announcements.some(a=>a.id===n.id)&&<InstitutionPdfButton school={store.data.schools.find(s=>s.id===schoolId)} name={`comunicado-${n.id}.pdf`} build={api=>api.announcementPdf(store.data.schools.find(s=>s.id===schoolId)!,store.data.announcements.find(a=>a.id===n.id)!)}/>}
+      {n.payment && <>
+        <p className="soft-note">Marcar como leído no registra un pago ni cambia el saldo. El recordatorio puede volver al día siguiente si la cuota sigue pendiente.</p>
+        <Button variant="secondary" onClick={async()=>{if(await inbox.action("read"))onPaymentOpen(n.payment!.studentId);}}>Ver mis pagos</Button>
+      </>}
+      {(inbox.required || inbox.mustRead) && (
+        <p className="soft-note" role="status">
+          Aviso importante. Revísalo antes de continuar. Se registra la lectura
+          cuando pulsas el botón; abrir MiCole no lo confirma por ti.
+        </p>
+      )}
       {n.acknowledgedAt && (
         <div className="soft-note">
           Lectura confirmada el {new Date(n.acknowledgedAt).toLocaleString("es-BO")}
@@ -249,19 +277,21 @@ export function AnnouncementGate({
             />{" "}
             He leído el aviso.
           </label>
+        </>
+      )}
+      {(inbox.required || inbox.mustRead) && (
           <Button
             variant="ghost"
             onClick={() => {
               if (publicDemo) {
                 setDemoRole(null);
                 window.location.assign("/");
-              } else if (supabase) void supabase.auth.signOut();
+              } else if (supabase) void supabase.auth.signOut({ scope: "local" });
               else window.location.assign("/");
             }}
           >
             Cerrar sesión
           </Button>
-        </>
       )}
       {identity.support && (
         <div className="soft-note">

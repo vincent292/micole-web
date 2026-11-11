@@ -1,7 +1,9 @@
 import { useWorkspaceRevision } from "../lib/useWorkspaceRevision";
 import {platformBalance} from '../lib/pricing';
 import {publicDemo} from '../lib/demo-config';
-import {useEffect,useState} from 'react';
+import {useContext,useEffect,useState} from 'react';
+import {SchoolDocumentContext} from '../components/SchoolDocumentContext';
+import {InstitutionPdfButton} from '../components/InstitutionPdfButton';
 import {Download,RefreshCw,QrCode} from 'lucide-react';
 import {Button,Field,Modal,SectionTitle} from '../components/UI';
 import {rpc} from '../lib/repository';
@@ -9,6 +11,7 @@ import {liveMode} from '../lib/supabase';
 import {bankAction,bankError,bankLabels,type BankRequest,type BankPayment} from '../lib/bank';
 import {money,dateLabel} from '../lib/format';
 export function BankQrPanel({request,linkToken,initialId,initial,onChanged,canGenerate=true}:{canGenerate?:boolean;request?:BankRequest;linkToken?:string;initialId?:string;initial?:BankPayment|null;onChanged?:()=>void}){
+ const documentSchool=useContext(SchoolDocumentContext);
  const [payment,setPayment]=useState<BankPayment|null>(initial||null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [invoice,setInvoice]=useState(false),[name,setName]=useState(''),[nit,setNit]=useState(''),[phone,setPhone]=useState('');
  const id=payment?.id||initialId;
@@ -37,7 +40,7 @@ export function BankQrPanel({request,linkToken,initialId,initial,onChanged,canGe
    {payment.environment==='test'&&!publicDemo&&<p className="message warn">QR de certificación. En instituciones reales no acredita cuotas.</p>}
    {payment.status==='paid'?<p>{payment.applicationStatus==='applied'?'El pago ya se registró y actualizó los saldos.':payment.applicationStatus==='test'?'Pago de prueba verificado, sin acreditar cuotas reales.':'Baneco confirmó el pago. Dirección debe revisar su aplicación; conserva esta referencia.'}</p>:null}
    {publicDemo&&payment.status==='pending'&&<><div className="demo-payment-symbol"><QrCode size={36}/><b>SIMULACIÓN · SIN COBRO</b></div><p>No se genera un QR bancario. Confirma el pago ficticio para probar saldos y recibos.</p><Button disabled={busy} onClick={()=>{setBusy(true);void bankAction({action:'demo_confirm',id:payment.id}).then(result=>{if(result.payment)setPayment(result.payment);onChanged?.();}).catch(e=>setError(e.message)).finally(()=>setBusy(false));}}>Simular pago recibido</Button></>}
-   {payment.image&&payment.status==='pending'&&<><img className="bank-qr-image" src={payment.image} alt={`QR Baneco por ${money(payment.amount)}`}/><a className="btn btn-secondary" href={payment.image} download={`micole-qr-${payment.id.slice(0,8)}.png`}><Download size={17}/>Descargar QR</a><small>Válido hasta {dateLabel(payment.dueDate)} · Importe fijo y un solo uso</small></>}
+   {payment.image&&payment.status==='pending'&&<><img className="bank-qr-image" src={payment.image} alt={`QR Baneco por ${money(payment.amount)}`}/><a className="btn btn-secondary" href={payment.image} download={`micole-qr-${payment.id.slice(0,8)}.png`}><Download size={17}/>Descargar QR</a>{documentSchool?.id===payment.schoolId&&payment.kind==='school'&&<InstitutionPdfButton school={documentSchool} name={`qr-${payment.id}.pdf`} build={api=>api.paymentQrPdf(documentSchool,{id:payment.id,amount:payment.amount,image:payment.image!,dueDate:dateLabel(payment.dueDate),description:payment.reference||'Pago a la institución',simulation:payment.environment==='test',status:payment.status})}/>}<small>Válido hasta {dateLabel(payment.dueDate)} · Importe fijo y un solo uso</small></>}
    {['unknown','review','generating'].includes(payment.status)&&<p className="soft-note">Conservamos esta solicitud para evitar un cobro duplicado. Puedes consultar su estado o contactar a Dirección.</p>}
    <small className="bank-reference">Referencia: {payment.reference||payment.transactionId||payment.id}</small>
    {!['paid','cancelled','failed'].includes(payment.status)&&<div className="request-actions"><Button icon={RefreshCw} variant="secondary" disabled={busy} onClick={()=>void action('refresh')}>Actualizar estado</Button>{payment.qrId&&<Button variant="ghost" disabled={busy} onClick={()=>void action('cancel')}>Cancelar QR</Button>}</div>}

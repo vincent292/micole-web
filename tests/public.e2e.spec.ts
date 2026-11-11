@@ -21,10 +21,12 @@ test("raíz pública con MiCole, precios y navegación hacia ingreso", async ({
   expect(privateRequests).toEqual([]);
   await expect(page.locator(".price")).toContainText("29");
   await expect(page.locator(".activation-fee")).toContainText("Bs 500");
+  await page.evaluate(()=>document.fonts.ready);
+  await page.screenshot({path:'output/qa/2026-10-29-landing-restaurada/landing-inicial-escritorio.png',fullPage:true});
   await page
-    .getByRole("link", { name: "Solicitar acceso para mi institución" })
+    .getByRole("link", { name: "Ingresar", exact:true })
     .click();
-  await expect(page).toHaveURL(/\/login\?intent=school/);
+  await expect(page).toHaveURL(/\/login$/);
   await expect(
     page.getByRole("heading", { name: "Bienvenido a MiCole" }),
   ).toBeVisible();
@@ -63,7 +65,7 @@ test("landing, FAQ y menú funcionan en celular, con las fuentes de marca", asyn
     ),
   ).toBe(true);
   await page.screenshot({
-    path: "test-results/micole-landing-mobile.png",
+    path: "output/qa/2026-10-29-landing-restaurada/landing-movil.png",
     fullPage: true,
   });
 });
@@ -85,7 +87,7 @@ test("rutas previas se conservan y una ruta inexistente tiene regreso al inicio"
 test('Probar demo abre el sitio aislado sin pedir una cuenta real', async ({page}) => {
   await page.route('https://micole-demo.vercel.app/**', route => route.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>Acceso público a la demo</h1>'}));
   await page.goto('/');
-  await page.getByRole('link',{name:'Probar demo ahora',exact:true}).click();
+  await page.getByRole('link',{name:'Entrar a la demo',exact:true}).click();
   await expect(page).toHaveURL('https://micole-demo.vercel.app/');
   await expect(page.getByRole('heading',{name:'Acceso público a la demo'})).toBeVisible();
 });

@@ -38,6 +38,19 @@ beforeEach(async()=>{await db.exec('begin');await fundInstitutionFixtures(db);aw
 afterEach(async()=>{await db.exec('rollback');});afterAll(async()=>{await db.close();});
 
 describe('Android push authorization and outbox',()=>{
+ it('student inbox shows only its own task and classroom calendar notices, including after reading',async()=>{
+  await acting(director,()=>q('select set_student_login($1,$2,true)',[child,'ops-kid@test.bo']));
+  await acting(teacher,()=>q("insert into daily_entries(id,school_id,student_id,category,note,created_by) values($1,$2,$3,'tarea','Leer un cuento',$4),($5,$2,$3,'observación','Dato privado',$4)",[id(810),school,child,teacher,id(811)]));
+  await acting(director,()=>q("insert into calendar_events(id,school_id,classroom_id,title,description,event_date,type) values($1,$2,$3,'Actividad propia','Lectura',current_date,'event'),($4,$2,$5,'Actividad ajena','Otro curso',current_date,'event')",[id(812),school,room,id(813),otherRoom]));
+  await q("insert into notifications(user_id,school_id,student_id,classroom_id,kind,source_id,title,body,target) values($1,$2,$3,$4,'daily_task',$5,'Privado','Una observación no es tarea','daily'),($1,$2,$3,$4,'calendar',$6,'Ajeno','Otro curso','calendar')",[kid,school,child,room,id(811),id(813)]);
+  let ns=(await as(kid,()=>q('select id,source_id,kind from notifications order by kind'))).rows;
+  expect(ns.map(n=>n.source_id).sort()).toEqual([id(810),id(812)].sort());
+  await acting(kid,()=>q('select mark_notification_read($1)',[ns[0].id]));
+  ns=(await as(kid,()=>q('select source_id from notifications'))).rows;
+  expect(ns.map(n=>n.source_id).sort()).toEqual([id(810),id(812)].sort());
+  await q("update students set profile_complete=false where id=$1",[child]);
+  expect((await as(kid,()=>q('select id from notifications'))).rows).toEqual([]);
+ });
  const device=id(200), token='test_fcm_token_for_mother_123456789';
  const register=(who=mother,installation=device,value=token,categories=['academic','alerts','messages','payments','birthdays'])=>acting(who,()=>q('select register_push_device($1,$2,true,$3::text[])',[installation,value,categories]));
  const makeNotice=(kind='grade',source=id(300),who=mother,childId=child)=>q("insert into notifications(user_id,school_id,student_id,kind,source_id,title,body,target) values($1,$2,$3,$4,$5,'Privado','Nombre, nota, datos que nunca deben salir','grades') returning id",[who,school,childId,kind,source]);

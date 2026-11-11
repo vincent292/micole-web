@@ -20,6 +20,7 @@ import {
   staffPayrollHtml,
   staffStatus,
   staffTimestamp,
+  staffWorkspaceForAccount,
   previousPayrollMonth,
   type StaffWorkspace as Workspace,
   type StaffProfile,
@@ -93,13 +94,15 @@ export function StaffWorkspaceScreen({
   school,
   role,
   view,
+  identity,
 }: PageProps & { view: "staffAttendance" | "staffPayroll" }) {
   return (
     <StaffWorkspaceContent
-      key={`${school?.id}:${view}`}
+      key={`${school?.id}:${view}:${identity.id}:${identity.support?.id || ""}:${role}`}
       school={school}
       role={role}
       view={view}
+      identity={identity}
     />
   );
 }
@@ -107,7 +110,8 @@ function StaffWorkspaceContent({
   school,
   role,
   view,
-}: Pick<PageProps, "school" | "role"> & {
+  identity,
+}: Pick<PageProps, "school" | "role" | "identity"> & {
   view: "staffAttendance" | "staffPayroll";
 }) {
   const payrollView = view === "staffPayroll";
@@ -134,8 +138,10 @@ function StaffWorkspaceContent({
     [reviewed, setReviewed] = useState(false),
     [payment, setPayment] = useState<StaffPayroll | null>(null);
   const schoolId = school?.id;
-  const workspaceKey = JSON.stringify([schoolId, month, role]);
-  const data = snapshot?.key === workspaceKey ? snapshot.data : null;
+  const workspaceKey = JSON.stringify([schoolId, month, role, identity.id, identity.support?.id, identity.teacherIds]);
+  const data = snapshot?.key === workspaceKey && schoolId
+    ? staffWorkspaceForAccount(snapshot.data, role, identity.teacherIds, schoolId)
+    : null;
   const liveRevision = useWorkspaceRevision(["staff_attendance_settings", "staff_work_profiles", "staff_attendance_records", "staff_attendance_changes", "staff_payrolls", "teachers"], schoolId);
   useEffect(() => {
     let alive = true;
@@ -201,9 +207,11 @@ function StaffWorkspaceContent({
   return (
     <>
       <SectionTitle
-        title={payrollView ? "Boletas de pago" : "Asistencia del equipo"}
+        title={role === "teacher" ? (payrollView ? "Mis boletas de pago" : "Mi asistencia") : payrollView ? "Boletas de pago" : "Asistencia del equipo"}
         subtitle={
-          payrollView
+          role === "teacher"
+            ? `${data?.teachers.map(t => t.name).join(", ") || identity.name} · ${payrollView ? "Tus boletas publicadas por Dirección." : "La entrada y salida se registran a tu nombre, con la hora actual del servidor."}`
+            : payrollView
             ? "Revisión de sueldos, conceptos y pagos del equipo."
             : "Entradas y salidas por sede, con hora del servidor y correcciones justificadas."
         }
@@ -225,7 +233,7 @@ function StaffWorkspaceContent({
             onChange={(e) => setMonth(e.target.value)}
           />
         </Field>
-        <Field label="Docente" name="staffTeacher">
+        {data?.canManage && <Field label="Docente" name="staffTeacher">
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">Todos mis autorizados</option>
             {data?.teachers.map((t) => (
@@ -234,7 +242,7 @@ function StaffWorkspaceContent({
               </option>
             ))}
           </select>
-        </Field>
+        </Field>}
         {data?.canManage && !payrollView && (
           <>
             <Button

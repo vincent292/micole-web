@@ -7,7 +7,7 @@ import { useSerializedRefresh } from "./useSerializedRefresh";
 import { seed } from "./seed";
 import { uid } from "./format";
 export { uid, money, dateLabel, initials } from "./format";
-import { buildSchedule, today } from "./billing";
+import { buildSchedule, today, LICENSE_FEE } from "./billing";
 import { emptyData, loadData, rpc, saveRow, toRow } from "./repository";
 import { shiftMonth as shiftMonthKey } from "../components/MonthCalendar";
 import { liveMode, supabase } from "./supabase";
@@ -168,14 +168,13 @@ export function useAppStore(
       document.removeEventListener("visibilitychange", visible);
     };
   }, [refresh, userId, scope, platform]);
-  async function run(
+  async function perform(
     remote: () => Promise<unknown>,
     local: (prev: AppData) => AppData,
     collections?: Collection[],
   ) {
     if (inflight.current)
       throw new Error("Espera a que termine la operación actual.");
-    if (student) throw new Error("Las cuentas de estudiantes son de solo lectura.");
     inflight.current = true;
     setBusy(true);
     try {
@@ -187,6 +186,14 @@ export function useAppStore(
       inflight.current = false;
       setBusy(false);
     }
+  }
+  async function run(
+    remote: () => Promise<unknown>,
+    local: (prev: AppData) => AppData,
+    collections?: Collection[],
+  ) {
+    if (student) throw new Error("Las cuentas de estudiantes son de solo lectura.");
+    await perform(remote, local, collections);
   }
   async function save<K extends Collection>(
     table: K,
@@ -374,7 +381,9 @@ export function useAppStore(
             schoolId,
             period,
             concept: `Licencia ${period} · ${count} alumnos`,
-            amount: count * 29,
+            amount: count * LICENSE_FEE,
+            licenseCount: count,
+            unitAmount: LICENSE_FEE,
             status: "pending",
           },
         ],
@@ -542,7 +551,9 @@ export function useAppStore(
               schoolId: school.id,
               concept: `Licencia ${period} · ${count} alumnos`,
               period,
-              amount: count * 29,
+              amount: count * LICENSE_FEE,
+              licenseCount: count,
+              unitAmount: LICENSE_FEE,
               status: "pending",
             });
         }
@@ -605,7 +616,8 @@ export function useAppStore(
     );
   }
   async function readNotification(id?: string) {
-    await run(
+    // Reading the account's own inbox is also allowed for students.
+    await perform(
       () => rpc("mark_notification_read", { p_id: id || null }),
       (prev) => ({
         ...prev,

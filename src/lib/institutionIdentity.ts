@@ -1,5 +1,6 @@
 export const institutionLogoMaxBytes = 10 * 1024 * 1024;
 import { validateMapsUrl } from "./operations";
+import { readWorkspaceMode } from "./kinder";
 const imageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 export function validateInstitutionLogoFile(file: Pick<File, "type" | "size">) {
@@ -112,5 +113,6 @@ export async function readInstitutionIdentity(
     showOnLanding: form.get("showOnLanding") === "on",
     publicDescription,
     showPublicContact: form.get("showPublicContact") === "on",
+    workspaceMode: readWorkspaceMode(text("workspaceMode") || "auto"),
   };
 }

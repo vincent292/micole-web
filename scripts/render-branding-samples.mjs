@@ -1,0 +1,23 @@
+import {build} from 'esbuild';import fs from 'node:fs/promises';import {execFileSync} from 'node:child_process';
+await fs.mkdir('tmp/branding-pilot',{recursive:true});
+await fs.writeFile('tmp/branding-pilot/samples.ts',`
+import fs from 'node:fs/promises';
+import {reportCardsPdf,citationPdf,announcementPdf,receiptPdf,paymentQrPdf,credentialPdf} from '../../src/lib/institutionPdf';
+import {appearanceFor} from '../../src/lib/schoolAppearance';
+import QRCode from 'qrcode';
+const logo='data:image/png;base64,'+(await fs.readFile('public/branding/institucion-pruebas.png')).toString('base64');
+const school={id:'76c0a7f0-7348-4a8f-b5f7-4c6acbbf6570',name:'Institución de pruebas',slug:'institucion-pruebas',initials:'IP',city:'La Paz',director:'Dirección de pruebas',color:'#5B48B5',status:'active' as const,createdAt:'2026-11-09',logoUrl:logo,address:'Sede de demostración · La Paz',phone:'Teléfono institucional de ejemplo',appearance:appearanceFor('aurora')};
+const dir='output/pdf/identidad-prueba';await fs.mkdir(dir,{recursive:true});
+const samples=[
+ ['01-libreta-aurora.pdf',()=>reportCardsPdf(school,[{id:'EJEMPLO-LIBRETA-2026',studentId:'ejemplo',classroomId:'inicial',termId:'tercero',revision:1,publishedAt:'2026-11-09T12:00:00Z',content:{studentId:'ejemplo',studentName:'Lucía Rojas Prueba',schoolName:school.name,classroomId:'inicial',classroomName:'Inicial 4 años',year:2026,yearId:'2026',termId:'tercero',termName:'Tercer periodo · ejemplo publicado',termWeight:1,scale:100,startsOn:'2026-09-01',endsOn:'2026-12-01',complete:true,subjects:[{subject:'Lenguaje y expresión',score:null,missing:0,assessments:2,exemptions:0,qualitative:[{title:'Expresión oral',value:'Logrado',comment:'Participa y comparte sus ideas con confianza.'}]},{subject:'Exploración y pensamiento',score:89,maxScore:100,missing:0,assessments:2,exemptions:0},{subject:'Desarrollo personal y social',score:null,missing:0,assessments:2,exemptions:0,qualitative:[{title:'Autonomía',value:'En proceso',comment:'Continúa desarrollando hábitos de colaboración.'}]}]}}])],
+ ['02-citacion-academia.pdf',()=>citationPdf({...school,appearance:appearanceFor('academia')},{studentName:'Lucía Rojas Prueba',classroomName:'Inicial 4 años',date:'12 de noviembre de 2026',time:'09:00',reason:'Invitamos a su familia a una reunión de acompañamiento para conversar sobre los avances de Lucía, compartir observaciones y acordar actividades que fortalezcan su aprendizaje. La participación de la familia nos ayuda a construir un entorno cercano y seguro.',location:'Dirección · sede de demostración',reference:'EJEMPLO-CITACION-001'})],
+ ['03-comunicado-bosque.pdf',()=>announcementPdf({...school,appearance:appearanceFor('bosque')},{id:'EJEMPLO-COMUNICADO-001',schoolId:school.id,title:'Una semana para descubrir juntos',content:'Queridas familias:\\n\\nEsta semana compartiremos actividades de lectura, exploración y trabajo en equipo. Invitamos a acompañar estos momentos con una conversación en casa sobre los nuevos descubrimientos de sus hijos.\\n\\nEl viernes realizaremos un encuentro de aula. Revisen la agenda institucional para conocer los detalles. Gracias por ser parte de nuestra comunidad.\\n\\nDirección · Institución de pruebas',audience:'families',createdAt:'2026-11-09T12:00:00Z',requiresAcknowledgment:true})],
+ ['04-recibo-atelier.pdf',()=>receiptPdf({...school,appearance:appearanceFor('atelier')},{id:'EJEMPLO-RECIBO-001',schoolId:school.id,studentId:'ejemplo',total:300,paymentMethod:'transfer',reference:'DEMO-SIN-OPERACION-BANCARIA',items:[{chargeId:'ejemplo',concept:'Abono ficticio de mensualidad · noviembre 2026',amount:300}],verificationSource:'manual',recordedBy:'demo',createdAt:'2026-11-09T12:00:00Z'},'Lucía Rojas Prueba')],
+ ['05-qr-horizonte.pdf',async()=>paymentQrPdf({...school,appearance:appearanceFor('horizonte')},{id:'EJEMPLO-QR-001',amount:300,image:await QRCode.toDataURL('MICOLE-DEMO-SIN-VALOR-DE-COBRO',{width:400,margin:4}),dueDate:'12 de noviembre de 2026',description:'Mensualidad de demostración · Lucía Rojas Prueba',simulation:true})],
+ ['06-carnet-aurora.pdf',async()=>{let card;try{card=JSON.parse(await fs.readFile('tmp/branding-pilot/live-credential.json','utf8'));}catch{throw Error('Obtén primero el carnet ficticio emitido en el sandbox.');}return credentialPdf(school,card);}]
+] as const;
+for(const [name,create] of samples)await fs.writeFile(dir+'/'+name,await create());
+console.log(JSON.stringify({pdfCount:samples.length,folder:dir,allFictitious:true}));
+`);
+await build({entryPoints:['tmp/branding-pilot/samples.ts'],outfile:'tmp/branding-pilot/samples.mjs',bundle:true,platform:'node',format:'esm',packages:'external'});
+execFileSync(process.execPath,['tmp/branding-pilot/samples.mjs'],{stdio:'inherit'});

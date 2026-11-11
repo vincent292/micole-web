@@ -271,7 +271,7 @@ async function setup(page: Page, role = "director") {
         guardianStudentIds: role === "guardian" ? [studentId] : [],
       };
     else if (name === "schools") json = [state.school];
-    else if (name === "students") json = state.students;
+    else if (name === "students" || name === "student_directory") json = role === "guardian" ? state.students.filter(s=>s.id===studentId) : state.students;
     else if (name === "classrooms") json = state.rooms;
     else if (name === "teachers")
       json = [
@@ -449,9 +449,10 @@ async function inboxFixture(page: Page, required = true) {
     acknowledgedAt: null as string | null,
   };
   const reads: boolean[] = [];
+  let available = true;
   await page.route("**/rpc/pending_announcements", (route) =>
     route.fulfill({
-      json: required ? (!n.acknowledgedAt ? [n] : []) : !n.readAt ? [n] : [],
+      json: !available ? [] : required ? (!n.acknowledgedAt ? [n] : []) : !n.readAt ? [n] : [],
     }),
   );
   await page.route("**/rpc/announcement_view", (route) =>
@@ -464,7 +465,7 @@ async function inboxFixture(page: Page, required = true) {
     if (agree) n.acknowledgedAt = date;
     return route.fulfill({ json: n });
   });
-  return { ...context, n, reads };
+  return { ...context, n, reads, setAvailable: (value: boolean) => {available=value;} };
 }
 for (const width of [390, 768, 1440])
   test(`aviso obligatorio ${width}px: deuda, lectura y confirmación de lectura personal`, async ({
@@ -480,7 +481,7 @@ for (const width of [390, 768, 1440])
     await expect(
       dialog.getByRole("button", { name: "Confirmar lectura" }),
     ).toBeDisabled();
-    expect(reads).toEqual([false]);
+    expect(reads).toEqual([]);
     await page.keyboard.press("Escape");
     await expect(dialog).toBeVisible();
     await expect(
@@ -501,10 +502,10 @@ for (const width of [390, 768, 1440])
       .getByRole("button", { name: "Confirmar lectura" })
       .click();
     await expect(dialog).toHaveCount(0);
-    expect(reads).toEqual([false, true]);
+    expect(reads).toEqual([true]);
     await expect(page).toHaveURL(/payments/);
   });
-test("aviso opcional registra lectura sin inventar consentimiento", async ({
+test("aviso de salud registra lectura al pulsar el botón sin inventar consentimiento", async ({
   page,
 }) => {
   const { reads } = await inboxFixture(page, false);
@@ -512,9 +513,89 @@ test("aviso opcional registra lectura sin inventar consentimiento", async ({
   const dialog = page.getByRole("dialog", { name: "Aviso personal de salud" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("checkbox")).toHaveCount(0);
-  await dialog.getByRole("button", { name: "Cerrar aviso" }).click();
+  expect(reads).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Marcar como leído" }).click();
   await expect(dialog).toHaveCount(0);
   expect(reads).toEqual([false]);
+});
+
+test("volver a MiCole muestra el aviso importante pendiente y recargar no inventa una lectura", async ({page}) => {
+  const {reads,setAvailable}=await inboxFixture(page);
+  setAvailable(false);
+  await page.goto('/app/overview');
+  await expect(page.getByRole('button',{name:'Menú de perfil',exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  setAvailable(true);
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  const dialog=page.getByRole('dialog',{name:'Aviso personal de salud'});
+  await expect(dialog).toBeVisible();
+  expect(reads).toEqual([]);
+  await page.reload();
+  await expect(dialog).toBeVisible();
+  expect(reads).toEqual([]);
+  await dialog.getByRole('checkbox',{name:'He leído el aviso.'}).check();
+  await dialog.getByRole('button',{name:'Confirmar lectura',exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  expect(reads).toEqual([true]);
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Menú de perfil',exact:true})).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+});
+
+test("un formulario abierto conserva su contenido y el aviso importante aparece al cerrarlo", async ({page}) => {
+  const {reads,setAvailable}=await inboxFixture(page);
+  setAvailable(false);
+  await page.goto('/app/overview');
+  await expect(page.getByRole('button',{name:'Menú de perfil',exact:true})).toBeVisible();
+  // A visible browser dialog models an editor that must not be interrupted.
+  await page.evaluate(()=>{
+    const dialog=document.createElement('dialog');
+    dialog.id='qa-editor';dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label','Editor en curso');
+    const input=document.createElement('textarea');input.setAttribute('aria-label','Observación pendiente');
+    dialog.append(input);document.body.append(dialog);dialog.showModal();
+  });
+  await page.getByRole('textbox',{name:'Observación pendiente'}).fill('Mi observación no debe perderse');
+  setAvailable(true);
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await expect(page.getByRole('dialog',{name:'Aviso personal de salud'})).toHaveCount(0);
+  await expect(page.getByRole('textbox',{name:'Observación pendiente'})).toHaveValue('Mi observación no debe perderse');
+  await page.evaluate(()=>document.getElementById('qa-editor')?.remove());
+  const dialog=page.getByRole('dialog',{name:'Aviso personal de salud'});
+  await expect(dialog).toBeVisible();
+  expect(reads).toEqual([]);
+});
+
+test("la familia ve una cuota que vence en cinco días y leerla no registra un pago",async({page})=>{
+  const {reads,setAvailable}=await inboxFixture(page);setAvailable(false);
+  const notice={id:'payment:'+noticeId,schoolId,title:'Pagos de Lucía Prueba',content:'Mensualidad noviembre - Bs 350.00 pendientes. Vence en 5 días. Fecha: 03/11/2026.',category:'general',canAcknowledge:true,canManage:false,readAt:null as string|null,payment:{studentId,studentName:'Lucía Prueba',amount:350,day:date,charges:[{id:id(2900),concept:'Mensualidad noviembre',dueDate:'2026-11-03',remaining:350,daysLeft:5}]}};
+  let paymentReads=0;
+  await page.route('**/rpc/family_payment_alerts',route=>route.fulfill({json:route.request().postDataJSON().p_include_read||!notice.readAt?[notice]:[]}));
+  await page.route('**/rpc/read_family_payment_alert',async route=>{paymentReads++;notice.readAt=new Date().toISOString();await route.fulfill({json:notice});});
+  const financialMutations:string[]=[];
+  page.on('request',request=>{if(/checkout_school_payment|record_school_payment|review_payment_submission/.test(request.url()))financialMutations.push(request.url());});
+  await page.goto('/app/overview');
+  const dialog=page.getByRole('dialog',{name:'Pagos de Lucía Prueba'});
+  await expect(dialog).toBeVisible();await expect(dialog).toContainText('Vence en 5 días');await expect(dialog).toContainText('Bs 350.00');
+  expect(reads).toEqual([]);expect(paymentReads).toBe(0);
+  await page.keyboard.press('Escape');await expect(dialog).toBeVisible();
+  await dialog.getByRole('button',{name:'Marcar como leído',exact:true}).click();
+  await expect(dialog).toHaveCount(0);expect(paymentReads).toBe(1);expect(financialMutations).toEqual([]);
+});
+
+test("un pago registrado en otra sesión retira el aviso abierto sin fingir una lectura",async({page})=>{
+  const {setAvailable}=await inboxFixture(page);setAvailable(false);
+  const notice={id:'payment:'+noticeId,schoolId,title:'Pagos pendientes de Lucía',content:'Saldo pendiente Bs 250.',category:'general',canAcknowledge:true,canManage:false,readAt:null,payment:{studentId,studentName:'Lucía',amount:250,day:date,charges:[]}};
+  let settled=false,reads=0;
+  await page.route('**/rpc/family_payment_alerts',route=>route.fulfill({json:settled?[]:[notice]}));
+  await page.route('**/rpc/read_family_payment_alert',async route=>{reads++;await route.fulfill({json:{resolved:true}});});
+  await page.goto('/app/overview');
+  const dialog=page.getByRole('dialog',{name:'Pagos pendientes de Lucía'});await expect(dialog).toBeVisible();
+  settled=true;
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await expect(dialog).toHaveCount(0);expect(reads).toBe(0);
+  await expect(page.getByRole('button',{name:'Menú de perfil',exact:true})).toBeVisible();
 });
 test("dirección publica para un niño y conserva el borrador al llegar cambios", async ({
   page,
@@ -540,7 +621,7 @@ test("dirección publica para un niño y conserva el borrador al llegar cambios"
   await d.getByLabel("Aula destinataria").selectOption(roomId);
   await d.getByRole("checkbox", { name: "Lucía Prueba" }).check();
   await d.getByRole("button", { name: "Siguiente", exact:true }).click();
-  await d.getByRole("checkbox", { name: /Exigir confirmación/ }).check();
+  await d.getByRole("checkbox", { name: /Solicitar confirmación/ }).check();
   await expect(
     d.getByRole("checkbox", { name: /Recordar cada hora/ }),
   ).toBeChecked();

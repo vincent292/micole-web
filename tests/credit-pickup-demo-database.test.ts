@@ -298,6 +298,10 @@ describe('crédito inicial, recogidas y solicitudes de demo',()=>{
   await fund();await expect(as(mother,()=>q("insert into family_requests(school_id,student_id,type,request_date,reason,pickup_name,pickup_id) values($1,$2,'pickup',current_date,'Autorización','Persona Demo','123456')",[school,child]))).rejects.toThrow(/carnet/);
   await expect(as(teacher,()=>q("select reserve_pickup_identity($1,$2,'ci.jpg','image/jpeg',50)",[id(820),child]))).rejects.toThrow(/madre o padre/);
   const prepared=(await acting(mother,()=>q("select reserve_pickup_identity($1,$2,'ci.jpg','image/jpeg',50) as value",[id(820),child]))).rows[0].value;
+  // PostgREST chooses READ WRITE for POST only when this RPC is VOLATILE.
+  expect((await q("select provolatile from pg_proc where oid='public.pickup_identity_for_upload(uuid)'::regprocedure")).rows[0].provolatile).toBe('v');
+  expect((await as(mother,()=>q('select pickup_identity_for_upload($1) as file',[prepared.id]))).rows[0].file.id).toBe(prepared.id);
+  await expect(as(stranger,()=>q('select pickup_identity_for_upload($1)',[prepared.id]))).rejects.toThrow(/autorizada|venció/);
   await expect(as(mother,()=>q("select finish_pickup_identity($1,50,'image/jpeg','fake')",[prepared.id]))).rejects.toThrow(/permission denied/);
   const file=(await q('select * from pickup_identity_files where id=$1',[prepared.id])).rows[0],key=`${file.school_id}/pickups/${file.request_id}/${file.id}/file.jpg`;
   await server(()=>q("select finish_pickup_identity($1,50,'image/jpeg',$2)",[file.id,key]));

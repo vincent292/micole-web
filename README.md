@@ -105,6 +105,8 @@ El selector de perfil ofrece únicamente los roles autorizados de la cuenta. En 
 - Facturación SaaS separada: activación y licencias por institución. Corte recurrente sin duplicar cargos.
 - Facturas: solicitudes por recibo con razón social, NIT/CI y celular, exportación CSV y seguimiento de emisión manual. Vista previa sin validez fiscal; no emite factura SIAT.
 - Cuaderno por estudiante o por toda un aula: actividades, alimentación, descanso, observaciones y tareas.
+- Modo kínder configurable desde la identidad: jornada, cuidados, cuaderno y familias como prioridad; herramientas secundarias en Más opciones. Registro de cuidados para varios niños con selección explícita, revisión de excepciones individuales y guardado conjunto sin duplicados al reintentar. Ver [jornada para kínderes](docs/KINDER.md).
+- Inscripciones virtuales para todas las instituciones: listas oficiales, reparto equilibrado de nuevos alumnos, QR individual, formulario familiar y confirmación tras el pago exigible. La importación admite solo nombres; RUDE, carnet, apellidos separados y correo son opcionales al cargar. Ver [inscripciones virtuales](docs/INSCRIPCIONES-VIRTUALES-PILOTO.md).
 - Comunicados generales de dirección y por curso de docentes.
 - Agenda, tareas, cumpleaños, materiales, notas y recomendaciones.
 - Inbox por estudiante, compartido por sus responsables, docentes asignados y Dirección. Realtime utiliza señales por colegio con RLS, sin datos personales, y recarga selectiva; los cambios en segundo plano esperan al cierre del modal para conservar escritura, foco y scroll. No hay sondeo cada minuto.
@@ -119,9 +121,9 @@ El selector de perfil ofrece únicamente los roles autorizados de la cuenta. En 
 
 ## Cobros y acceso
 
-**MiCole:** Bs 50 de activación una vez por estudiante, y Bs 29 por mes activo. La activación no incluye la licencia del primer mes.
+**MiCole:** Bs 25 por estudiante activo al mes. El crédito inicial de Bs 500 por sede se aplica a licencias. La activación por estudiante conserva su tarifa configurada de Bs 50 y está deshabilitada inicialmente; el propietario puede habilitarla desde Facturación MiCole.
 
-**Colegio:** cada mensualidad = tarifa escolar + merienda + Bs 29 de licencia − descuento. Matrícula aparte si aplica. El descuento no reduce la licencia y se evalúa por el vencimiento. El primer mes puede prorratear mensualidad y merienda. La institución cobra sus cuotas y liquida la licencia a MiCole por separado.
+**Colegio:** cada mensualidad de guardería/inicial = tarifa escolar + merienda + Bs 25 de licencia − descuento. En primaria/secundaria, la licencia se liquida a la institución y no se suma a las pensiones familiares. Matrícula aparte si aplica. El descuento no reduce la licencia y se evalúa por el vencimiento. El primer mes puede prorratear mensualidad y merienda. La institución cobra sus cuotas y liquida la licencia a MiCole por separado.
 
 La agenda familiar requiere inscripción activa, activación pagada, ficha completa e inexistencia de cuotas vencidas. El acceso temporal conserva la deuda y no evita la activación ni la ficha. Los pagos y la ficha de cuidado siguen disponibles. Las reglas se aplican en la base, incluso si alguien intenta consultar directamente la API.
 

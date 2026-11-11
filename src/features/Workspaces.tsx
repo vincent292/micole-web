@@ -1,6 +1,7 @@
 import {Care} from "./SchoolLife";
 import {classroomWork} from "../lib/classroomWork";
 import {schoolRoom} from "../lib/bolivia";
+import { isKinderClassroom, kinderClassroomNavigation } from "../lib/kinder";
 import { Interviews, Tutoring } from "./Tutoring";
 import { isClassroomTutor } from "../lib/tutoring";
 import { useMemo, useState } from "react";
@@ -67,12 +68,13 @@ export function ClassroomEntry(p: PageProps) {
 }
 function ClassroomCenter(p: PageProps & { roomId: string }) {
   const params = new URLSearchParams(useLocation().search),
-    requested = params.get("tab") || (p.role === "teacher" ? "today" : "students"),
+    rooms = schoolRooms(p.store.data, p.school?.id, p.role, p.identity),
+    room = rooms.find((r) => r.id === p.roomId),
+    kinderMode = !!room && isKinderClassroom(room, p.school),
+    requested = params.get("tab") || (p.role === "teacher" || kinderMode ? "today" : "students"),
     tab = Object.hasOwn(classroomTabs, requested)
       ? (requested as ClassroomTab)
       : "students";
-  const rooms = schoolRooms(p.store.data, p.school?.id, p.role, p.identity),
-    room = rooms.find((r) => r.id === p.roomId);
   const children = useMemo(
     () => p.students.filter((s) => s.classroomId === p.roomId),
     [p.students, p.roomId],
@@ -114,6 +116,8 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
       else p.go(next);
     },
   };
+  const availableTabs = Object.entries(classroomTabs).filter(([key]) => key !== "tutoring" || p.role === "director" || isClassroomTutor(p.store.data, p.identity, p.role, room.id));
+  const kinderTabs = kinderClassroomNavigation(availableTabs);
   return (
     <>
       <Button
@@ -137,6 +141,7 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
               : `${Math.max(0, (room.capacity || 30) - children.filter((s) => s.status !== "inactive").length)} cupos disponibles`}
           </p>
         </div>
+        {p.school&&['director','teacher'].includes(p.role)&&<Button variant="secondary" onClick={()=>p.go(`enrollment?classroom=${encodeURIComponent(room.id)}`)}>Inscripciones de esta aula</Button>}
         {p.role === "director" && (
           <Button variant="secondary" onClick={() => p.open("classroom", room)}>
             Editar aula
@@ -146,24 +151,33 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
       <Tabs
         label="Trabajo del aula"
         value={tab}
-        options={Object.entries(classroomTabs).filter(([key])=>key!=="tutoring"||p.role==="director"||isClassroomTutor(p.store.data,p.identity,p.role,room.id))}
+        options={kinderMode ? kinderTabs.primary : availableTabs}
         onChange={setTab}
       />
+      {kinderMode && kinderTabs.secondary.length > 0 && <details className="kinder-classroom-more" open={kinderTabs.secondary.some(([key]) => key === tab) || undefined}>
+        <summary>Más opciones del aula</summary>
+        <Tabs label="Otras herramientas del aula" value={tab} options={kinderTabs.secondary} onChange={setTab} />
+      </details>}
       <div key={`${room.id}:${tab}`} className="focus-content">
         {tab === "today" && <>
-          <SectionTitle title="Tu jornada en el aula" subtitle={schoolRoom(room,p.school)?"Trabaja por materia y revisa las entregas pendientes.":"Asistencia, cuidados y actividades cotidianas del grupo."}/>
+          <SectionTitle title={kinderMode ? "La jornada de tu aula" : "Tu jornada en el aula"} subtitle={kinderMode ? "Acompaña los cuidados, los descubrimientos y la comunicación con las familias." : schoolRoom(room,p.school)?"Trabaja por materia y revisa las entregas pendientes.":"Asistencia, cuidados y actividades cotidianas del grupo."}/>
           <div className="focus-shortcuts">
             <button onClick={()=>setTab("studentAttendance")}>Pasar lista <ArrowRight size={18}/></button>
+            {kinderMode && <button onClick={() => setTab("care")}>Registrar cuidados del grupo <Heart size={18} /></button>}
             <button onClick={()=>setTab("students")}>Alumnos y emergencias <Heart size={18}/></button>
             <button onClick={()=>setTab("calendar")}>Calendario del aula <ArrowRight size={18}/></button>
           </div>
-          <div className="focus-grid">
+          {kinderMode ? <div className="focus-grid">
+            <article className="panel focus-card kinder-day-note"><h3>Así fue su día</h3><p>Registra alimentación, descanso, higiene y ánimo para el grupo, ajustando los detalles de cada niño antes de guardar.</p><Button onClick={() => setTab("care")}>Abrir cuidados del aula</Button></article>
+            <article className="panel focus-card"><h3>Aprendizajes</h3><p>Acompaña los avances del grupo y consulta sus valoraciones, observaciones y recomendaciones.</p><Button variant="secondary" onClick={() => setTab("gradebook")}>Ver aprendizajes</Button></article>
+            <article className="panel focus-card"><h3>Familias y recojos</h3><p>{scoped.store.data.requests.filter(request => request.status === "pending").length} solicitudes pendientes de revisión. Consulta las autorizaciones antes de confirmar una entrega.</p><Button variant="secondary" onClick={() => p.go("requests")}>Revisar permisos y recojos</Button></article>
+          </div> : <div className="focus-grid">
            {classroomWork(p.store.data,room,p.identity,p.role).map(subject=><article key={subject.id} className="panel focus-card">
             <h3>{subject.name}</h3><p>{subject.pending} entregas por revisar · {subject.canWrite?"A tu cargo":"Consulta de tutoría"}</p>
             <div className="focus-actions"><Button onClick={()=>setTab("assignments",`subject=${subject.id}`)}>Tareas y entregas</Button><Button variant="secondary" onClick={()=>setTab("gradebook",`subject=${subject.id}`)}>Evaluaciones</Button></div>
            </article>)}
-          </div>
-          {!room.subjectsEnabled&&<div className="focus-actions"><Button onClick={()=>setTab("assignments")}>Actividades del grupo</Button><Button variant="secondary" onClick={()=>setTab("care")}>Cuidados diarios</Button><Button variant="secondary" onClick={()=>setTab("journal")}>Cuaderno digital</Button><Button variant="secondary" onClick={()=>setTab("gradebook")}>Evaluaciones y seguimiento</Button></div>}
+          </div>}
+          {!kinderMode&&!room.subjectsEnabled&&<div className="focus-actions"><Button onClick={()=>setTab("assignments")}>Actividades del grupo</Button><Button variant="secondary" onClick={()=>setTab("care")}>Cuidados diarios</Button><Button variant="secondary" onClick={()=>setTab("journal")}>Cuaderno digital</Button><Button variant="secondary" onClick={()=>setTab("gradebook")}>Evaluaciones y seguimiento</Button></div>}
         </>}
         {tab === "students" && <Directory page="students" {...childProps} />}
         {tab === "subjects" && <Subjects {...childProps} />}

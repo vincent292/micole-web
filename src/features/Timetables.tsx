@@ -1,3 +1,4 @@
+import { SchoolCalendar } from "./SchoolCalendar";
 import {validateSchoolTimetable} from "../lib/boliviaTimetable";
 import { useState } from "react";
 import {
@@ -299,11 +300,12 @@ export function Timetables(p: PageProps) {
           </Field>
           <label className="check-row">
             <input name="approve" type="checkbox" />
-            Permitir aprobar y publicar horarios
+            Permitir publicar horarios y comunicados del calendario
           </label>
           <p>Ingresará con este correo verificado desde el login habitual.</p>
         </Modal>
       )}
+      <SchoolCalendar schoolId={p.school?.id} role={p.role} />
     </section>
   );
 }
@@ -529,10 +531,10 @@ function TimetableEditor({
             />
           </Field>
         </div>
-        <p className="muted">
+        {d.rooms.some(r => r.boliviaRegular) && <p className="muted">
           Primaria/secundaria Bolivia 2026: seis periodos diarios de 40 minutos (35 en nocturno). Para una sesión de 80
           minutos, usa bloques de 2 periodos.
-        </p>
+        </p>}
         <div className="planning-actions">
           {weekDays.slice(1).map((label, i) => (
             <label key={label}>

@@ -125,7 +125,7 @@ export function AuthPage({
                 : "Accede con el correo que tu colegio tiene vinculado a tu cuenta."}
           </p>
           {!invitation && !auth.signedIn && (
-            <div className="soft-note" style={{ marginBottom: 20 }}>
+            <div className="soft-note auth-demo-note">
               <b>¿Quieres conocer MiCole?</b>
               <p>
                 Si ya recibiste tus credenciales, entra a la demo privada con
@@ -176,7 +176,7 @@ export function AuthPage({
                 className="full"
                 icon={Mail}
                 onClick={() => {
-                  void supabase?.auth.signOut();
+                  void supabase?.auth.signOut({ scope: "local" });
                 }}
               >
                 Usar otra cuenta

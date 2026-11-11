@@ -8,6 +8,7 @@ import {
 import type { AppData, Identity, Role, School, Student } from "../lib/types";
 import { today } from "../lib/billing";
 import { dateLabel } from "../lib/format";
+import { isKinderClassroom, isKinderWorkspace } from "../lib/kinder";
 import "../styles/workspaces.css";
 export function RoleHome({
   data,
@@ -32,9 +33,13 @@ export function RoleHome({
     academic =
       !family ||
       (!!student && recordAcademicAccess(student, role, data, identity));
-  const actions = dayActions(data, school?.id, role, students, student).filter(
+  const kinderMode = isKinderWorkspace(school);
+  const existingActions = dayActions(data, school?.id, role, students, student).filter(
     (a) => academic || a.key !== "calendar",
   );
+  const actions = kinderMode && (!family || academic)
+    ? [{ key: "care", title: family ? "Así fue su día" : "Cuidados del aula", detail: family ? "Alimentación, descanso y observaciones de tu hijo." : "Registra un cuidado para el grupo y ajusta cada niño.", page: "care", priority: true }, ...existingActions]
+    : existingActions;
   const rooms = schoolRooms(data, school?.id, role, identity);
   const events = academic
     ? data.events
@@ -53,7 +58,7 @@ export function RoleHome({
   return (
     <>
       <SectionTitle
-        title="Pendientes y accesos"
+        title={kinderMode ? family ? "Hoy en su kínder" : "Tu jornada en el kínder" : "Pendientes y accesos"}
         subtitle={`Hola, ${name.split(" ")[0]}. ${family ? `Acompaña a ${student?.firstName || "tu familia"} desde un solo lugar.` : "Revisa lo pendiente y continúa el trabajo de tus aulas."}`}
       />
       {family && !academic && (
@@ -79,7 +84,7 @@ export function RoleHome({
         <div className="focus-actions">
           <Button onClick={() => go("classrooms")}>Abrir mis aulas</Button>
           <Button variant="secondary" onClick={() => go("students")}>
-            Inscribir o buscar alumno
+            {kinderMode ? "Inscribir o buscar niño" : "Inscribir o buscar alumno"}
           </Button>
           <Button variant="ghost" onClick={() => go("onboarding")}>
             Preparar institución
@@ -105,7 +110,7 @@ export function RoleHome({
         <>
           <SectionTitle
             title="Mis aulas"
-            subtitle="Alumnos, asistencia, materias y trabajo diario del curso."
+            subtitle={kinderMode ? "Cuidados, asistencia y actividades para acompañar a cada niño." : "Alumnos, asistencia, materias y trabajo diario del curso."}
           />
           <div className="focus-grid">
             {rooms.map((r) => (
@@ -125,7 +130,7 @@ export function RoleHome({
                 <div className="focus-actions">
                   <Button
                     onClick={() =>
-                      go(`classrooms?classroom=${r.id}&tab=students`)
+                      go(`classrooms?classroom=${r.id}&tab=${isKinderClassroom(r, school) ? "today" : "students"}`)
                     }
                   >
                     Abrir aula

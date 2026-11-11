@@ -1,49 +1,31 @@
-# Avisos, confirmaciones y alertas de MiCole
+# Avisos importantes, lectura y pagos familiares
 
-## Publicar
+Actualizado el 29 de octubre de 2026 para web y APK 18.
 
-Dirección y los docentes asignados pueden crear avisos en **Comunicados**. Dirección también puede dirigirse a toda la institución.
+## Qué aparece al entrar
 
-1. Completa título, contenido y tipo: comunicado, actividad, notas, salud o recojo.
-2. Elige institución o aula y audiencia. En un aula puedes seleccionar niños concretos: reciben el aviso las cuentas verificadas de su madre y padre. Sin selección, se incluyen todas las familias del aula. «Toda la comunidad» incluye además al personal correspondiente.
-3. Activa «Exigir Estoy de acuerdo» si necesitas confirmación personal. Al activarlo, se selecciona inicialmente el recordatorio por hora; puedes desactivarlo.
-4. Solo salud o recojo permiten marcar **Urgente**.
+Salud y recojo pendientes aparecen primero. Para que otro comunicado se muestre obligatoriamente, Dirección o el docente activa **Solicitar confirmación: «He leído»**. Los avisos se vuelven a consultar al entrar, al volver a la aplicación o pestaña y al recuperar conexión. Si hay otro formulario abierto, esperan a que se cierre sin perder su contenido.
 
-Un aviso publicado conserva texto, destinatarios y reglas de confirmación. Para corregirlo, retíralo y publica otro. Retirar detiene sus recordatorios y conserva el historial.
+Abrir la pantalla no registra lectura automáticamente. Salud y recojo sin confirmación se cierran mediante **Marcar como leído**. Los comunicados obligatorios requieren marcar **He leído el aviso** y pulsar **Confirmar lectura**. Se puede cerrar sesión en lugar de confirmar. Cada destinatario responde desde su cuenta; mamá no confirma por papá ni una cuenta infantil por un adulto. La confirmación no autoriza salidas, actividades ni recojos.
 
-## Leer y aceptar
+## Pagos: cinco días antes
 
-Al entrar en web o Android, los destinatarios ven primero los avisos obligatorios pendientes. Deben marcar «He leído el aviso y estoy de acuerdo» y confirmar, o cerrar sesión. Abrir el aviso registra lectura; no registra aceptación. Cada cuenta confirma por separado.
+Los padres verificados reciben un aviso por hijo con las cuotas cuyo saldo es mayor que cero y vencen dentro de cinco días, hoy o ya vencieron. Incluye concepto, fecha, días hasta el vencimiento e importe pendiente. Se agrupan las cuotas del hijo; se excluyen pagadas, anuladas, sin saldo y las que vencen dentro de más de cinco días. Los roles escolares, estudiantes y otras familias no reciben esos avisos familiares.
 
-Los avisos opcionales de salud y recojo también se muestran al entrar, pero permiten cerrarlos sin aceptar. Los demás se consultan desde Comunicados o Notificaciones.
+**Ver mis pagos** registra la lectura y abre el estado de cuenta del hijo correcto. **Marcar como leído** permite continuar. Ninguna acción registra un abono, cobra ni cambia el saldo. Mamá y papá tienen lecturas independientes. Marcar toda la campana no sustituye esta lectura específica.
 
-Los avisos obligatorios, de salud y recojo están disponibles para padres con cuotas pendientes. Esto no habilita tareas, notas, calendario ni el resto del contenido bloqueado.
+Se conserva una lectura por persona, hijo, día y composición de cuotas/saldos. Reintentar no duplica. Un abono cambia el importe avisado; al quedar saldado deja de aparecer. Una deuda no resuelta puede generar otro aviso al día siguiente. El saldo es el registrado por la institución; enviar un comprobante no lo confirma por sí solo.
 
-El modo de soporte permite consultar sin aceptar en nombre de otra persona. Dirección y el docente autor pueden abrir **Ver aviso y lecturas** para revisar lecturas y confirmaciones de las cuentas vinculadas. Las cuentas infantiles reciben solo los avisos académicos de lectura; no reciben consentimientos ni alertas privadas de salud o recojo.
+El worker existente suma cinco días a los recordatorios de tres días antes, el vencimiento y el día siguiente. No se agregó otro cron. La pantalla al entrar funciona aunque Android no haya mostrado un banner. Los push conservan texto genérico y las preferencias del teléfono. No se afirma entrega física de cada nuevo recordatorio durante el descanso nocturno.
 
-## Recordatorios
+## Publicar y consultar
 
-El worker existente de Supabase corre cada minuto y genera los recordatorios que vencieron hace una hora. No necesita que Android permanezca abierto.
+Dirección publica para su institución y los docentes dentro de sus aulas. Se pueden elegir niños concretos o las familias del aula; la selección no amplía permisos. El autor y Dirección consultan **Ver aviso y lecturas**, con cuenta y hora de confirmación. Salud, recojo y confirmaciones obligatorias no se delegan a cuentas infantiles.
 
-- Obligatorio: se detiene cuando esa cuenta acepta.
-- Opcional con recordatorio: se detiene cuando esa cuenta abre el aviso.
-- Descanso: 22:00–07:00, zona **America/La_Paz**. Se reprograma para las 07:00 sin acumular nueve avisos nocturnos.
-- Solo avisos de salud o recojo marcados urgentes omiten el descanso.
-- Se comprueba nuevamente el vínculo, el acceso y la confirmación antes de enviar.
-- Los recordatorios de confirmación son para cuentas adultas. El estudiante recibe el aviso académico inicial.
-
-Las notificaciones del teléfono dependen del permiso de Android y de las preferencias de la cuenta. La confirmación dentro de la app permanece pendiente aunque estén desactivadas las notificaciones.
-
-## Android
-
-Se prepararon canales, iconos y vibraciones distintos; salud y recojo tienen además sonidos propios. FCM envía texto genérico y el identificador autorizado del aviso: los nombres, notas y detalles médicos se consultan al entrar en la app.
-
-**No se generó APK.** Los recursos nativos y canales nuevos necesitan la siguiente compilación manual. Un APK anterior utiliza los canales y recursos que ya tenga instalados.
-
-La configuración de los recursos está en `app.json`, `assets/notifications/` y `plugins/with-notification-icons.cjs`. El plugin copia únicamente sus iconos al compilar; no modifica a mano el proyecto nativo existente.
+El texto y los destinatarios publicados son inmutables. Para corregir, retirar y publicar otra versión. Retirar detiene los recordatorios y conserva la historia. Soporte no confirma por una familia.
 
 ## Operación
 
-Migración: `npm run supabase:migrate:announcements` en el proyecto web. Se aplica una vez; debe desplegarse junto con `push-dispatch` y el frontend. No agrega un cron nuevo: reutiliza `micole-push-dispatch`.
+Migración: 202610290003_family_payment_attention.sql, validada con rollback antes de aplicarse. Añade lectura personal de recordatorios y cinco días de anticipación; no reescribe cuotas ni pagos existentes. La APK 18 se compila y firma localmente con el certificado existente.
 
-No se cambian las preferencias antiguas del dispositivo ni se convierten avisos anteriores en obligatorios. Las confirmaciones se guardan con su cuenta, fecha y la huella del contenido publicado. Las políticas RLS y los RPC impiden confirmar por otra cuenta o modificar directamente los recibos.
+Cuentas para demostrar: [correos y roles](CUENTAS-DE-PRUEBA-PARA-DEMO.md). Evidencias: output/qa/2026-10-29-avisos-importantes/.

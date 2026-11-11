@@ -1,3 +1,5 @@
+import { attendanceWeekDates } from "./attendanceWeek";
+import { demoSchoolDay } from "./demo-school-calendar";
 import { readDemoData, writeDemoData } from "./demo";
 import { demoRole } from "./demo-config";
 import { today } from "./billing";
@@ -22,21 +24,25 @@ interface State {
 }
 export const studentAttendanceOperations = [
   "student_attendance_workspace",
+  "student_attendance_week",
   "save_student_attendance",
   "request_attendance_correction",
   "review_attendance_correction",
+  "review_attendance_permission",
 ];
 export async function demoStudentAttendanceRpc(
   name: string,
   parameters: object,
-) {
+): Promise<unknown> {
   const p = parameters as {
       p_id: string;
       p_record_id: string;
+      p_base_correction_id?: string | null;
       p_status: AttendanceRecord["status"];
       p_note: string;
       p_approve: boolean;
       p_request_id?: string;
+      p_permission_revision?: string;
       p_classroom_id: string;
       p_day: string;
       p_month: string;
@@ -67,9 +73,45 @@ export async function demoStudentAttendanceRpc(
     (r) =>
       r.id ===
       (p.p_classroom_id ||
-        state.sessions.find((s) => s.id === target?.sessionId)?.room),
+        state.sessions.find((s) => s.id === target?.sessionId)?.room ||
+        data.students.find(
+          (s) => s.id === data.requests.find((r) => r.id === p.p_id)?.studentId,
+        )?.classroomId),
   );
   if (!room) throw new Error("Selecciona un aula.");
+  if (name === "student_attendance_week") {
+    const dates=attendanceWeekDates(p.p_day),roster=new Map<string,AttendanceWorkspace["roster"][number]>(),records:AttendanceRecord[]=[],days=[];
+    for(const date of dates){
+      const current=await demoStudentAttendanceRpc("student_attendance_workspace",{...parameters,p_day:date,p_month:date.slice(0,7)+"-01"}) as AttendanceWorkspace;
+      current.roster.forEach(row=>{const student=data.students.find(s=>s.id===row.student_id);roster.set(row.student_id,{...row,first_name:student?.firstName,last_name:student?.lastName});});
+      records.push(...current.records.filter(row=>row.date===date));
+      days.push({...demoSchoolDay(room.schoolId,date,room.weekdays),sessionStatus:current.session?.status,studentIds:current.roster.map(row=>row.student_id)});
+    }
+    return {start:dates[0],roster:[...roster.values()],days,records};
+  }
+  if (name === "review_attendance_permission") {
+    const permission = data.requests.find(
+      (r) => r.id === p.p_id && r.type === "absence",
+    );
+    if (
+      role !== "teacher" ||
+      !permission ||
+      !data.students.some(
+        (s) => s.id === permission.studentId && s.classroomId === room.id,
+      )
+    )
+      throw new Error("Solo el docente asignado puede revisar este pedido.");
+    if (p.p_note.trim().length < 5)
+      throw new Error(
+        "Escribe una respuesta para la familia de al menos 5 caracteres.",
+      );
+    if (permission.status !== "pending")
+      throw new Error("El pedido ya fue revisado.");
+    permission.status = p.p_approve ? "approved" : "rejected";
+    permission.response = p.p_note.trim();
+    writeDemoData(data, true);
+    return;
+  }
   const effective = (r: AttendanceRecord) => {
     const c = corrections
       .filter((c) => c.record_id === r.id && c.status === "approved")
@@ -84,8 +126,10 @@ export async function demoStudentAttendanceRpc(
       : r;
   };
   if (name === "request_attendance_correction") {
-    if (!manager || !target?.confirmed)
-      throw new Error("Solo el personal del aula solicita correcciones.");
+    if (role !== "teacher" || !target?.confirmed)
+      throw new Error(
+        "Solo el docente asignado puede corregir con justificativo.",
+      );
     const old = corrections.find((c) => c.id === p.p_id);
     if (old) return old.id;
     if (
@@ -100,6 +144,8 @@ export async function demoStudentAttendanceRpc(
     )
       throw new Error("Indica estado y motivo de la corrección.");
     const current = effective(target);
+    if ((current.correctionId || null) !== (p.p_base_correction_id || null))
+      throw new Error("La asistencia cambió. Actualiza antes de corregir y compara el historial.");
     if (current.status === p.p_status && current.note === p.p_note.trim())
       throw new Error("La solicitud no cambia el registro.");
     corrections.push({
@@ -112,44 +158,58 @@ export async function demoStudentAttendanceRpc(
       proposed_status: p.p_status!,
       proposed_note: p.p_note.trim(),
       reason: p.p_reason.trim(),
-      status: "pending",
+      status: "approved",
       requested_by: `demo-${role}`,
       requested_at: new Date().toISOString(),
-      review_note: "",
+      review_note: "Corrección del docente con justificativo",
+      reviewed_by: "demo-teacher",
+      reviewed_at: new Date().toISOString(),
+    });
+    data.notifications.push({
+      id: crypto.randomUUID(),
+      schoolId: room.schoolId,
+      studentId: target.studentId,
+      title: "Asistencia corregida",
+      body: "El docente registró una corrección con justificativo.",
+      userId: "demo-guardian",
+      sourceId: p.p_id,
+      createdAt: new Date().toISOString(),
+      target: "studentAttendance",
+      kind: "attendance_corrected",
+      alertType: "attendance",
     });
     localStorage.setItem(key, JSON.stringify(state));
+    writeDemoData(data, true);
     return p.p_id;
   }
-  if (name === "review_attendance_correction") {
-    const c = corrections.find((c) => c.id === p.p_id);
-    if (role !== "director" || !c || !target)
-      throw new Error("Solo Dirección puede revisar la corrección.");
-    if (c.status !== "pending")
-      throw new Error("La solicitud ya fue revisada.");
-    if (p.p_note.trim().length < 5)
-      throw new Error("Indica el motivo de la decisión.");
-    c.status = p.p_approve ? "approved" : "rejected";
-    c.review_note = p.p_note.trim();
-    c.reviewed_by = "demo-director";
-    c.reviewed_at = new Date().toISOString();
-    if (p.p_approve)
-      data.notifications.push({
-        id: crypto.randomUUID(),
-        schoolId: room.schoolId,
-        studentId: target.studentId,
-        title: "Asistencia corregida",
-        body: `Dirección aprobó una corrección del ${target.date}.`,
-        userId: "demo-guardian",
-        sourceId: c.id,
-        createdAt: new Date().toISOString(),
-        target: "studentAttendance",
-        kind: "attendance_corrected",
-        alertType: "attendance",
-      });
-    localStorage.setItem(key, JSON.stringify(state));
-    writeDemoData(data, true);
-    return;
-  }
+  if (name === "review_attendance_correction")
+    throw new Error(
+      "Dirección no puede cambiar la asistencia. Solo el docente corrige con justificativo.",
+    );
+  const permissions = manager
+    ? data.requests
+        .filter(
+          (r) =>
+            r.type === "absence" &&
+            r.date === p.p_day &&
+            data.students.some(
+              (s) => s.id === r.studentId && s.classroomId === room.id,
+            ),
+        )
+        .map((r) => ({
+          id: r.id,
+          studentId: r.studentId,
+          studentName: data.students
+            .filter((s) => s.id === r.studentId)
+            .map((s) => `${s.firstName} ${s.lastName}`)
+            .join(""),
+          date: r.date,
+          reason: r.reason,
+          status: r.status,
+          response: r.response,
+        }))
+    : [];
+  const permissionRevision = JSON.stringify(permissions);
   const session = state.sessions.find(
     (s) => s.room === room.id && s.day === p.p_day,
   );
@@ -161,8 +221,13 @@ export async function demoStudentAttendanceRpc(
   );
   if (name === "student_attendance_workspace")
     return {
+      schoolDay: demoSchoolDay(room.schoolId,p.p_day,room.weekdays),
       canManage: manager,
-      canReview: role === "director",
+      canReview: false,
+      canMark: role === "teacher" && demoSchoolDay(room.schoolId,p.p_day,room.weekdays).isSchoolDay && p.p_day<=today(),
+      canCorrect: role === "teacher",
+      permissions,
+      permissionRevision,
       corrections: manager
         ? corrections.filter(
             (c) =>
@@ -195,7 +260,31 @@ export async function demoStudentAttendanceRpc(
         )
         .map(effective),
     } satisfies AttendanceWorkspace;
-  if (!manager) throw new Error("Solo Dirección o Docente puede pasar lista.");
+  if(!demoSchoolDay(room.schoolId,p.p_day,room.weekdays).isSchoolDay) throw new Error("Este día no tiene clases. No se registran faltas ni se envían avisos de ausencia.");
+  if (role !== "teacher")
+    throw new Error("Solo el docente asignado puede pasar lista.");
+  if (p.p_confirm) {
+    if (
+      (permissions.length && !p.p_permission_revision) ||
+      (p.p_permission_revision &&
+        p.p_permission_revision !== permissionRevision)
+    )
+      throw new Error(
+        "Los permisos de la familia cambiaron. Actualiza y revísalos antes de confirmar.",
+      );
+    if (permissions.some((r) => r.status === "pending"))
+      throw new Error("Hay pedidos de permiso pendientes.");
+    if (
+      permissions.some(
+        (r) =>
+          r.status === "approved" &&
+          p.p_records.some(
+            (m) => m.studentId === r.studentId && m.status === "absent",
+          ),
+      )
+    )
+      throw new Error("Un estudiante tiene permiso aceptado. Usa Con permiso.");
+  }
   if (p.p_day > today()) throw new Error("La asistencia no puede ser futura.");
   const signature = JSON.stringify([
     p.p_classroom_id,

@@ -12,6 +12,7 @@ const FamilyIntakePage = lazy(() =>
   })),
 );
 const PaymentLinkPage = lazy(() => import("./features/public/PaymentLinkPage").then(module => ({ default: module.PaymentLinkPage })));
+const RegistrationPage = lazy(() => import('./features/public/RegistrationPage').then(module=>({default:module.RegistrationPage})));
 const WorkspaceApp = lazy(() => import("./WorkspaceApp"));
 const InstitutionPage = lazy(() => import("./features/public/InstitutionPage").then(module => ({ default: module.InstitutionPage })));
 const legacyPages = new Set([
@@ -55,6 +56,7 @@ export default function App() {
     return <Landing />;
   }
   if (location.pathname.startsWith("/pago/")) return <Suspense fallback={<main className="loading-screen">Cargando pago…</main>}><PaymentLinkPage /></Suspense>;
+  if (location.pathname.startsWith('/matricula/')) return <Suspense fallback={<main className="loading-screen">Preparando inscripción…</main>}><RegistrationPage/></Suspense>;
   if (location.pathname.startsWith("/instituciones/")) return <Suspense fallback={<main className="loading-screen"><Brand /><p>Preparando la institución…</p></main>}><InstitutionPage /></Suspense>;
   if (location.pathname.startsWith("/inscripcion/"))
     return (

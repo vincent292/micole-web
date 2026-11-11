@@ -27,12 +27,31 @@ export interface AttendanceSession {
   confirmed_at?: string;
 }
 export interface AttendanceWorkspace {
+  schoolDay?: import("./attendanceWeek").SchoolDay;
   canManage: boolean;
+  canMark?: boolean;
+  canCorrect?: boolean;
+  permissions?: AttendancePermission[];
+  permissionRevision?: string;
   canReview?: boolean;
   corrections?: AttendanceCorrection[];
   session: AttendanceSession | null;
-  roster: { student_id: string; student_name: string }[];
+  roster: {
+    student_id: string;
+    student_name: string;
+    first_name?: string;
+    last_name?: string;
+  }[];
   records: AttendanceRecord[];
+}
+export interface AttendancePermission {
+  id: string;
+  studentId: string;
+  studentName: string;
+  date: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  response: string;
 }
 export function attendanceCounts(
   marks: { status: AttendanceStatus | "" | null }[],
@@ -46,15 +65,17 @@ export function attendanceCounts(
 export function attendanceMarks(
   data: AttendanceWorkspace,
   day: string,
+  draft?: AttendanceMark[],
 ): AttendanceMark[] {
   return data.roster.map((s) => {
+    const local = draft?.find((mark) => mark.studentId === s.student_id);
     const mark = data.records.find(
       (r) => r.studentId === s.student_id && r.date === day,
     );
     return {
       studentId: s.student_id,
-      status: mark?.status || "",
-      note: mark?.note || "",
+      status: local ? local.status : mark?.status || "",
+      note: local ? local.note : mark?.note || "",
     };
   });
 }
@@ -79,9 +100,19 @@ export function attendanceMonth(day: string) {
 }
 
 export interface AttendanceCorrection {
- id:string;record_id:string;studentName:string;date:string;
- previous_status:AttendanceStatus;proposed_status:AttendanceStatus;
- previous_note:string;proposed_note:string;reason:string;review_note:string;
- status:'pending'|'approved'|'rejected';requested_by:string;requested_at:string;
- reviewed_by?:string;reviewed_at?:string;
+  id: string;
+  record_id: string;
+  studentName: string;
+  date: string;
+  previous_status: AttendanceStatus;
+  proposed_status: AttendanceStatus;
+  previous_note: string;
+  proposed_note: string;
+  reason: string;
+  review_note: string;
+  status: "pending" | "approved" | "rejected";
+  requested_by: string;
+  requested_at: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
 }

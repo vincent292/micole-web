@@ -93,6 +93,7 @@ export function PlatformOverview({ store, identity, go, open }: PageProps) {
         />
       </div>
       <div className="platform-columns">
+        <section className="panel"><SectionTitle title="Métricas de colegios" subtitle="Altas de alumnos, cobros, materias y uso por semana o mes"/><Button onClick={()=>go('schoolMetrics')}>Ver métricas de colegios</Button></section>
         <section className="panel">
           <SectionTitle
             title="Instituciones"

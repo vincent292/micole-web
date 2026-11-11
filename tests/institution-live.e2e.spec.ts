@@ -15,7 +15,7 @@ test("una base pendiente de migrar mantiene el formulario y no descarta datos nu
   await page.route("**/rest/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const name = url.pathname.split("/").at(-1);
-    if (name === "schools" && url.searchParams.get("select") === "nit,address,website,show_on_landing,public_description,show_public_contact") {
+    if (name === "schools" && url.searchParams.get("select") === "nit,address,website,show_on_landing,public_description,show_public_contact,workspace_mode") {
       schemaChecks++;
       await route.fulfill({ status: 400, json: { code: "42703", message: "column schools.nit does not exist" } });
       return;

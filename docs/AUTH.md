@@ -6,6 +6,19 @@ La aplicación consulta los proveedores habilitados en Supabase y ofrece Google 
 
 El 15 de octubre de 2026 se comprobó en el proyecto vinculado: Google habilitado, redirección hacia Google válida, correo habilitado y confirmación obligatoria.
 
+El 8 de noviembre de 2026 se corrigió la configuración remota: Site URL es `https://www.micole.click`. Antes apuntaba a Vercel y faltaban los retornos del dominio propio. Se autorizaron `/auth/callback` e `/invite/**` tanto con `www` como sin `www`, conservando los retornos de Android y desarrollo. El dominio sin `www` redirige al dominio con `www`. La reparación solo modificó las dos propiedades de URLs de Auth; se verificó la conservación de otros 19 ajustes remotos.
+
+`npm run auth:check` solicita ahora el retorno del dominio público. Para comprobar desarrollo se puede usar `MICOLE_AUTH_TEST_ORIGIN=http://localhost:5173 npm run auth:check`. Esta comprobación valida el comienzo del flujo, no que Supabase acepte el retorno solicitado. Adicionalmente se verificaron los retornos de OAuth cancelado en ambos dominios y, en Chromium, el botón Google desde `micole.click/login`; el retorno solicitado fue `https://www.micole.click/auth/callback`. No se completó el acceso con una cuenta Google.
+
+Para revisar o reparar las URLs con la CLI autenticada:
+
+```sh
+node scripts/configure-auth.mjs
+node scripts/configure-auth.mjs --apply
+```
+
+El primer comando muestra la propuesta sin aplicar cambios. El segundo aplica únicamente Site URL y retornos, conservando proveedores, SMTP y políticas remotas. Puede indicarse un ejecutable instalado mediante `MICOLE_SUPABASE_CLI`. No requiere desplegar la web ni compilar Android.
+
 ## Configuración de Google
 
 1. En Google Cloud crear un cliente OAuth de tipo aplicación web y configurar la pantalla de consentimiento. Si está en pruebas, agregar las cuentas que usarán el acceso como usuarios de prueba.

@@ -165,3 +165,45 @@
 .attendance-note summary{min-height:44px;display:flex;align-items:center;color:#244ece;font-size:13px;cursor:pointer;font-weight:600}.attendance-note[open]{grid-column:1/-1}.attendance-note .field{margin:8px 0}.attendance-row{padding:10px 14px;gap:12px}.attendance-row-fields{align-items:center;grid-template-columns:minmax(110px,1fr) minmax(130px,1fr)}@media(max-width:700px){.attendance-row{grid-template-columns:minmax(0,1fr) minmax(140px,.85fr);gap:8px}.attendance-row-fields{grid-template-columns:1fr;gap:0}.attendance-person strong{font-size:13px;overflow-wrap:anywhere}.attendance-row-fields .field>span{display:none}.attendance-note summary{min-height:36px;font-size:12px}.attendance-note[open]{grid-column:auto}.attendance-row:has(.attendance-note[open]){grid-template-columns:1fr}}
 
 .attendance-page{padding:18px 24px}.attendance-page>.view-top{display:none}.attendance-page .section-title{margin:0 0 8px}.attendance-page .attendance-toolbar{margin:8px 0;gap:8px}.attendance-page .attendance-toolbar>.field{flex:0 1 290px}.attendance-page .attendance-toolbar>.search-box{flex:1}.attendance-page .attendance-tabs{margin:8px 0}.attendance-page .attendance-summary{padding:7px 10px;gap:4px}.attendance-page .attendance-help{margin:6px 0}.attendance-page .attendance-list{gap:4px}.attendance-page .attendance-row{border-radius:8px;padding:6px 12px;min-height:54px}.attendance-page .attendance-row-fields .field>span{display:none}.attendance-page .attendance-person{min-height:40px}.attendance-page .attendance-row select{min-height:38px;padding-top:6px;padding-bottom:6px}.attendance-page .attendance-savebar{margin-top:8px;padding:9px 12px}.attendance-page .attendance-row input:disabled,.attendance-page .attendance-row select:disabled{cursor:default;opacity:.8}.attendance-page .attendance-note summary{min-height:38px}@media(max-width:700px){.attendance-page{padding:12px}.attendance-page .attendance-toolbar>.field{flex:1;min-width:130px}.attendance-page .attendance-tabs .btn{padding:8px}.attendance-page .attendance-row{min-height:58px}.attendance-page .section-title p{font-size:12px;margin:4px 0}}
+
+/* The weekly sheet scrolls horizontally; pupil names remain visible. */
+.attendance-sheet-scroll{overflow:auto;max-width:100%;border:1px solid #dce5fa;border-radius:10px;background:#fff;max-height:68vh}
+.attendance-sheet{border-collapse:separate;border-spacing:0;min-width:900px;width:100%;table-layout:fixed}
+.attendance-sheet th,.attendance-sheet td{border-right:1px solid #e3eaf6;border-bottom:1px solid #e3eaf6;padding:7px;text-align:center;vertical-align:middle}
+.attendance-sheet thead th{position:sticky;top:0;z-index:2;background:#f1f5ff;width:95px;font-size:12px}
+.attendance-sheet th:first-child{position:sticky;left:0;z-index:1;background:white;width:200px;text-align:left}
+.attendance-sheet thead th:first-child{z-index:3;background:#f1f5ff}
+.attendance-sheet th>strong,.attendance-sheet th>span,.attendance-sheet th small{display:block}
+.attendance-sheet th>strong{font-size:13px;overflow-wrap:anywhere}.attendance-sheet th>span{font-size:12px;font-weight:400}
+.attendance-sheet th small{font-weight:400;font-size:10px;line-height:1.4}
+.attendance-sheet .sheet-selected{background:#edf3ff}.attendance-sheet .sheet-closed{background:#f1f2f4;color:#68737e}
+.attendance-sheet button{font:inherit;border:0;background:transparent;color:inherit;cursor:pointer;min-height:44px;width:100%}
+.attendance-sheet .sheet-cell{font-weight:700;font-size:17px}
+.sheet-mark{display:flex;align-items:center;gap:4px}.sheet-mark input{width:22px;height:22px;accent-color:#3d6ef7;flex-shrink:0}.sheet-mark select{min-width:0;width:100%;min-height:44px;font-size:11px;padding:5px}
+.attendance-sheet .attendance-note summary{font-size:11px;min-height:32px}.attendance-sheet .attendance-note input{width:100%;min-width:0;font-size:12px}
+.calendar-day-list{display:grid;gap:8px}.calendar-day{border:1px solid #e3eaf6;padding:12px;border-radius:8px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.calendar-day p{font-size:12px;margin:4px 0}.calendar-day-actions{display:flex;gap:8px;flex-wrap:wrap}.calendar-inactive{opacity:.65}.school-calendar{margin-top:24px}.school-calendar .attendance-toolbar{align-items:end}
+@media(max-width:600px){.attendance-sheet{min-width:850px}.attendance-sheet th:first-child{width:150px}.attendance-sheet th,.attendance-sheet td{padding:5px}.calendar-day-actions{width:100%}.calendar-day-actions>.btn{flex:1}}
+
+/* Comfortable roll-call adapts to the actual content width, including tablet sidebars. */
+.attendance-sheet-layout{min-width:0;margin-top:18px}
+.attendance-format{display:flex;gap:4px;padding:4px;background:#eaf0fc;border-radius:14px;width:max-content;max-width:100%;margin-bottom:18px}
+.attendance-format button{border:0;background:transparent;color:#526680;border-radius:10px;min-height:48px;padding:10px 20px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.attendance-format button[aria-pressed=true]{background:white;color:#244ece;box-shadow:0 2px 8px #26323810}
+.attendance-day-strip{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;padding:2px 2px 12px;max-width:100%}
+.attendance-day-strip button{flex:1 0 60px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:88px;padding:10px 8px;border:1px solid #dce5fa;border-radius:14px;background:white;font:inherit;color:#526680;cursor:pointer}
+.attendance-day-strip button[aria-pressed=true]{background:#345ff2;color:white;border-color:#345ff2}
+.attendance-day-strip button span{font-size:12px;text-transform:capitalize}.attendance-day-strip button strong{font-size:20px}.attendance-day-strip button small{font-size:10px}
+.attendance-day-title{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 18px}.attendance-day-title h3{font-size:17px;margin:0}.attendance-day-title>span{font-size:12px;color:#526680}
+.attendance-day-list{display:grid;gap:14px}
+.attendance-day-card{padding:18px;background:white;border:1px solid #dce5fa;border-radius:16px;min-width:0}
+.attendance-day-name{display:flex;flex-direction:column;gap:5px;overflow-wrap:anywhere;margin-bottom:16px}.attendance-day-name strong{font-size:17px;line-height:1.45}.attendance-day-name span{font-size:15px;line-height:1.45;color:#526680}
+.attendance-day-actions{display:flex;align-items:end;gap:14px;flex-wrap:wrap}
+.attendance-present{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border:1px solid #dce5fa;border-radius:12px;cursor:pointer;flex:1;font-size:14px}.attendance-present.is-present{background:#edf5ff;border-color:#b4c8ff;color:#244ece}.attendance-present input{width:24px;height:24px;accent-color:#345ff2;flex-shrink:0}
+.attendance-status{display:flex;flex:1;min-width:125px;flex-direction:column;gap:5px;font-size:12px;color:#526680}.attendance-status select{width:100%;min-height:52px;border:1px solid #dce5fa;border-radius:12px;background:white;padding:10px;font-size:14px;color:#263238}
+.attendance-day-card .attendance-note{margin-top:10px}.attendance-day-card .attendance-note summary{font-size:13px;min-height:44px}.attendance-day-card textarea{width:100%;box-sizing:border-box;border:1px solid #dce5fa;border-radius:10px;padding:12px;font:inherit;resize:vertical;min-height:80px}
+.attendance-sheet{min-width:1100px}.attendance-sheet th:first-child{width:230px}.attendance-sheet thead th{width:112px;font-size:13px}.attendance-sheet th,.attendance-sheet td{padding:12px 10px}.attendance-sheet th>strong{font-size:15px;line-height:1.45}.attendance-sheet th>span{font-size:14px;margin-top:4px}.sheet-mark{flex-direction:column;gap:8px}.sheet-mark select{font-size:13px;min-height:44px}.sheet-mark input{width:26px;height:26px}.attendance-sheet .attendance-note summary{font-size:12px;min-height:44px}
+.attendance-page .attendance-toolbar{gap:12px;margin:16px 0}.attendance-page .attendance-help{line-height:1.6;margin:12px 0}.attendance-page .attendance-summary{gap:6px;padding:12px}.attendance-page .attendance-savebar{gap:12px;padding:14px;margin-top:18px}
+@media(max-width:700px){.attendance-page{padding:18px 16px}.attendance-page .attendance-toolbar>.field{min-width:150px;flex:1 1 150px}.attendance-page .attendance-toolbar>.search-box{flex-basis:100%;min-width:0}.attendance-page .attendance-tabs{gap:10px;margin:18px 0}.attendance-page .attendance-tabs .btn{min-height:48px;padding:12px 10px}.attendance-day-card{padding:16px}.attendance-present{padding:0 10px;gap:8px}.attendance-day-actions{gap:10px}.attendance-format{width:100%}.attendance-format button{flex:1;padding:10px 12px}.attendance-page .attendance-savebar{position:static;box-shadow:none;gap:10px}.attendance-page .attendance-savebar>.btn{min-height:48px}.attendance-day-strip{gap:6px}}
+@media(min-width:760px){.attendance-day-list{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}}
+.attendance-sheet .sheet-check{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;cursor:pointer}
+.attendance-page:has(.attendance-day-list) .attendance-savebar{position:static;box-shadow:none}

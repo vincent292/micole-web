@@ -19,13 +19,13 @@ const plan: PaymentPlan = {
   createdAt: "2026-10-13",
 };
 describe("planes de pago y acceso", () => {
-  it("suma matrícula, tarifa fija, merienda y 29 de licencia, y aplica descuentos por fechas", () => {
+  it("suma matrícula, tarifa fija, merienda y 25 de licencia, y aplica descuentos por fechas", () => {
     const charges = buildSchedule(plan, () => "id");
     expect(charges).toHaveLength(11);
     expect(charges[0].amount).toBe(200);
-    expect(charges[1].amount).toBe(459);
-    expect(charges[2].amount).toBe(459);
-    expect(charges[3].amount).toBe(509);
+    expect(charges[1].amount).toBe(455);
+    expect(charges[2].amount).toBe(455);
+    expect(charges[3].amount).toBe(505);
     expect(charges.at(-1)?.period).toBe("2027-07");
   });
   it("prorratea solo tarifa y merienda y nunca reduce la licencia", () => {
@@ -41,7 +41,7 @@ describe("planes de pago y acceso", () => {
     );
     expect(charges[1].baseAmount).toBe(203.23);
     expect(charges[1].snackAmount).toBe(29.03);
-    expect(charges[1].amount).toBe(29);
+    expect(charges[1].amount).toBe(25);
   });
   it("respeta fin de mes y febrero sin vencimientos previos al inicio", () => {
     const charges = buildSchedule(

@@ -4,19 +4,19 @@ import { rpc } from "../lib/repository";
 import {
   attendanceLabels,
   type AttendanceWorkspace,
-  type AttendanceCorrection,
 } from "../lib/studentAttendance";
 export function AttendanceCorrections({
   data,
   refresh,
+  canCorrect,
 }: {
   data: AttendanceWorkspace;
   refresh: () => void;
+  canCorrect: boolean;
 }) {
-  const [request, setRequest] = useState<{ id: string; record: string } | null>(
-      null,
-    ),
-    [review, setReview] = useState<AttendanceCorrection | null>(null);
+  const [request, setRequest] = useState<{ id: string; record: string; records: AttendanceWorkspace["records"] } | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -27,23 +27,24 @@ export function AttendanceCorrections({
     <section className="panel" style={{ padding: 16, marginTop: 16 }}>
       <details>
         <summary>
-          Correcciones de asistencia ·{" "}
-          {corrections.filter((c) => c.status === "pending").length} pendientes
+          Correcciones con justificativo · {corrections.length} registro(s)
         </summary>
         <p>
-          El registro original se conserva. Dirección revisa cada solicitud
-          antes de cambiar la asistencia que ve la familia.
+          El original se conserva. Solo el docente asignado puede corregir con
+          justificativo; Dirección consulta el historial.
         </p>
         {notice && <p role="status">{notice}</p>}
-        <Button
-          disabled={!records.length}
-          onClick={() => {
-            setError("");
-            setRequest({ id: crypto.randomUUID(), record: records[0].id });
-          }}
-        >
-          Solicitar corrección
-        </Button>
+        {canCorrect && (
+          <Button
+            disabled={!records.length}
+            onClick={() => {
+              setError("");
+              setRequest({ id: crypto.randomUUID(), record: records[0].id, records });
+            }}
+          >
+            Corregir con justificativo
+          </Button>
+        )}
         {corrections.map((c) => (
           <article
             key={c.id}
@@ -58,32 +59,21 @@ export function AttendanceCorrections({
               {attendanceLabels[c.previous_status]} →{" "}
               {attendanceLabels[c.proposed_status]}
             </p>
-            <p>Motivo: {c.reason}</p>
-            {c.review_note && <p>Decisión de Dirección: {c.review_note}</p>}
-            {data.canReview && c.status === "pending" && (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setError("");
-                  setReview(c);
-                }}
-              >
-                Revisar solicitud
-              </Button>
-            )}
+            <p>Justificativo: {c.reason}</p>
+            {c.review_note && <p>Registro: {c.review_note}</p>}
           </article>
         ))}
         {!corrections.length && (
-          <p>No hay solicitudes en el mes seleccionado.</p>
+          <p>No hay correcciones en el mes seleccionado.</p>
         )}
       </details>
-      {request && (
+      {request && canCorrect && (
         <Modal
-          title="Solicitar corrección de asistencia"
+          title="Corregir asistencia con justificativo"
           busy={busy}
           error={error}
           onClose={() => setRequest(null)}
-          submitLabel="Enviar a Dirección"
+          submitLabel="Guardar corrección y avisar"
           onSubmit={async (e) => {
             const f = new FormData(e.currentTarget);
             setBusy(true);
@@ -92,13 +82,14 @@ export function AttendanceCorrections({
               await rpc("request_attendance_correction", {
                 p_id: request.id,
                 p_record_id: String(f.get("record")),
+                p_base_correction_id: request.records.find(r => r.id === String(f.get("record")))?.correctionId || null,
                 p_status: String(f.get("status")),
                 p_note: String(f.get("note") || ""),
                 p_reason: String(f.get("reason")),
               });
               setRequest(null);
               setNotice(
-                "Solicitud enviada. La asistencia cambia cuando Dirección la aprueba.",
+                "Corrección guardada con justificativo. El original se conserva y se avisa a la familia.",
               );
               refresh();
             } catch (e) {
@@ -108,6 +99,10 @@ export function AttendanceCorrections({
             }
           }}
         >
+          <p>
+            La corrección cambia el estado que consulta la familia y queda en el
+            historial. Revisa el alumno, la fecha y el justificativo.
+          </p>
           <Field label="Alumno y fecha" name="record" required>
             <select
               name="record"
@@ -116,7 +111,7 @@ export function AttendanceCorrections({
                 setRequest({ ...request, record: e.target.value })
               }
             >
-              {records.map((r) => (
+              {request.records.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.date} · {r.studentName} ·{" "}
                   {r.status && attendanceLabels[r.status]}
@@ -124,14 +119,14 @@ export function AttendanceCorrections({
               ))}
             </select>
           </Field>
-          <Field label="Estado propuesto" name="status" required>
+          <Field label="Estado corregido" name="status" required>
             <select
               name="status"
+              key={request.record}
               defaultValue={
-                records.find((r) => r.id === request.record)?.status ||
+                request.records.find((r) => r.id === request.record)?.status ||
                 "present"
               }
-              key={request.record}
             >
               {Object.entries(attendanceLabels).map(([v, l]) => (
                 <option value={v} key={v}>
@@ -144,68 +139,15 @@ export function AttendanceCorrections({
             <textarea
               name="note"
               maxLength={1000}
-              defaultValue={
-                records.find((r) => r.id === request.record)?.note || ""
-              }
               key={request.record}
+              defaultValue={
+                request.records.find((r) => r.id === request.record)?.note || ""
+              }
             />
           </Field>
           <Field
-            label="Motivo para Dirección"
+            label="Justificativo obligatorio"
             name="reason"
-            required
-            minLength={5}
-            maxLength={1000}
-          />
-        </Modal>
-      )}
-      {review && (
-        <Modal
-          title="Revisar corrección"
-          busy={busy}
-          error={error}
-          onClose={() => setReview(null)}
-          submitLabel="Confirmar decisión"
-          onSubmit={async (e) => {
-            const f = new FormData(e.currentTarget);
-            setBusy(true);
-            setError("");
-            try {
-              await rpc("review_attendance_correction", {
-                p_id: review.id,
-                p_approve: f.get("decision") === "approved",
-                p_note: String(f.get("reason")),
-              });
-              setReview(null);
-              setNotice(
-                "Decisión registrada. Las correcciones aprobadas se notifican a la familia.",
-              );
-              refresh();
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <p>
-            {review.studentName} · {review.date}:{" "}
-            {attendanceLabels[review.previous_status]} →{" "}
-            {attendanceLabels[review.proposed_status]}
-          </p>
-          <p>{review.reason}</p>
-          <Field name="decision" label="Decisión" required>
-            <select name="decision" defaultValue="">
-              <option value="" disabled>
-                Selecciona una decisión
-              </option>
-              <option value="approved">Aprobar corrección</option>
-              <option value="rejected">Rechazar solicitud</option>
-            </select>
-          </Field>
-          <Field
-            name="reason"
-            label="Motivo de la decisión"
             required
             minLength={5}
             maxLength={1000}

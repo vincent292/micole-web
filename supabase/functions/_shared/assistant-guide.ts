@@ -1,5 +1,14 @@
 /** Published capabilities only. These IDs open existing pages/forms, never execute writes. */
 export const guideActions = {
+  overview: {label:"Volver al inicio",page:"overview"},
+  family: {label:"Mis hijos",page:"family"},
+  payments: {label:"Pagos y mensualidades",page:"payments"},
+  messages: {label:"Mensajes del colegio",page:"messages"},
+  materials: {label:"Materiales",page:"materials"},
+  schools: {label:"Instituciones",page:"schools"},
+  platform: {label:"Facturación MiCole",page:"platform"},
+  support: {label:"Soporte y pruebas",page:"support"},
+  school_metrics: {label:"Métricas de colegios",page:"schoolMetrics"},
   bolivia:{label:"Gestión educativa Bolivia",page:"bolivia"},
   timetables: {label:"Horarios de clases",page:"timetables"},
   promotion: {label:"Promoción anual",page:"promotion"},
@@ -46,6 +55,15 @@ export interface GuideMessage {
   text: string;
 }
 export const guideTopics = [
+ {words:"tarea tareas entrega entregas materiales materia materias cuaderno docente clases enseñanza ensenanza actividad calificacion calificaciones evaluar notas libreta evaluacion",
+ answer:"En MiCole las tareas, materiales y evaluaciones se gestionan por aula y materia. Cada persona conserva los permisos de su panel.",
+ steps:["Dirección y docentes asignados preparan las tareas desde Tareas y entregas, eligiendo aula, materia y fecha.","Las familias consultan las tareas de sus hijos. El acceso opcional del estudiante permite consultar las tareas y materiales habilitados.","Para evaluar, el docente autorizado abre Evaluación y libretas. Revisa los datos y confirma en ese módulo; el asistente no decide ni cambia calificaciones.","Si una tarea o material no aparece, comprueba la sede, el aula y que esté publicado para tu cuenta. Consulta al docente si el problema continúa."],actions:["assignments","materials","gradebook"]},
+ {words:"instituciones institucion colegios colegio propietario plataforma administracion superadministracion metricas pruebas soporte demo",
+ answer:"El panel de Superadministración permite gestionar instituciones, facturación de MiCole y soporte autorizado. El acceso a datos escolares requiere el contexto autorizado correspondiente.",
+ steps:["Desde Instituciones consulta el estado de cada colegio y sus sedes.","En Soporte y pruebas selecciona la institución y el rol autorizado. Una sesión de prueba usa su propio contexto y no concede acceso general a otros colegios.","Consulta Facturación MiCole para licencias y Métricas de colegios para resúmenes de operación.","Ante un error indica la pantalla y el mensaje. No compartas claves ni cambies permisos para intentar resolverlo."],actions:["schools","support","platform","school_metrics"]},
+ {words:"error falla fallo funciona carga cargar conexion internet conectar blanco pantalla acceso login ingresar sesion google correo entrar contraseña recuperar refrescar actualizar sincronizar",
+ answer:"Puedo ayudarte a revisar un problema de MiCole. No puedo asegurar su causa sin comprobarla ni afirmar que ya se solucionó.",
+ steps:["Indica en qué pantalla ocurre, qué intentabas hacer y el mensaje del error, sin datos de alumnos, contraseñas ni claves.","Comprueba tu conexión. Si hay un formulario sin guardar, conserva su contenido antes de salir o actualizar.","Puedes usar Actualizar datos para volver a consultar el panel. Esto no borra ni vuelve a enviar registros.","Para problemas de acceso abre MiCole desde www.micole.click y usa el correo registrado por la institución. No compartas tu contraseña.","Si continúa, contacta a Dirección o al soporte de MiCole con la pantalla y la hora aproximada. No inventaré un arreglo ni cambiaré permisos para sortear el error."],actions:["overview","settings"]},
  {words:"bolivia normativa ministerial resolucion resoluciones poa pdc comision centralizador pedagogico calendario efectivos",
  answer:"Gestión educativa Bolivia reúne perfil de la gestión, días efectivos, POA, PDC, apoyo pedagógico y actas para primaria/secundaria. Inicial y guardería conservan sus reglas actuales; no se envía información al SIE.",
  steps:["Indica los niveles de la sede y el grado oficial del aula. En una sede mixta, inicial queda fuera de estos ajustes.","En Gestión educativa Bolivia selecciona la gestión y completa código de unidad educativa, distrito, departamento, autorización y referencia normativa vigente.","Prepara los días de clase, descuenta feriados y descanso regional, revisa cada fecha y confirma 200 días efectivos antes de marcar el perfil revisado.","Crea POA, planificación curricular o apoyo por alumno. Guarda borrador y luego envía a revisión; Dirección aprueba o devuelve con observaciones. Un aprobado conserva su contenido y los cambios se preparan como nueva versión.","Para el reforzamiento de un perfil revisado se requieren plan de apoyo aprobado con evidencias y acta aprobada de la Comisión. No se regalan puntos ni se modifican notas automáticamente.","Dirección puede descargar el centralizador de notas publicadas. Es un informe interno; no sustituye la Libreta Escolar Electrónica oficial del SIE.","En primaria/secundaria la mora familiar no bloquea el acceso académico. Los nuevos planes tienen hasta diez pensiones, sin matrícula ni licencia adicional para la familia; las cuotas históricas y la facturación de la institución se conservan."],actions:["bolivia","gradebook","timetables"]},
@@ -226,7 +244,7 @@ export const guideTopics = [
     actions: ["requests", "students"],
   },
   {
-    words: "credito activar plataforma 500 29 licencia activacion",
+    words: "credito activar plataforma 500 25 licencia activacion",
     answer:
       "El crédito y la facturación MiCole son independientes para cada sede. El adelanto inicial cubre licencias mensuales; sus movimientos no se editan desde el cliente.",
     steps: [

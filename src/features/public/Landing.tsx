@@ -1,6 +1,6 @@
 import { DemoContact } from "./DemoContact";
-import {usePlatformTariffs} from '../Pricing';
-import { useState } from "react";
+import { usePlatformTariffs } from "../Pricing";
+import { useEffect, useRef, useState } from "react";
 import {
   AnimatePresence,
   LazyMotion,
@@ -19,6 +19,7 @@ import {
   CalendarDays,
   Check,
   CheckCheck,
+  Clock3,
   ChevronDown,
   GraduationCap,
   Heart,
@@ -41,7 +42,11 @@ const loadMotionFeatures = () =>
 const entranceEase = [0.22, 1, 0.36, 1] as const;
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 22 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.58, ease: entranceEase } },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.58, ease: entranceEase },
+  },
 };
 const benefits = [
   {
@@ -103,21 +108,89 @@ const questions = [
     "Sí. La web se adapta al celular y puedes añadir un acceso a tu pantalla de inicio. También puedes usar la aplicación Android de MiCole.",
   ],
 ];
+const dayMoments = [
+  {
+    icon: CheckCheck,
+    moment: "Al llegar",
+    title: "Empezamos juntos.",
+    text: "El docente revisa los permisos y registra la asistencia de su aula.",
+    tone: "blue",
+  },
+  {
+    icon: Heart,
+    moment: "Mientras crecen",
+    title: "Cada cuidado cuenta.",
+    text: "Comidas, descanso y pequeños avances, compartidos con su familia.",
+    tone: "mint",
+  },
+  {
+    icon: Bell,
+    moment: "Cuando importa",
+    title: "Nos mantenemos cerca.",
+    text: "Avisos importantes y mensajes para las personas que deben recibirlos.",
+    tone: "yellow",
+  },
+  {
+    icon: ShieldCheck,
+    moment: "Al volver a casa",
+    title: "Un cierre con tranquilidad.",
+    text: "Consulta los permisos de recojo y quién está autorizado para acompañarles.",
+    tone: "blue",
+  },
+];
 export function Landing() {
-  const {rates,ready,error:tariffError}=usePlatformTariffs(null,true,true);
+  const {
+    rates,
+    ready,
+    error: tariffError,
+  } = usePlatformTariffs(null, true, true);
   const [menu, setMenu] = useState(false);
+  const navigation = useRef<HTMLElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const controller = new AbortController();
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") {
+          setMenu(false);
+          menuButton.current?.focus();
+        }
+      },
+      { signal: controller.signal },
+    );
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (
+          event.target instanceof Node &&
+          !navigation.current?.contains(event.target) &&
+          !menuButton.current?.contains(event.target)
+        )
+          setMenu(false);
+      },
+      { signal: controller.signal },
+    );
+    return () => controller.abort();
+  }, [menu]);
   const reducedMotion = useReducedMotion() !== false;
   const { scrollYProgress } = useScroll();
-  const progress = useSpring(scrollYProgress, { stiffness: 110, damping: 28, restDelta: 0.001 });
+  const progress = useSpring(scrollYProgress, {
+    stiffness: 110,
+    damping: 28,
+    restDelta: 0.001,
+  });
   const sectionVariants: Variants = {
     hidden: { opacity: 0, y: 24 },
     visible: {
-      opacity: 1, y: 0,
+      opacity: 1,
+      y: 0,
       transition: { duration: 0.6, ease: entranceEase, staggerChildren: 0.075 },
     },
   };
   const reveal = {
-    initial: reducedMotion ? false as const : "hidden",
+    initial: reducedMotion ? (false as const) : "hidden",
     whileInView: "visible",
     viewport: { once: true, amount: 0.12 },
     variants: sectionVariants,
@@ -131,7 +204,13 @@ export function Landing() {
     <MotionConfig reducedMotion="user">
       <LazyMotion features={loadMotionFeatures} strict>
         <div className="landing landing-motion">
-          {!reducedMotion && <m.div className="landing-scroll-progress" style={{ scaleX: progress }} aria-hidden="true" />}
+          {!reducedMotion && (
+            <m.div
+              className="landing-scroll-progress"
+              style={{ scaleX: progress }}
+              aria-hidden="true"
+            />
+          )}
           <a className="skip-link" href="#contenido">
             Ir al contenido
           </a>
@@ -139,6 +218,8 @@ export function Landing() {
             <div className="landing-nav">
               <Brand />
               <nav
+                ref={navigation}
+                id="public-navigation"
                 className={menu ? "landing-links is-open" : "landing-links"}
                 aria-label="Navegación de MiCole"
               >
@@ -154,7 +235,9 @@ export function Landing() {
                 <a href="#planes" onClick={() => setMenu(false)}>
                   Planes
                 </a>
-                <a href="#solicitar-demo" onClick={() => setMenu(false)}>Solicitar demo</a>
+                <a href="#solicitar-demo" onClick={() => setMenu(false)}>
+                  Solicitar demo
+                </a>
                 <a href="#preguntas" onClick={() => setMenu(false)}>
                   Preguntas
                 </a>
@@ -165,8 +248,12 @@ export function Landing() {
                 </Link>
                 <button
                   className="landing-menu icon-button"
-                  aria-label={menu ? "Cerrar menú público" : "Abrir menú público"}
+                  aria-label={
+                    menu ? "Cerrar menú público" : "Abrir menú público"
+                  }
                   aria-expanded={menu}
+                  aria-controls="public-navigation"
+                  ref={menuButton}
                   onClick={() => setMenu(!menu)}
                 >
                   {menu ? <X size={23} /> : <Menu size={23} />}
@@ -176,9 +263,19 @@ export function Landing() {
           </header>
           <main id="contenido">
             <section className="landing-hero landing-container">
-              <m.div className="landing-hero-copy" initial={reducedMotion ? false : "hidden"} animate="visible" variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.095, delayChildren: 0.05 } } }}>
+              <m.div
+                className="landing-hero-copy"
+                initial={reducedMotion ? false : "hidden"}
+                animate="visible"
+                variants={{
+                  hidden: {},
+                  visible: {
+                    transition: { staggerChildren: 0.095, delayChildren: 0.05 },
+                  },
+                }}
+              >
                 <m.span className="landing-eyebrow" variants={itemVariants}>
-                  <span /> MÁS CERCA, CADA DÍA
+                  <span /> PEQUEÑOS PASOS. GRANDES CONEXIONES.
                 </m.span>
                 <m.h1 variants={itemVariants}>
                   Todo lo importante
@@ -191,8 +288,9 @@ export function Landing() {
                   </i>
                 </m.h1>
                 <m.p variants={itemVariants}>
-                  Menos papeles y mensajes perdidos. Más tiempo para aprender,
-                  cuidar y acompañar a quienes más importan.
+                  Un día más simple para tu kínder. Cuidados, aprendizajes y
+                  familias conectadas, desde la primera llegada hasta volver a
+                  casa.
                 </m.p>
                 <m.div className="landing-hero-actions" variants={itemVariants}>
                   <a
@@ -219,7 +317,8 @@ export function Landing() {
             <m.section className="landing-intro" {...reveal}>
               <div className="landing-container">
                 <p>
-                  El colegio crece mejor cuando estamos <strong>conectados.</strong>
+                  El colegio crece mejor cuando estamos{" "}
+                  <strong>conectados.</strong>
                 </p>
                 <div className="intro-pills">
                   <span>
@@ -237,7 +336,11 @@ export function Landing() {
               </div>
             </m.section>
             <InstitutionsShowcase />
-            <m.section id="comunidad" className="landing-section landing-container" {...reveal}>
+            <m.section
+              id="comunidad"
+              className="landing-section landing-container"
+              {...reveal}
+            >
               <div className="landing-section-heading">
                 <span className="landing-eyebrow">
                   UNA COMUNIDAD, MUCHAS CONEXIONES
@@ -248,12 +351,16 @@ export function Landing() {
                   <span>Un mismo equipo.</span>
                 </h2>
                 <p>
-                  Cada persona encuentra lo que necesita para hacer más simple su
-                  día.
+                  Cada persona encuentra lo que necesita para hacer más simple
+                  su día.
                 </p>
               </div>
               <div className="audience-grid">
-                <m.article className="audience-card audience-director" variants={itemVariants} {...cardInteraction}>
+                <m.article
+                  className="audience-card audience-director"
+                  variants={itemVariants}
+                  {...cardInteraction}
+                >
                   <span className="audience-icon">
                     <GraduationCap size={30} />
                   </span>
@@ -264,8 +371,8 @@ export function Landing() {
                     con tranquilidad.
                   </h3>
                   <p>
-                    Tu institución, organizada. Inscripciones, aulas, equipo docente
-                    y pagos desde un solo panel.
+                    Tu institución, organizada. Inscripciones, aulas, equipo
+                    docente y pagos desde un solo panel.
                   </p>
                   <ul>
                     <li>
@@ -282,7 +389,11 @@ export function Landing() {
                     Conectar mi institución <ArrowRight size={19} />
                   </Link>
                 </m.article>
-                <m.article className="audience-card audience-teacher" variants={itemVariants} {...cardInteraction}>
+                <m.article
+                  className="audience-card audience-teacher"
+                  variants={itemVariants}
+                  {...cardInteraction}
+                >
                   <span className="audience-icon">
                     <BookOpen size={30} />
                   </span>
@@ -310,7 +421,11 @@ export function Landing() {
                     Entrar a mis aulas <ArrowRight size={19} />
                   </Link>
                 </m.article>
-                <m.article className="audience-card audience-family" variants={itemVariants} {...cardInteraction}>
+                <m.article
+                  className="audience-card audience-family"
+                  variants={itemVariants}
+                  {...cardInteraction}
+                >
                   <span className="audience-icon">
                     <Heart size={30} />
                   </span>
@@ -321,8 +436,8 @@ export function Landing() {
                     cada pequeño paso.
                   </h3>
                   <p>
-                    Su día también es tuyo. Mantente cerca de sus aprendizajes y en
-                    contacto con su colegio.
+                    Su día también es tuyo. Mantente cerca de sus aprendizajes y
+                    en contacto con su colegio.
                   </p>
                   <ul>
                     <li>
@@ -340,6 +455,50 @@ export function Landing() {
                   </Link>
                 </m.article>
               </div>
+            </m.section>
+            <m.section
+              className="landing-day landing-container"
+              aria-labelledby="landing-day-title"
+              {...reveal}
+            >
+              <div className="landing-day-heading">
+                <div>
+                  <span className="landing-eyebrow">
+                    <Clock3 size={16} /> ASÍ SE CONECTA UN DÍA
+                  </span>
+                  <h2 id="landing-day-title">
+                    Pequeños momentos.
+                    <br />
+                    <span>Un mismo equipo.</span>
+                  </h2>
+                </div>
+                <p>
+                  La vida del cole no se detiene.{" "}
+                  <br />
+                  MiCole te ayuda a acompañarla.
+                </p>
+              </div>
+              <ol className="landing-day-grid">
+                {dayMoments.map(
+                  ({ icon: Icon, moment, title, text, tone }, index) => (
+                    <m.li
+                      key={moment}
+                      className={`landing-day-card day-${tone}`}
+                      variants={itemVariants}
+                    >
+                      <div className="landing-day-card-top">
+                        <span className="landing-day-icon">
+                          <Icon size={23} strokeWidth={1.8} />
+                        </span>
+                        <span className="landing-day-number">0{index + 1}</span>
+                      </div>
+                      <small>{moment}</small>
+                      <h3>{title}</h3>
+                      <p>{text}</p>
+                    </m.li>
+                  ),
+                )}
+              </ol>
             </m.section>
             <m.section id="funciones" className="features-section" {...reveal}>
               <div className="landing-container landing-section">
@@ -359,7 +518,12 @@ export function Landing() {
                 </div>
                 <div className="feature-grid">
                   {benefits.map(({ icon: Icon, title, text, tone }) => (
-                    <m.article key={title} className="feature-card" variants={itemVariants} {...cardInteraction}>
+                    <m.article
+                      key={title}
+                      className="feature-card"
+                      variants={itemVariants}
+                      {...cardInteraction}
+                    >
                       <span className={`feature-icon feature-${tone}`}>
                         <Icon size={25} strokeWidth={1.7} />
                       </span>
@@ -408,32 +572,67 @@ export function Landing() {
                 </div>
               </div>
             </m.section>
-            <m.section id="planes" className="pricing-section landing-container" {...reveal}>
+            <m.section
+              id="planes"
+              className="pricing-section landing-container"
+              {...reveal}
+            >
               <div className="landing-section-heading">
-                <span className="landing-eyebrow">CLARO DESDE EL PRINCIPIO</span>
+                <span className="landing-eyebrow">
+                  CLARO DESDE EL PRINCIPIO
+                </span>
                 <h2>
                   Un plan que crece
                   <br />
                   <span>con tu comunidad.</span>
                 </h2>
                 <p>
-                  Paga por estudiante activo. Tu institución conserva el control de
-                  sus tarifas.
+                  Paga por estudiante activo. Tu institución conserva el control
+                  de sus tarifas.
                 </p>
               </div>
               <div className="pricing-layout">
-                <m.div className="pricing-card" variants={itemVariants} {...cardInteraction}>
+                <m.div
+                  className="pricing-card"
+                  variants={itemVariants}
+                  {...cardInteraction}
+                >
                   <span className="pricing-label">
                     MICole · LICENCIA POR ESTUDIANTE
                   </span>
-                  {tariffError&&<p className="message" role="status">Consulta las tarifas vigentes con MiCole.</p>}
-                <div className="price">
+                  {tariffError && (
+                    <p className="message" role="status">
+                      Consulta las tarifas vigentes con MiCole.
+                    </p>
+                  )}
+                  <div className="price">
                     <sup>Bs</sup>
-                    <strong>{ready?rates.monthlyLicenseFee.toLocaleString("es-BO"):"…"}</strong>
+                    <strong>
+                      {ready
+                        ? rates.monthlyLicenseFee.toLocaleString("es-BO")
+                        : "…"}
+                    </strong>
                     <span>/ mes</span>
                   </div>
                   <p>Por cada estudiante con inscripción activa.</p>
-                  <div className="activation-fee"><span>Crédito inicial por institución</span><b>Bs 500 <small>de saldo a favor</small></b><p>Se descuenta de las licencias mensuales de tus estudiantes.</p>{rates.activationEnabled&&rates.activationFee>0?<small>Activación por nuevo estudiante: Bs {rates.activationFee}.</small>:<small>Sin cobro de activación por estudiante.</small>}</div>
+                  <div className="activation-fee">
+                    <span>Crédito inicial por institución</span>
+                    <b>
+                      Bs 500 <small>de saldo a favor</small>
+                    </b>
+                    <p>
+                      Se descuenta de las licencias mensuales de tus
+                      estudiantes.
+                    </p>
+                    {rates.activationEnabled && rates.activationFee > 0 ? (
+                      <small>
+                        Activación por nuevo estudiante: Bs{" "}
+                        {rates.activationFee}.
+                      </small>
+                    ) : (
+                      <small>Sin cobro de activación por estudiante.</small>
+                    )}
+                  </div>
                   <ul>
                     <li>
                       <Check size={18} /> Panel para dirección y maestras
@@ -448,11 +647,15 @@ export function Landing() {
                       <Check size={18} /> Gestión de cuotas y descuentos
                     </li>
                   </ul>
-                  <Link to="/login?intent=school" className="btn btn-primary full">
+                  <Link
+                    to="/login?intent=school"
+                    className="btn btn-primary full"
+                  >
                     Quiero comenzar <ArrowRight size={18} />
                   </Link>
                   <small>
-                    El adelanto se descuenta de tus licencias. Al agotarse, continúas con los pagos mensuales.
+                    El adelanto se descuenta de tus licencias. Al agotarse,
+                    continúas con los pagos mensuales.
                   </small>
                 </m.div>
                 <div className="pricing-explanation">
@@ -472,19 +675,24 @@ export function Landing() {
                   <div className="pricing-note">
                     <ShieldCheck size={21} />
                     <p>
-                      La licencia de MiCole se incorpora a la mensualidad escolar.
-                      Los cobros de la institución y las liquidaciones de MiCole se
-                      administran por separado.
+                      La licencia de MiCole se incorpora a la mensualidad
+                      escolar. Los cobros de la institución y las liquidaciones
+                      de MiCole se administran por separado.
                     </p>
                   </div>
                   <Link to="/login?intent=school" className="landing-secondary">
-                    Solicitar acceso para mi institución <ArrowRight size={18} />
+                    Solicitar acceso para mi institución{" "}
+                    <ArrowRight size={18} />
                   </Link>
                 </div>
               </div>
             </m.section>
             <DemoContact />
-            <m.section id="preguntas" className="faq-section landing-container" {...reveal}>
+            <m.section
+              id="preguntas"
+              className="faq-section landing-container"
+              {...reveal}
+            >
               <div className="faq-heading">
                 <span className="landing-eyebrow">CONVERSEMOS</span>
                 <h2>
@@ -492,7 +700,9 @@ export function Landing() {
                   <br />
                   <span>preguntando…</span>
                 </h2>
-                <p>Aquí respondemos algunas dudas antes de dar el primer paso.</p>
+                <p>
+                  Aquí respondemos algunas dudas antes de dar el primer paso.
+                </p>
               </div>
               <div className="faq-list">
                 {questions.map(([q, a]) => (
@@ -506,7 +716,10 @@ export function Landing() {
                 ))}
               </div>
             </m.section>
-            <m.section className="landing-final-cta landing-container" {...reveal}>
+            <m.section
+              className="landing-final-cta landing-container"
+              {...reveal}
+            >
               <span className="cta-decoration" aria-hidden="true">
                 <Brand variant="symbol" linked={false} />
               </span>
@@ -518,7 +731,8 @@ export function Landing() {
                   Un gran día para tu cole.
                 </h2>
                 <p>
-                  Conecta a tu comunidad y comienza una nueva forma de acompañar.
+                  Conecta a tu comunidad y comienza una nueva forma de
+                  acompañar.
                 </p>
               </div>
               <Link to="/login?intent=school" className="btn cta-white">
@@ -544,8 +758,8 @@ export function Landing() {
             </div>
             <div className="footer-bottom">
               <small>
-                © {new Date().getFullYear()} MiCole. Hecho para aprender y crecer
-                juntos.
+                © {new Date().getFullYear()} MiCole. Hecho para aprender y
+                crecer juntos.
               </small>
               <span>
                 <Heart size={14} /> Desde Bolivia, para tu comunidad.
@@ -558,11 +772,66 @@ export function Landing() {
   );
 }
 const previewSections = [
-  { id: "journal", label: "Cuaderno", icon: NotebookPen, heading: "¡Hoy crecemos juntos!", welcome: "Pequeños descubrimientos, grandes sonrisas.", subtitle: "Un espacio para acompañarles.", first: "Un mundo de colores", firstDetail: "Una actividad compartida con la familia.", second: "Un nuevo aprendizaje", secondDetail: "El día de cada niño, en su cuaderno." },
-  { id: "classrooms", label: "Aulas", icon: Users, heading: "Cada aula tiene su espacio", welcome: "El equipo docente, conectado.", subtitle: "Organiza los cursos y sus maestras.", first: "Mi aula y sus actividades", firstDetail: "Tareas y avisos para el curso asignado.", second: "Un mismo equipo", secondDetail: "Dirección y docentes acompañan juntos." },
-  { id: "calendar", label: "Agenda", icon: CalendarDays, heading: "Nos encontramos en el cole", welcome: "Los momentos importantes, a mano.", subtitle: "Una agenda para tu comunidad.", first: "Taller de pequeños artistas", firstDetail: "Una actividad para compartir en el aula.", second: "Día de encuentro familiar", secondDetail: "Eventos y recordatorios en un lugar." },
-  { id: "payments", label: "Cuotas", icon: Wallet, heading: "Las cuentas, en orden", welcome: "Un plan para cada familia.", subtitle: "Las tarifas las define tu institución.", first: "Plan de mensualidades", firstDetail: "Consulta las cuotas y sus vencimientos.", second: "Matrícula y merienda", secondDetail: "Cada concepto, claramente identificado." },
-  { id: "family", label: "Familia", icon: Heart, heading: "Su día también es tuyo", welcome: "Cerca, en cada pequeño paso.", subtitle: "Cada familia acompaña a sus hijos.", first: "Su historia de hoy", firstDetail: "Actividades y recomendaciones del aula.", second: "Cuidamos lo que importa", secondDetail: "Contactos de emergencia y ficha de salud." },
+  {
+    id: "journal",
+    label: "Cuaderno",
+    icon: NotebookPen,
+    heading: "¡Hoy crecemos juntos!",
+    welcome: "Pequeños descubrimientos, grandes sonrisas.",
+    subtitle: "Un espacio para acompañarles.",
+    first: "Un mundo de colores",
+    firstDetail: "Una actividad compartida con la familia.",
+    second: "Un nuevo aprendizaje",
+    secondDetail: "El día de cada niño, en su cuaderno.",
+  },
+  {
+    id: "classrooms",
+    label: "Aulas",
+    icon: Users,
+    heading: "Cada aula tiene su espacio",
+    welcome: "El equipo docente, conectado.",
+    subtitle: "Organiza los cursos y sus maestras.",
+    first: "Mi aula y sus actividades",
+    firstDetail: "Tareas y avisos para el curso asignado.",
+    second: "Un mismo equipo",
+    secondDetail: "Dirección y docentes acompañan juntos.",
+  },
+  {
+    id: "calendar",
+    label: "Agenda",
+    icon: CalendarDays,
+    heading: "Nos encontramos en el cole",
+    welcome: "Los momentos importantes, a mano.",
+    subtitle: "Una agenda para tu comunidad.",
+    first: "Taller de pequeños artistas",
+    firstDetail: "Una actividad para compartir en el aula.",
+    second: "Día de encuentro familiar",
+    secondDetail: "Eventos y recordatorios en un lugar.",
+  },
+  {
+    id: "payments",
+    label: "Cuotas",
+    icon: Wallet,
+    heading: "Las cuentas, en orden",
+    welcome: "Un plan para cada familia.",
+    subtitle: "Las tarifas las define tu institución.",
+    first: "Plan de mensualidades",
+    firstDetail: "Consulta las cuotas y sus vencimientos.",
+    second: "Matrícula y merienda",
+    secondDetail: "Cada concepto, claramente identificado.",
+  },
+  {
+    id: "family",
+    label: "Familia",
+    icon: Heart,
+    heading: "Su día también es tuyo",
+    welcome: "Cerca, en cada pequeño paso.",
+    subtitle: "Cada familia acompaña a sus hijos.",
+    first: "Su historia de hoy",
+    firstDetail: "Actividades y recomendaciones del aula.",
+    second: "Cuidamos lo que importa",
+    secondDetail: "Contactos de emergencia y ficha de salud.",
+  },
 ] as const;
 
 function ProductPreview() {
@@ -578,21 +847,60 @@ function ProductPreview() {
       initial={reducedMotion ? false : { opacity: 0, y: 28, scale: 0.96 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
       viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.85, ease: entranceEase, delay: reducedMotion ? 0 : 0.2 }}
+      transition={{
+        duration: 0.85,
+        ease: entranceEase,
+        delay: reducedMotion ? 0 : 0.2,
+      }}
     >
-      <m.span className="preview-orbit orbit-a" aria-hidden="true" initial={reducedMotion ? false : { scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 1.1, ease: entranceEase, delay: 0.2 }} />
-      <m.span className="preview-orbit orbit-b" aria-hidden="true" initial={reducedMotion ? false : { scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 1.15, ease: entranceEase, delay: 0.35 }} />
-      <m.div className="preview-floating preview-family" initial={reducedMotion ? false : { opacity: 0, x: 15, y: -14 }} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ duration: 0.7, ease: entranceEase, delay: 0.55 }}>
-        <span><Heart size={19} /></span>
-        <div><b>Familias más cerca</b><small>En cada pequeño paso</small></div>
+      <m.span
+        className="preview-orbit orbit-a"
+        aria-hidden="true"
+        initial={reducedMotion ? false : { scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 1.1, ease: entranceEase, delay: 0.2 }}
+      />
+      <m.span
+        className="preview-orbit orbit-b"
+        aria-hidden="true"
+        initial={reducedMotion ? false : { scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 1.15, ease: entranceEase, delay: 0.35 }}
+      />
+      <m.div
+        className="preview-floating preview-family"
+        initial={reducedMotion ? false : { opacity: 0, x: 15, y: -14 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        transition={{ duration: 0.7, ease: entranceEase, delay: 0.55 }}
+      >
+        <span>
+          <Heart size={19} />
+        </span>
+        <div>
+          <b>Familias más cerca</b>
+          <small>En cada pequeño paso</small>
+        </div>
       </m.div>
-      <m.div className="product-preview" initial={{ rotate: reducedMotion ? 0 : -3 }} animate={{ rotate: reducedMotion ? 0 : -3 }} whileHover={reducedMotion ? undefined : { rotate: 0 }} transition={{ duration: 0.4, ease: entranceEase }}>
+      <m.div
+        className="product-preview"
+        initial={{ rotate: reducedMotion ? 0 : -3 }}
+        animate={{ rotate: reducedMotion ? 0 : -3 }}
+        whileHover={reducedMotion ? undefined : { rotate: 0 }}
+        transition={{ duration: 0.4, ease: entranceEase }}
+      >
         <div className="preview-header">
           <Brand linked={false} />
-          <div><Bell size={16} /><span>MC</span></div>
+          <div>
+            <Bell size={16} />
+            <span>MC</span>
+          </div>
         </div>
         <div className="preview-body">
-          <aside role="tablist" aria-label="Secciones de la vista ilustrativa" aria-orientation="vertical">
+          <aside
+            role="tablist"
+            aria-label="Secciones de la vista ilustrativa"
+            aria-orientation="vertical"
+          >
             {previewSections.map(({ id, label, icon: Icon }, index) => (
               <m.button
                 key={id}
@@ -604,18 +912,36 @@ function ProductPreview() {
                 aria-selected={selected === index}
                 aria-controls={`preview-panel-${id}`}
                 tabIndex={selected === index ? 0 : -1}
-                className={selected === index ? "preview-nav-active" : undefined}
+                className={
+                  selected === index ? "preview-nav-active" : undefined
+                }
                 onClick={() => setSelected(index)}
                 onKeyDown={(event) => {
-                  const direction = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
-                  if (!direction && event.key !== "Home" && event.key !== "End") return;
+                  const direction =
+                    event.key === "ArrowDown"
+                      ? 1
+                      : event.key === "ArrowUp"
+                        ? -1
+                        : 0;
+                  if (!direction && event.key !== "Home" && event.key !== "End")
+                    return;
                   event.preventDefault();
-                  const next = event.key === "Home" ? 0 : event.key === "End" ? previewSections.length - 1 : (index + direction + previewSections.length) % previewSections.length;
+                  const next =
+                    event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? previewSections.length - 1
+                        : (index + direction + previewSections.length) %
+                          previewSections.length;
                   setSelected(next);
-                  event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+                  event.currentTarget.parentElement
+                    ?.querySelectorAll<HTMLButtonElement>("button")
+                    [next]?.focus();
                 }}
                 whileTap={reducedMotion ? undefined : { scale: 0.93 }}
-              ><Icon size={18} /></m.button>
+              >
+                <Icon size={18} />
+              </m.button>
             ))}
           </aside>
           <div className="preview-content-stage">
@@ -632,25 +958,50 @@ function ProductPreview() {
                 exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -5 }}
                 transition={{ duration: reducedMotion ? 0 : 0.17 }}
               >
-                <span className="preview-today">NUESTRO DÍA EN MICOLE · {current.label.toUpperCase()}</span>
+                <span className="preview-today">
+                  NUESTRO DÍA EN MICOLE · {current.label.toUpperCase()}
+                </span>
                 <h3>{current.heading}</h3>
                 <div className="preview-welcome">
-                  <div><b>{current.welcome}</b><span>{current.subtitle}</span></div>
+                  <div>
+                    <b>{current.welcome}</b>
+                    <span>{current.subtitle}</span>
+                  </div>
                   <Brand variant="symbol" linked={false} />
                 </div>
                 <div className="preview-mini-stats">
-                  <div><BookOpen size={17} /><span>Mi aula</span></div>
-                  <div><Heart size={17} /><span>Mi familia</span></div>
-                  <div><CalendarDays size={17} /><span>Mi agenda</span></div>
+                  <div>
+                    <BookOpen size={17} />
+                    <span>Mi aula</span>
+                  </div>
+                  <div>
+                    <Heart size={17} />
+                    <span>Mi familia</span>
+                  </div>
+                  <div>
+                    <CalendarDays size={17} />
+                    <span>Mi agenda</span>
+                  </div>
                 </div>
                 <div className="preview-entry">
-                  <span className="preview-entry-icon"><CurrentIcon size={21} /></span>
-                  <div><b>{current.first}</b><small>{current.firstDetail}</small><i>{current.label}</i></div>
+                  <span className="preview-entry-icon">
+                    <CurrentIcon size={21} />
+                  </span>
+                  <div>
+                    <b>{current.first}</b>
+                    <small>{current.firstDetail}</small>
+                    <i>{current.label}</i>
+                  </div>
                   <CheckCheck size={18} />
                 </div>
                 <div className="preview-entry">
-                  <span className="preview-entry-icon mint"><Heart size={21} /></span>
-                  <div><b>{current.second}</b><small>{current.secondDetail}</small></div>
+                  <span className="preview-entry-icon mint">
+                    <Heart size={21} />
+                  </span>
+                  <div>
+                    <b>{current.second}</b>
+                    <small>{current.secondDetail}</small>
+                  </div>
                   <ChevronDown size={16} />
                 </div>
               </m.div>
@@ -658,13 +1009,25 @@ function ProductPreview() {
           </div>
         </div>
       </m.div>
-      <m.div className="preview-floating preview-check" initial={reducedMotion ? false : { opacity: 0, x: -15, y: 12 }} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ duration: 0.7, ease: entranceEase, delay: 0.7 }}>
-        <span><Check size={19} /></span>
-        <div><b>Todo en su lugar</b><small>Más tiempo para lo importante</small></div>
+      <m.div
+        className="preview-floating preview-check"
+        initial={reducedMotion ? false : { opacity: 0, x: -15, y: 12 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        transition={{ duration: 0.7, ease: entranceEase, delay: 0.7 }}
+      >
+        <span>
+          <Check size={19} />
+        </span>
+        <div>
+          <b>Todo en su lugar</b>
+          <small>Más tiempo para lo importante</small>
+        </div>
       </m.div>
       <span className="preview-dot preview-dot-one" aria-hidden="true" />
       <span className="preview-dot preview-dot-two" aria-hidden="true" />
-      <small className="preview-caption">Vista ilustrativa · prueba las secciones del panel.</small>
+      <small className="preview-caption">
+        Vista ilustrativa · prueba las secciones del panel.
+      </small>
     </m.div>
   );
 }

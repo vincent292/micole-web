@@ -231,6 +231,59 @@ const read = async (aid = id(1500), agree = false, user = mother) =>
   acting(user, () =>
     q("select read_announcement($1,$2) as value", [aid, agree]),
   );
+const paymentAlerts = async (user = mother, includeRead = false) =>
+  (await acting(user,()=>q("select family_payment_alerts($1,$2) as value",[school,includeRead]))).rows[0].value;
+const paymentRead = (notice:string,user=mother) => acting(user,()=>q("select read_family_payment_alert($1,$2) as value",[school,notice.replace('payment:','')]));
+const paymentCharge = async (n:number,offset:number,amount=300,status='pending')=>{
+  const charge=id(n);
+  await q("insert into school_charges(id,school_id,student_id,concept,due_date,amount,status) values($1,$2,$3,$4,(now() at time zone 'America/La_Paz')::date+$5::integer,$6,$7)",[charge,school,child,'Cuota de prueba '+n,offset,amount,status]);
+  return charge;
+};
+
+describe('pagos importantes para los padres',()=>{
+  it('avisa desde cinco días, agrupa cuotas del hijo y excluye pagadas, canceladas, cero y seis días',async()=>{
+    await paymentCharge(2700,5,300);await paymentCharge(2701,0,200);await paymentCharge(2702,-7,100);
+    await paymentCharge(2703,6,900);await paymentCharge(2704,0,500,'paid');await paymentCharge(2705,0,500,'cancelled');await paymentCharge(2706,0,0);
+    const alerts=await paymentAlerts();expect(alerts).toHaveLength(1);
+    expect(alerts[0].payment.amount).toBe(600);expect(alerts[0].payment.charges.map((c:any)=>c.daysLeft)).toEqual([-7,0,5]);
+    expect(alerts[0].content).toContain('Vence en 5 días');expect(alerts[0].content).toContain('Vence hoy');expect(alerts[0].content).toContain('Vencida hace 7 días');
+    expect(alerts[0].readAt).toBeNull();expect((await paymentAlerts())[0].id).toBe(alerts[0].id);
+    expect((await q("select count(*)::int as n from notifications where kind like 'payment_due_attention_%' and user_id=$1",[mother])).rows[0].n).toBe(1);
+  });
+  it('solo los padres vinculados reciben el aviso; lectura de mamá no responde por papá ni cambia contabilidad',async()=>{
+    await paymentCharge(2710,5);const mom=(await paymentAlerts())[0],dad=(await paymentAlerts(father))[0];
+    expect(mom.id).not.toBe(dad.id);
+    for(const user of [director,teacher,kid,stranger])expect(await paymentAlerts(user)).toEqual([]);
+    await expect(paymentRead(dad.id,mother)).rejects.toThrow('no pertenece');
+    const before=(await q("select id,amount,paid_amount,status from school_charges order by id")).rows;
+    await paymentRead(mom.id);await paymentRead(mom.id);
+    expect(await paymentAlerts()).toEqual([]);expect(await paymentAlerts(father)).toHaveLength(1);
+    expect((await q("select id,amount,paid_amount,status from school_charges order by id")).rows).toEqual(before);
+    expect((await q("select count(*)::int as n from school_payments")).rows[0].n).toBe(0);
+    expect((await q("select count(*)::int as n from aulanexo_private.family_payment_alert_reads where user_id=$1",[mother])).rows[0].n).toBe(1);
+  });
+  it('marcar toda la campana no suplanta la lectura del aviso en pantalla',async()=>{
+    await paymentCharge(2720,5);const notice=(await paymentAlerts())[0];
+    await acting(mother,()=>q('select mark_notification_read()'));
+    expect((await paymentAlerts())[0].id).toBe(notice.id);
+    await paymentRead(notice.id);expect(await paymentAlerts()).toEqual([]);
+  });
+  it('un abono cambia el saldo y vuelve a avisar; completar el pago retira el aviso sin volver a cobrar',async()=>{
+    const charge=await paymentCharge(2730,5);const initial=(await paymentAlerts())[0];await paymentRead(initial.id);
+    await checkout([{chargeId:charge,amount:100}],id(2731));
+    const partial=(await paymentAlerts())[0];expect(partial.payment.amount).toBe(200);expect(partial.id).not.toBe(initial.id);
+    await checkout([{chargeId:charge,amount:200}],id(2732));
+    expect(await paymentAlerts()).toEqual([]);
+    expect((await paymentRead(partial.id)).rows[0].value).toEqual({resolved:true});
+    expect((await q('select paid_amount,status from school_charges where id=$1',[charge])).rows[0]).toMatchObject({paid_amount:'300.00',status:'paid'});
+  });
+  it('el worker existente incluye cinco días y no duplica los recordatorios',async()=>{
+    const charge=await paymentCharge(2740,5);
+    await q('select aulanexo_private.send_payment_reminders()');await q('select aulanexo_private.send_payment_reminders()');
+    const notices=(await q("select user_id from notifications where source_id=$1 and kind like 'payment_due_%_5' order by user_id",[charge])).rows;
+    expect(notices.map((n:any)=>n.user_id).sort()).toEqual([mother,father].sort());
+  });
+});
 async function due() {
   await q(
     "update announcement_receipts set next_reminder_at=now()-interval '1 minute'",
@@ -238,6 +291,38 @@ async function due() {
   return q("select aulanexo_private.send_announcement_reminders() as count");
 }
 describe("Avisos obligatorios y destinatarios", () => {
+  it("el estudiante encuentra en su campana el mismo aviso académico permitido por su portal", async () => {
+    await publish(payload({ category: "academic", requires_acknowledgment: false, remind_hourly: false }));
+    const portal = (await as(kid, () => q("select student_portal() as value"))).rows[0].value;
+    expect(portal.announcements.map((a: any) => a.id)).toContain(id(1500));
+    const notices = (await as(kid, () => q("select id,source_id from notifications where source_id=$1", [id(1500)]))).rows;
+    expect(notices).toHaveLength(1);
+    expect(notices[0].source_id).toBe(id(1500));
+    expect((await as(stranger, () => q("select id from notifications where source_id=$1", [id(1500)]))).rows).toEqual([]);
+    await acting(director, () => q("select withdraw_announcement($1)", [id(1500)]));
+    expect((await as(kid, () => q("select id from notifications where source_id=$1", [id(1500)]))).rows).toEqual([]);
+  });
+
+  it("la campana infantil excluye salud, recojo, confirmaciones y avisos para otro niño", async () => {
+    for (const [offset, extra] of [
+      [1, { category: "health" }],
+      [2, { category: "pickup" }],
+      [3, { requires_acknowledgment: true }],
+      [4, { target_student_ids: [otherChild], classroom_id: otherRoom }],
+      [5, { audience: "staff", target_student_ids: [] }],
+    ] as const) await publish(payload({ id: id(1550 + offset), requires_acknowledgment: false, remind_hourly: false, ...extra }));
+    // A stale or malformed legacy inbox row must not bypass source authorization.
+    await q("insert into notifications(user_id,school_id,classroom_id,kind,source_id,title,body,target) values($1,$2,$3,'announcement',$4,'Salud privada','Dato que no debe ver el estudiante','announcements')", [kid, school, room, id(1551)]);
+    expect((await as(kid, () => q("select id from notifications"))).rows).toEqual([]);
+  });
+
+  it("revocar el acceso infantil oculta también los avisos académicos de su campana", async () => {
+    await publish(payload({ requires_acknowledgment: false, remind_hourly: false }));
+    expect((await as(kid, () => q("select id from notifications"))).rows).toHaveLength(1);
+    await acting(director, () => q("select set_student_login($1,$2,false)", [child, "ops-kid@test.bo"]));
+    expect((await as(kid, () => q("select id from notifications"))).rows).toEqual([]);
+  });
+
   it("publica para los padres seleccionados y oculta el aviso a familias de otros niños", async () => {
     await q(
       "update students set mother_email='ops-stranger@test.bo',father_email='otro@test.bo' where id=$1",

@@ -1,3 +1,4 @@
+import { clearCareBatchAttempts } from "./careBatch";
 /** Session memory only: sensitive pupil data never goes to browser/disk storage. */
 const drafts = new Map<
   string,
@@ -50,4 +51,5 @@ export function removeDraft(key: string) {
 }
 export function clearDrafts() {
   drafts.clear();
+  clearCareBatchAttempts();
 }

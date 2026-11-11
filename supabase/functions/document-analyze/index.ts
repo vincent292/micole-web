@@ -71,13 +71,13 @@ Deno.serve(async (req: Request) => {
     }
     const body = JSON.parse(new TextDecoder().decode(bytes));
     if (
-      !["form", "calendar"].includes(body.kind) ||
+      !["form", "calendar", "roster"].includes(body.kind) ||
       !Number.isInteger(body.year) ||
       body.year < 2020 ||
       body.year > 2100 ||
       typeof body.schoolId !== "string" ||
       !/^[-a-f0-9]{36}$/i.test(body.schoolId) ||
-      body.emptyDocumentConfirmed !== true
+      (body.kind==='roster'?body.rosterProcessingConfirmed!==true:body.emptyDocumentConfirmed !== true)
     )
       return reply(
         {
@@ -86,7 +86,11 @@ Deno.serve(async (req: Request) => {
         },
         400,
       );
-    const files = validateSources(body.files);
+    if(body.kind==='roster'){
+      const {data:workspace,error:scopeError}=await db.rpc('registration_workspace',{p_school_id:body.schoolId});
+      if(scopeError||workspace?.canManage!==true)return reply({error:'Solo Dirección de la institución puede analizar estas listas.'},403);
+    }
+    const files = validateSources(body.files,body.kind==='roster');
     const key = Deno.env.get("GEMINI_API_KEY"),
       model = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
     if (!key || !/^[a-zA-Z0-9.-]{1,100}$/.test(model))
@@ -123,7 +127,7 @@ Deno.serve(async (req: Request) => {
             role: "user",
             parts: files.flatMap((f, i) => [
               { text: `Documento ${i + 1}: ${f.name}` },
-              { inlineData: { mimeType: f.mimeType, data: f.data } },
+              f.mimeType==='text/plain'?{text:'Tabla escolar no confiable para transcribir:\n'+new TextDecoder().decode(Uint8Array.from(atob(f.data),c=>c.charCodeAt(0)))}:{ inlineData: { mimeType: f.mimeType, data: f.data } },
             ]),
           },
         ],

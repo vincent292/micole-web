@@ -1,7 +1,19 @@
-import {attendanceSubmissionId,clearAttendanceSubmission} from "../lib/attendanceSubmission";
-import {AttendanceCorrections} from "./AttendanceCorrections";
-import {useAttendanceDraft} from "../lib/useAttendanceDraft";
-import {draftKey} from "../lib/sessionDraft";
+import { AttendanceWeekSheet } from "./AttendanceWeekSheet";
+import { useAttendanceWeek } from "../lib/useAttendanceWeek";
+import {
+  moveAttendanceDay,
+  attendanceWeekDates,
+  sortAttendancePupils,
+  type AttendanceSort,
+} from "../lib/attendanceWeek";
+import {
+  attendanceSubmissionId,
+  clearAttendanceSubmission,
+} from "../lib/attendanceSubmission";
+import { AttendanceCorrections } from "./AttendanceCorrections";
+import { AttendancePermissions } from "./AttendancePermissions";
+import { useAttendanceDraft } from "../lib/useAttendanceDraft";
+import { draftKey } from "../lib/sessionDraft";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { CalendarCheck, Download, CheckCheck, RefreshCw } from "lucide-react";
@@ -53,6 +65,7 @@ export function StudentAttendance({
     ),
     [search, setSearch] = useState(""),
     [status, setStatus] = useState("");
+  const [order, setOrder] = useState<AttendanceSort>("lastName");
   const room = rooms.find((r) => r.id === roomId) || rooms[0];
   const {
     data,
@@ -65,15 +78,25 @@ export function StudentAttendance({
     family ? student?.id : undefined,
     school?.id,
   );
-  const key = draftKey(identity.id, role, school?.id || "", `${room?.id}:${day}`, "student-attendance");
+  const week = useAttendanceWeek(family ? "" : room?.id || "", day, school?.id);
+  const key = draftKey(
+    `${identity.id}:${identity.support?.id || ""}`,
+    role,
+    school?.id || "",
+    `${room?.id}:${day}`,
+    "student-attendance",
+  );
   const confirmed = data?.session?.status === "confirmed";
+  const canMark = role === "teacher" && data?.canMark !== false;
   const [draft, setDraft] = useAttendanceDraft(key, confirmed);
   const [confirm, setConfirm] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
-  const dirty = !!data && draft?.key === key && !confirmed;
-  const marks = dirty ? draft.marks.filter(mark => data?.roster.some(child => child.student_id === mark.studentId)) : data ? attendanceMarks(data, day) : [];
+  const dirty = !!data && canMark && draft?.key === key && !confirmed;
+  const marks = data
+    ? attendanceMarks(data, day, dirty ? draft.marks : undefined)
+    : [];
   const counts = attendanceCounts(marks);
   useEffect(() => {
     if (!dirty) return;
@@ -94,7 +117,7 @@ export function StudentAttendance({
     };
   }, [dirty]);
   function change(id: string, value: Partial<AttendanceMark>) {
-    if (!data || confirmed) return;
+    if (!data || confirmed || !canMark) return;
     setNotice("");
     setDraft({
       key,
@@ -114,12 +137,28 @@ export function StudentAttendance({
     task();
   }
   async function save(final: boolean) {
-    if (!room || !data || busy || confirmed) return;
+    if (!room || !data || busy || confirmed || !canMark) return;
     setBusy(true);
     setError("");
     try {
-      const payload={p_classroom_id:room.id,p_day:day,p_records:marks,p_revision:dirty ? draft.revision : data.session?.revision || 0,p_confirm:final,p_reason:""};
-      const result=await rpc<{notifications:number}>("save_student_attendance",{...payload,p_request_id:attendanceSubmissionId(key,payload,()=>crypto.randomUUID())});
+      const payload = {
+        p_classroom_id: room.id,
+        p_day: day,
+        p_records: marks,
+        p_revision: dirty ? draft.revision : data.session?.revision || 0,
+        p_confirm: final,
+        p_reason: "",
+        p_permission_revision: data.permissionRevision || null,
+      };
+      const result = await rpc<{ notifications: number }>(
+        "save_student_attendance",
+        {
+          ...payload,
+          p_request_id: attendanceSubmissionId(key, payload, () =>
+            crypto.randomUUID(),
+          ),
+        },
+      );
       clearAttendanceSubmission(key);
       setDraft(null);
       setConfirm(null);
@@ -130,6 +169,7 @@ export function StudentAttendance({
           : "Borrador guardado. Todavía no se enviaron avisos.",
       );
       refresh();
+      week.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -148,16 +188,34 @@ export function StudentAttendance({
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const visible = marks.filter(
-    (m) =>
-      !search ||
-      (
-        data?.roster.find((s) => s.student_id === m.studentId)?.student_name ||
-        ""
-      )
-        .toLocaleLowerCase()
-        .includes(search.toLocaleLowerCase()),
-  );
+  const orderedIds = sortAttendancePupils(
+    (data?.roster || []).map((row) => {
+      const pupil = store.data.students.find(
+        (value) => value.id === row.student_id,
+      );
+      return {
+        ...row,
+        first_name: row.first_name || pupil?.firstName,
+        last_name: row.last_name || pupil?.lastName,
+      };
+    }),
+    order,
+  ).map((row) => row.student_id);
+  const visible = [...marks]
+    .sort(
+      (a, b) =>
+        orderedIds.indexOf(a.studentId) - orderedIds.indexOf(b.studentId),
+    )
+    .filter(
+      (m) =>
+        !search ||
+        (
+          data?.roster.find((s) => s.student_id === m.studentId)
+            ?.student_name || ""
+        )
+          .toLocaleLowerCase()
+          .includes(search.toLocaleLowerCase()),
+    );
   const history = (data?.records || []).filter(
     (r) =>
       r.confirmed &&
@@ -172,7 +230,9 @@ export function StudentAttendance({
         subtitle={
           family
             ? "Consulta los días registrados. Los días sin lista confirmada no se consideran faltas."
-            : "Pasa lista por aula y confirma al terminar. Las faltas se avisan automáticamente a madre y padre vinculados."
+            : role === "director"
+              ? "Consulta la asistencia y sus justificativos. Solo el docente asignado puede marcar y corregir."
+              : "Revisa los permisos de las familias, pasa lista y confirma al terminar."
         }
       />
       <div className="attendance-toolbar">
@@ -259,6 +319,35 @@ export function StudentAttendance({
           {notice}
         </div>
       )}
+      {data?.schoolDay && !data.schoolDay.isSchoolDay && (
+        <p role="status" className="message">
+          {data.schoolDay.label} · Día sin clases. No se registran faltas ni se
+          envían avisos de ausencia.
+        </p>
+      )}
+      {data && (
+        <AttendancePermissions
+          data={data}
+          context={key}
+          canMark={canMark}
+          active={tab === "register" && !confirmed}
+          refresh={refresh}
+          onReviewed={(ids) => {
+            if (!canMark || confirmed) return;
+            const next = marks.map((m) =>
+              ids.includes(m.studentId) && (!m.status || m.status === "absent")
+                ? { ...m, status: "excused" as const }
+                : m,
+            );
+            if (next.some((m, i) => m.status !== marks[i].status))
+              setDraft({
+                key,
+                revision: dirty ? draft.revision : data.session?.revision || 0,
+                marks: next,
+              });
+          }}
+        />
+      )}
       {!rooms.length ? (
         <Empty
           title="Sin aula disponible"
@@ -294,7 +383,7 @@ export function StudentAttendance({
                   <Button
                     variant="secondary"
                     icon={CheckCheck}
-                    disabled={busy || confirmed || !marks.length}
+                    disabled={busy || confirmed || !canMark || !marks.length}
                     onClick={() => {
                       setDraft({
                         key,
@@ -317,86 +406,143 @@ export function StudentAttendance({
                   elige un estado. Las observaciones serán visibles para su
                   familia.
                 </p>
-                <div className="attendance-list">
-                  {visible.map((m) => (
-                    <article className="attendance-row" key={m.studentId}>
-                      <label className="attendance-person">
-                        <input
-                          type="checkbox"
-                          aria-label={`Presente: ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
-                          checked={m.status === "present"}
-                          disabled={busy || confirmed}
-                          onChange={(e) =>
-                            change(m.studentId, {
-                              status: e.target.checked ? "present" : "",
-                            })
-                          }
-                        />
-                        <strong>
-                          {
-                            data.roster.find(
-                              (s) => s.student_id === m.studentId,
-                            )?.student_name
-                          }
-                        </strong>
-                      </label>
-                      <div className="attendance-row-fields">
-                        <label className="field">
-                          <span>Estado</span>
-                          <select
-                            aria-label={`Estado de ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
-                            value={m.status}
-                            disabled={busy || confirmed}
+                <div className="attendance-toolbar">
+                  <Field label="Ordenar estudiantes" name="attendanceOrder">
+                    <select
+                      value={order}
+                      onChange={(e) =>
+                        setOrder(e.target.value as AttendanceSort)
+                      }
+                    >
+                      <option value="lastName">Apellido, luego nombre</option>
+                      <option value="firstName">Nombre, luego apellido</option>
+                    </select>
+                  </Field>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      navigate(() => setDay(moveAttendanceDay(day, -7)))
+                    }
+                  >
+                    Semana anterior
+                  </Button>
+                  <span>
+                    Semana: {attendanceWeekDates(day)[0]} al{" "}
+                    {attendanceWeekDates(day)[6]}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      navigate(() => setDay(moveAttendanceDay(day, 7)))
+                    }
+                  >
+                    Semana siguiente
+                  </Button>
+                </div>
+                {week.error && (
+                  <p className="message error" role="alert">
+                    No se pudo actualizar la hoja semanal. Puedes revisar la
+                    lista del día.
+                  </p>
+                )}
+                {week.data ? (
+                  <AttendanceWeekSheet
+                    week={week.data}
+                    day={day}
+                    marks={marks}
+                    order={order}
+                    search={search}
+                    disabled={busy || confirmed || !canMark}
+                    change={change}
+                    selectDay={(date) => navigate(() => setDay(date))}
+                  />
+                ) : (
+                  <div className="attendance-list">
+                    {visible.map((m) => (
+                      <article className="attendance-row" key={m.studentId}>
+                        <label className="attendance-person">
+                          <input
+                            type="checkbox"
+                            aria-label={`Presente: ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
+                            checked={m.status === "present"}
+                            disabled={busy || confirmed || !canMark}
                             onChange={(e) =>
                               change(m.studentId, {
-                                status: e.target.value as AttendanceStatus | "",
+                                status: e.target.checked ? "present" : "",
                               })
                             }
-                          >
-                            <option value="">Sin marcar</option>
-                            {Object.entries(attendanceLabels).map(([v, l]) => (
-                              <option key={v} value={v}>
-                                {l}
-                              </option>
-                            ))}
-                          </select>
+                          />
+                          <strong>
+                            {
+                              data.roster.find(
+                                (s) => s.student_id === m.studentId,
+                              )?.student_name
+                            }
+                          </strong>
                         </label>
-                        {confirmed ? (
-                          m.note ? (
-                            <p className="attendance-help">{m.note}</p>
-                          ) : null
-                        ) : (
-                          <details className="attendance-note">
-                            <summary>
-                              {m.note
-                                ? "Editar observación"
-                                : "Añadir observación"}
-                            </summary>
-                            <label className="field">
-                              <span>Observación opcional</span>
-                              <input
-                                aria-label={`Observación de ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
-                                maxLength={1000}
-                                value={m.note}
-                                disabled={busy || confirmed}
-                                onChange={(e) =>
-                                  change(m.studentId, { note: e.target.value })
-                                }
-                              />
-                            </label>
-                          </details>
-                        )}
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                        <div className="attendance-row-fields">
+                          <label className="field">
+                            <span>Estado</span>
+                            <select
+                              aria-label={`Estado de ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
+                              value={m.status}
+                              disabled={busy || confirmed || !canMark}
+                              onChange={(e) =>
+                                change(m.studentId, {
+                                  status: e.target.value as
+                                    AttendanceStatus | "",
+                                })
+                              }
+                            >
+                              <option value="">Sin marcar</option>
+                              {Object.entries(attendanceLabels).map(
+                                ([v, l]) => (
+                                  <option key={v} value={v}>
+                                    {l}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+                          {confirmed || !canMark ? (
+                            m.note ? (
+                              <p className="attendance-help">{m.note}</p>
+                            ) : null
+                          ) : (
+                            <details className="attendance-note">
+                              <summary>
+                                {m.note
+                                  ? "Editar observación"
+                                  : "Añadir observación"}
+                              </summary>
+                              <label className="field">
+                                <span>Observación opcional</span>
+                                <input
+                                  aria-label={`Observación de ${data.roster.find((s) => s.student_id === m.studentId)?.student_name}`}
+                                  maxLength={1000}
+                                  value={m.note}
+                                  disabled={busy || confirmed || !canMark}
+                                  onChange={(e) =>
+                                    change(m.studentId, {
+                                      note: e.target.value,
+                                    })
+                                  }
+                                />
+                              </label>
+                            </details>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
                 {!marks.length && (
                   <Empty
                     title="Sin inscritos en esta fecha"
                     subtitle="Revisa el aula y la fecha de inscripción de los estudiantes."
                   />
                 )}
-                {!confirmed && (
+                {!confirmed && canMark && (
                   <div className="attendance-savebar">
                     <span>
                       {dirty
@@ -501,7 +647,11 @@ export function StudentAttendance({
                         <strong>
                           {r.status ? attendanceLabels[r.status] : "Sin marcar"}
                         </strong>
-                        {r.correctionId && <small>Corrección aprobada por Dirección</small>}
+                        {r.correctionId && (
+                          <small>
+                            Corrección con justificativo · consulta el historial
+                          </small>
+                        )}
                         {r.note && <p>{r.note}</p>}
                       </article>
                     ))}
@@ -517,8 +667,14 @@ export function StudentAttendance({
           </>
         )
       )}
-      {data && <AttendanceCorrections data={data} refresh={refresh}/>}
-      {confirm === key && !confirmed && (
+      {data && (
+        <AttendanceCorrections
+          data={data}
+          refresh={refresh}
+          canCorrect={canMark && !!data.canCorrect}
+        />
+      )}
+      {confirm === key && !confirmed && canMark && (
         <Modal
           title="Confirmar asistencia del día"
           subtitle={`${room?.name} · ${dateLabel(day)}`}
@@ -537,8 +693,8 @@ export function StudentAttendance({
           </p>
           <div className="soft-note">
             Se avisará a las familias de las faltas confirmadas. Al confirmar,
-            la lista quedará cerrada. Una corrección posterior requerirá aprobación de Dirección. Revisa los datos
-            antes de continuar.
+            la lista quedará cerrada. Solo el docente podrá corregir con
+            justificativo e historial. Revisa los datos antes de continuar.
           </div>
         </Modal>
       )}

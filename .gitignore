@@ -16,3 +16,9 @@ supabase/.temp/
 # Independent browser results for the public demo.
 test-results-demo/
 .vercel
+
+# Generated native builds, release staging and PDF render intermediates.
+/tmp/
+
+# Generated QA evidence, mobile packages and document exports.
+/output/

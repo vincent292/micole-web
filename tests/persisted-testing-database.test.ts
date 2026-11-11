@@ -112,6 +112,20 @@ beforeAll(async () => {
 afterAll(() => db.close());
 beforeEach(() => db.exec("begin"));
 afterEach(() => db.exec("rollback"));
+it('Secretaría QA recibe solo la delegación de su sede y no puede vincularse a otra', async () => {
+ const planner=id(70),email='secretaria@pruebas.micole.test';
+ await q('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[planner,email]);
+ await q("insert into aulanexo_private.persisted_test_accounts(user_id,school_id,email,role) values($1,$2,$3,'scheduler')",[planner,school,email]);
+ await q('insert into timetable_delegates(school_id,email,can_approve,updated_by) values($1,$2,false,$3)',[school,email,director]);
+ const identity=(await as(planner,'select workspace_identity() as value')).rows[0].value;
+ expect(identity.roles).toEqual(['scheduler']);
+ expect(identity.testing).toBe(true);
+ expect(identity.memberships).toEqual([{schoolId:school,role:'scheduler'}]);
+ expect((await as(planner,'select id from students')).rows).toHaveLength(0);
+ await db.exec('savepoint wrong_school');
+ await expect(q('insert into timetable_delegates(school_id,email,can_approve,updated_by) values($1,$2,true,$3)',[other,email,director])).rejects.toThrow(/institución de pruebas/);
+ await db.exec('rollback to savepoint wrong_school');
+});
 it("habilita únicamente el sandbox sin simular pago, crédito ni licencia", async () => {
   expect(
     (await q("select platform_enabled from schools where id=$1", [school]))

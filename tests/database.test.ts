@@ -202,6 +202,8 @@ describe("migraciones, RLS y operaciones reales", () => {
   it("calcula cuotas igual que React, protege duplicados y registra pagos idempotentes", async () => {
     const plan: PaymentPlan = {
       id: id(60),
+      // This fixture runs the historical schema, before configurable tariffs.
+      licenseFee: 29,
       schoolId: school,
       studentId: student,
       startDate: "2026-10-17",

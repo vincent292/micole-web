@@ -1,4 +1,5 @@
 import {educationLevels} from "../lib/sites";
+import { workspaceModes } from "../lib/kinder";
 import {schoolRoom} from "../lib/bolivia";
 import {draftKey,readDraft,writeDraft,removeDraft} from "../lib/sessionDraft";
 import {useLocation} from "react-router-dom";
@@ -15,7 +16,7 @@ import { CareFields, readCareProfile } from "../components/CareFields";
 import { Button, Field, Modal, FormSection } from "../components/UI";
 import { bolivianCities, monthCount } from "../lib/operations";
 import { shiftMonth } from "../components/MonthCalendar";
-import { buildSchedule, today } from "../lib/billing";
+import { buildSchedule, today, LICENSE_FEE } from "../lib/billing";
 import { initials, money, uid } from "../lib/store";
 import { rpc } from "../lib/repository";
 import { liveMode, supabase } from "../lib/supabase";
@@ -107,7 +108,10 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
 
   return (
     <>
-      <FormSection title="Niveles de esta sede"><p>Las reglas de colegio se aplican a aulas de primaria/secundaria. Inicial y guardería conservan su funcionamiento.</p><div className="checkbox-grid">{educationLevels.map(level=><label className="check-field" key={level}><input type="checkbox" name="educationLevels" value={level} defaultChecked={institution?.educationLevels?.includes(level)}/>{level}</label>)}</div></FormSection>
+      <FormSection title="Niveles de esta sede"><p>Las reglas de colegio se aplican a aulas de primaria/secundaria. Inicial y guardería conservan su funcionamiento.</p><div className="checkbox-grid">{educationLevels.map(level=><label className="check-field" key={level}><input type="checkbox" name="educationLevels" value={level} defaultChecked={institution?.educationLevels?.includes(level)}/>{level}</label>)}</div>
+        <Field label="Modo de trabajo" name="workspaceMode"><select name="workspaceMode" defaultValue={institution?.workspaceMode || "auto"}>{workspaceModes.map(mode => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></Field>
+        <p className="muted">El modo kínder da prioridad a la jornada, los cuidados y las familias. Las otras herramientas siguen disponibles en Más opciones. Automático usa este modo cuando todos los niveles de la sede son de educación infantil.</p>
+      </FormSection>
       <FormSection title="Logo y portada">
       <div className="institution-logo-preview" aria-live="polite">
         {preview && !previewFailed ? (
@@ -352,7 +356,7 @@ export function WorkspaceModal({
           if (!supabase) throw new Error("La conexión de MiCole no está configurada.");
           // An older save_school RPC would silently discard the new identity fields.
           const { error: schemaError } = await supabase.from("schools")
-            .select("nit,address,website,show_on_landing,public_description,show_public_contact").limit(0);
+            .select("nit,address,website,show_on_landing,public_description,show_public_contact,workspace_mode").limit(0);
           if (schemaError) {
             if (["42703", "PGRST204"].includes(schemaError.code))
               throw new Error("La identidad institucional requiere una actualización de MiCole. Tus datos no se han guardado; puedes conservar este formulario y reintentar cuando se aplique.");
@@ -1088,6 +1092,7 @@ export function WorkspaceModal({
           {noticeRoom&&noticeAudience!=='staff'&&<><p className="muted">Sin selección se envía a todas las familias del aula. Al elegir niños, solo sus padres recibirán el aviso{noticeAudience==='all'?' junto al equipo del aula':''}.</p><Field label="Buscar niño" name="noticeSearch"><input value={noticeSearch} onChange={e=>setNoticeSearch(e.target.value)} placeholder="Nombre o apellido"/></Field><div className="notice-targets">{students.filter(s=>s.status==='active'&&s.classroomId===noticeRoom&&fullName(s).toLowerCase().includes(noticeSearch.toLowerCase())).map(s=><label key={s.id}><input name="targetStudentIds" value={s.id} type="checkbox" checked={noticeTargets.includes(s.id)} onChange={e=>setNoticeTargets(old=>e.target.checked?[...old,s.id]:old.filter(id=>id!==s.id))}/>{fullName(s)}</label>)}</div><small>{noticeTargets.length?`${noticeTargets.length} niños seleccionados`:'Todas las familias del aula'}</small></>}
           </FormSection>
           <FormSection title="Confirmación y recordatorios">
+          <div className="soft-note">¿Es importante que lo vean al entrar? Activa «He leído». Aparecerá al abrir o volver a MiCole hasta que cada destinatario confirme personalmente. Abrirlo no confirma su lectura.</div>
           <div className="notice-flags"><label><input name="requiresAcknowledgment" type="checkbox" checked={noticeRequired} onChange={e=>{setNoticeRequired(e.target.checked);if(e.target.checked)setNoticeHourly(true);}}/> Solicitar confirmación: «He leído»</label><label><input name="remindHourly" type="checkbox" checked={noticeHourly} onChange={e=>setNoticeHourly(e.target.checked)}/> Recordar cada hora hasta {noticeRequired?'que confirme la lectura':'que lo lea'}</label>{['health','pickup'].includes(noticeCategory)&&<label><input key={noticeCategory} type="checkbox" name="urgent" defaultChecked={recovered?.urgent===undefined?true:recovered.urgent===true}/> Urgente: puede notificarse durante el descanso</label>}</div>
           <div className="soft-note">Descanso de 22:00 a 07:00 (Bolivia), salvo urgencias de salud o recojo. Los avisos obligatorios, de salud y de recojo estarán disponibles incluso con pagos pendientes. Una vez publicado, puedes retirarlo y crear una nueva versión.</div>
           </FormSection>
@@ -1459,7 +1464,7 @@ function PlanFields({
   draft,
   student,
   schoolId,
-  licenseFee=29,
+  licenseFee=LICENSE_FEE,
   bolivia=false,
   academicYear,
 }: {

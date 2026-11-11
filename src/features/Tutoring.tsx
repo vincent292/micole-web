@@ -1,4 +1,5 @@
 import { useState } from "react";
+import {InstitutionPdfButton} from '../components/InstitutionPdfButton';
 import "../styles/tutoring.css";
 import {
   Button,
@@ -178,6 +179,7 @@ export function Interviews(
                 {i.location}
               </p>
               <p style={{ whiteSpace: "pre-wrap" }}>{i.reason}</p>
+              {i.status!=='cancelled'&&<InstitutionPdfButton school={p.school} name={`citacion-${i.id}.pdf`} label="Descargar citación PDF" build={api=>api.citationPdf(p.school!,{studentName:i.studentName,classroomName:i.classroomName,date:new Date(i.starts_at).toLocaleDateString('es-BO',{timeZone:'America/La_Paz'}),time:new Date(i.starts_at).toLocaleTimeString('es-BO',{timeZone:'America/La_Paz',hour:'2-digit',minute:'2-digit'}),reason:i.reason,location:i.location,reference:i.id,scheduled:true})}/>}
               {i.participants?.length ? (
                 <p className="soft-note">
                   {i.participants

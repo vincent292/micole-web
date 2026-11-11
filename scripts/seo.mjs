@@ -58,7 +58,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   // Make the public content available even before Google executes JavaScript.
   // Demos, previews and private route HTML never contain this public render.
   if (siteOrigin(options.siteUrl) && !options.demo && !options.preview) {
-    const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', mode: 'production' });
+    const server = await createServer({ server: { middlewareMode: true }, optimizeDeps: { noDiscovery: true, include: [] }, appType: 'custom', mode: 'production' });
     try {
       const { renderLanding } = await server.ssrLoadModule('/src/seo-render.tsx');
       options.landingHtml = renderLanding();

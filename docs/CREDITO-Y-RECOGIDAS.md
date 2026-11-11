@@ -4,9 +4,9 @@
 
 Todas las instituciones, incluidas las existentes, requieren un adelanto inicial de **Bs 500**. Dirección entra a Crédito MiCole para generar el QR, mientras conserva configuración básica, aulas, docentes y preparación de inscripciones. Los módulos académicos se habilitan al recibir una confirmación bancaria de producción. El propietario conserva el acceso de soporte autorizado.
 
-Los Bs 500 cubren licencias mensuales, por defecto Bs 29 por estudiante activo. No se cobra inicialmente la activación de Bs 50. El propietario puede habilitar o deshabilitar esa activación en Facturación MiCole, indicando un motivo. Las tarifas guardadas se usan en nuevas emisiones; los importes emitidos no disminuyen.
+Los Bs 500 cubren licencias mensuales, por defecto Bs 25 por estudiante activo desde el 5 de noviembre de 2026. No se cobra inicialmente la activación de Bs 50. El propietario puede habilitar o deshabilitar esa activación en Facturación MiCole, indicando un motivo. Las tarifas guardadas se usan en nuevas emisiones; los importes emitidos no disminuyen.
 
-El saldo se aplica automáticamente a las licencias. Con Bs 29, 17 licencias consumen Bs 493 y dejan Bs 7. La siguiente licencia mantiene su importe de Bs 29, aplica esos Bs 7 y pide un QR de Bs 22. Las bajas dejan de generar nuevas licencias; una licencia ya emitida conserva su historial. Repetir un corte o una confirmación no repite el cobro por estudiante/período.
+El saldo se aplica automáticamente a las licencias. Con Bs 25, el crédito inicial de Bs 500 cubre 20 licencias mensuales. Tras consumir ese saldo, la siguiente licencia requiere Bs 25. Las bajas dejan de generar nuevas licencias; una licencia ya emitida conserva su historial. Repetir un corte o una confirmación no repite el cobro por estudiante/período.
 
 El adelanto no se acredita con recibos manuales, capturas ni certificación bancaria. Los movimientos se guardan en un registro privado de solo inserción, con importes cifrados mediante pgcrypto y clave en Supabase Vault, más autenticación HMAC. Ningún rol del panel puede editar el saldo o el historial. No guardar esta clave en React, Android ni archivos `.env` públicos.
 

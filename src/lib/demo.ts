@@ -3,8 +3,8 @@ import { canManageAssignment } from "./learning";
 import {publishWorkspaceChange} from "./workspaceEvents";
 import {defaultGradeLabels,type GradeTotal} from "./gradeSheet";
 import { makeDemoSeed, makeDemoWorkspace, demoCards } from "./demo-seed";
-import { demoRole } from "./demo-config";
-import { today, buildSchedule } from "./billing";
+import { demoRole, publicDemo } from "./demo-config";
+import { today, buildSchedule, LICENSE_FEE } from "./billing";
 import { chargeBalance } from "./operations";
 import type { AppData } from "./types";
 import type { SchoolWorkspace } from "./school";
@@ -29,6 +29,7 @@ export function readDemoData(): AppData {
   return makeDemoSeed();
 }
 interface Extras {
+ careBatchRequests?: Record<string, { actor: string; payload: string; saved: number }>;
  gradeSettings?:Record<string,{maxCorrections:number;labels:string[]}>;
  gradeRules?:Record<string,string>;
   workspace: SchoolWorkspace;
@@ -139,6 +140,7 @@ export function resetDemo() {
   localStorage.removeItem("micole_public_demo_sites_v1");
   localStorage.removeItem("micole_public_demo_staff_v1");
   localStorage.removeItem("micole_public_demo_student_attendance_v1");
+  localStorage.removeItem("micole_demo_school_calendar_v1");
   writeDemoData(data, true);
   return data;
 }
@@ -176,6 +178,20 @@ function requireStaff(director = false) {
         " para realizar esta acción.",
     );
 }
+function careDemoData() {
+  if (!publicDemo) {
+    try {
+      const value = JSON.parse(localStorage.getItem("aulanexo_demo_v2") || "null");
+      if (Array.isArray(value?.schools) && Array.isArray(value?.students) && Array.isArray(value?.classrooms) && Array.isArray(value?.teachers)) return { value: value as AppData, local: true };
+    } catch { /* Fall back to the isolated demo state when no local workspace exists. */ }
+  }
+  return { value: readDemoData(), local: false };
+}
+function canonicalCarePayload(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalCarePayload);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, canonicalCarePayload(entry)]));
+  return value;
+}
 export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
   const bolivia=await import("./demo-bolivia");
   if(bolivia.boliviaOperations.includes(name))return bolivia.demoBoliviaRpc(name,parameters as Record<string,unknown>) as Promise<T>;
@@ -183,6 +199,8 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
   if(academic.academicOperations.includes(name))return academic.demoAcademicRpc(name,parameters) as Promise<T>;
   const tutoring=await import("./demo-tutoring");
   if(tutoring.tutoringOperations.includes(name)) return tutoring.demoTutoringRpc(name,parameters) as Promise<T>;
+  const calendar=await import("./demo-school-calendar");
+  if(calendar.calendarOperations.includes(name)) return calendar.demoSchoolCalendarRpc(name,parameters) as Promise<T>;
   const attendance=await import("./demo-student-attendance");
   if(attendance.studentAttendanceOperations.includes(name)) return attendance.demoStudentAttendanceRpc(name,parameters) as Promise<T>;
   const staff=await import("./demo-staff");
@@ -191,8 +209,9 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
   if(sites.siteOperations.includes(name)) return sites.demoSiteRpc(name,parameters) as Promise<T>;
   const feature = await import("./demo-features");
   if(feature.demoFeatureOperations.includes(name)) return feature.demoFeatureRpc(name,parameters) as Promise<T>;
+  const careContext = ["save_care_batch", "save_care_record", "school_workspace"].includes(name) ? careDemoData() : undefined;
   const p = parameters as Record<string, any>,
-    data = readDemoData(),
+    data = careContext?.value || readDemoData(),
     extra = readExtras(data),
     w = extra.workspace;
   let result: unknown = null,
@@ -263,7 +282,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
               ? ["a1"]
               : role === "teacher"
                 ? data.students
-                    .filter((s) => ["c1", "c4"].includes(s.classroomId))
+                    .filter((s) => data.classrooms.some(room => room.id === s.classroomId && room.teacherIds.some(teacherId => data.teachers.some(teacher => teacher.id === teacherId && (teacher.email === "docente@micole.test" || (!publicDemo && teacher.id === "t1"))))))
                     .map((s) => s.id)
                 : data.students.map((s) => s.id);
       clone.years = clone.years.filter((y) => y.schoolId === schoolId);
@@ -433,6 +452,47 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
       if (r.kind === "rest" && r.endedAt <= r.occurredAt)
         throw new Error("La hora de fin debe ser posterior al inicio.");
       upsert(w.care, { ...r, id: r.id || id(), classroomId: s.classroomId });
+      break;
+    }
+    case "save_care_batch": {
+      requireStaff();
+      const room = data.classrooms.find(r => r.id === p.p_classroom_id && r.schoolId === schoolId && r.active !== false);
+      const school = data.schools.find(s => s.id === schoolId && s.status === "active");
+      const actor = demoRole()!;
+      const teacherIds = data.teachers.filter(t => t.status === "active" && (t.email === "docente@micole.test" || (!publicDemo && t.id === "t1"))).map(t => t.id);
+      if (!room || !school || (actor === "teacher" && !room.teacherIds.some(t => teacherIds.includes(t)))) throw new Error("Solo Dirección o el docente del aula puede registrar cuidados.");
+      const day = String(p.p_day || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(day)) || new Date(`${day}T12:00:00Z`).toISOString().slice(0, 10) !== day || day > today()) throw new Error("Selecciona un día actual o anterior.");
+      if (typeof p.p_request_id !== "string" || !p.p_request_id) throw new Error("No se pudo identificar este registro. Abre el formulario nuevamente.");
+      if (!Array.isArray(p.p_records) || p.p_records.length < 1 || p.p_records.length > 200) throw new Error("Selecciona entre 1 y 200 niños del aula.");
+      const payload = JSON.stringify(canonicalCarePayload([schoolId, room.id, day, p.p_records]));
+      const previous = extra.careBatchRequests?.[p.p_request_id];
+      if (previous) {
+        if (previous.actor !== actor || previous.payload !== payload) throw new Error("Este registro ya fue procesado con otros datos. Revisa el resumen antes de crear otro.");
+        mutation = false; result = { saved: previous.saved }; break;
+      }
+      const seen = new Set<string>();
+      const kinds = ["meal", "rest", "hygiene", "mood"];
+      const clock = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+      const rows = p.p_records.map((raw: unknown) => {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Revisa los datos del cuidado.");
+        const record = raw as Record<string, unknown>;
+        if (Object.keys(record).some(key => !["student_id", "kind", "occurred_at", "ended_at", "food", "amount", "hygiene", "mood", "note"].includes(key))) throw new Error("Revisa los datos del cuidado.");
+        const s = data.students.find(s => s.id === record.student_id && s.schoolId === schoolId && s.classroomId === room.id && s.status === "active");
+        if (!s) throw new Error("Selecciona únicamente niños activos que pertenezcan a esta aula.");
+        if (seen.has(s.id)) throw new Error("Selecciona cada niño una sola vez en este registro.");
+        seen.add(s.id);
+        const kind = String(record.kind || ""), start = String(record.occurred_at || ""), end = String(record.ended_at || "");
+        const food = String(record.food || "").trim(), amount = String(record.amount || ""), hygiene = String(record.hygiene || ""), mood = String(record.mood || ""), note = String(record.note || "").trim();
+        if (!kinds.includes(kind)) throw new Error("Los incidentes se registran individualmente.");
+        if (!clock.test(start) || (end && (!clock.test(end) || end <= start))) throw new Error("La hora de fin debe ser posterior al inicio.");
+        if (food.length > 300 || note.length > 4000 || !["", "none", "little", "half", "most", "all"].includes(amount) || !["", "diaper", "toilet", "clothes"].includes(hygiene) || !["", "happy", "calm", "tired", "upset"].includes(mood)) throw new Error("Revisa los datos del cuidado.");
+        if ((kind === "meal" && (food.length < 2 || !amount)) || (kind === "rest" && !end) || (kind === "hygiene" && !hygiene) || (kind === "mood" && !mood)) throw new Error("Completa los campos obligatorios del cuidado.");
+        return { id: id(), studentId: s.id, classroomId: room.id, entryDate: day, kind: kind as SchoolWorkspace["care"][number]["kind"], occurredAt: start, endedAt: end || undefined, food, amount, hygiene, mood, note };
+      });
+      w.care.push(...rows);
+      (extra.careBatchRequests ||= {})[p.p_request_id] = { actor, payload, saved: rows.length };
+      result = { saved: rows.length };
       break;
     }
     case "save_academic_year": {
@@ -724,7 +784,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
         committed: false,
         count: report.filter((r) => r.ok).length,
         activationFee: 0,
-        licenseFee: 29,
+        licenseFee: LICENSE_FEE,
       };
       if (p.p_commit) {
         if (report.some((r) => !r.ok))
@@ -827,7 +887,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
       break;
     }
     case "platform_tariffs":
-      result = { activationFee: 0, configuredActivationFee:50,activationEnabled:false,initialCredit:500, monthlyLicenseFee: 29, inherited: true };
+      result = { activationFee: 0, configuredActivationFee:50,activationEnabled:false,initialCredit:500, monthlyLicenseFee: LICENSE_FEE, inherited: true };
       mutation = false;
       break;
     case "baneco_payment_register":
@@ -1003,7 +1063,7 @@ export async function demoRpc<T>(name: string, parameters: object): Promise<T> {
   }
   if (mutation) {
     localStorage.setItem(extraKey, JSON.stringify(extra));
-    writeDemoData(data, true);
+    if (!careContext?.local) writeDemoData(data, true);
     publishWorkspaceChange({table:'*'});
   }
   return structuredClone(result) as T;

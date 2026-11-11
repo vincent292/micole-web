@@ -27,6 +27,8 @@ export function useAcademicPlanning<T>(
       "report_cards",
       "promotion_batches",
       "students",
+      "school_calendar_days", "school_calendar_announcements",
+      "student_attendance_sessions", "student_attendance_records", "student_attendance_corrections", "enrollment_history",
       "school_memberships",
       "school_charges",
       "school_payments",

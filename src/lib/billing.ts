@@ -2,7 +2,7 @@ import { schoolRoom } from "./bolivia";
 import { chargeAccessMinimum } from "./operations";
 import type { AppData, Charge, PaymentPlan, Student } from "./types";
 export const ACTIVATION_FEE = 50;
-export const LICENSE_FEE = 29;
+export const LICENSE_FEE = 25;
 export const today = () =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/La_Paz",

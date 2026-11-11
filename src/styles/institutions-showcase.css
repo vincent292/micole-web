@@ -54,4 +54,14 @@
 .affiliate-card .affiliate-logo > span { width: 100%; height: 100%; border-radius: 13px; font-size: 23px; color: color-mix(in srgb,var(--institution-accent) 50%,#203449); background: color-mix(in srgb,var(--institution-accent) 9%,white); }
 .affiliate-site { margin-top: 7px; color: #7d8c9c; font-size: 10px; }
 .affiliate-card .affiliate-website { margin-top: auto; padding-top: 19px; font-weight: 600; }
+.landing-motion .affiliate-card { border-radius: 22px; box-shadow: 0 5px 20px #244b7204; }
+.landing-motion .affiliate-cover { height: 124px; }
+.landing-motion .affiliate-cover > img { transition: transform 350ms ease; }
+.landing-motion .affiliate-card .affiliate-logo { box-shadow: 0 6px 18px #25476b0a; }
+.landing-motion .affiliate-card .affiliate-website { gap: 10px; padding-top: 21px; }
+.landing-motion .affiliate-website svg { width: 27px; height: 27px; padding: 6px; box-sizing: border-box; border: 1px solid #dce6fa; border-radius: 50%; background: #f3f7ff; transition: background-color 180ms ease, transform 180ms ease; }
+.landing-motion .affiliates-empty { background: radial-gradient(ellipse at 10% 55%,#e3f3ec,#f1f6ff 34%,#fff 82%); border-radius: 28px; }
+.landing-motion .affiliates-empty-visual { isolation: isolate; }
+.landing-motion .affiliate-empty-icon { box-shadow: 0 14px 35px #385d7710; }
+@media (hover:hover) and (pointer:fine) { .landing-motion .affiliate-card:is(:hover,:focus-within) { border-color: #c3d4f5; box-shadow: 0 15px 33px #254d7810; } .landing-motion .affiliate-card:is(:hover,:focus-within) .affiliate-cover > img { transform: scale(1.035); } .landing-motion .affiliate-card:is(:hover,:focus-within) .affiliate-website svg { transform: translateX(2px); background: #e6eeff; } }
 @media (max-width:760px) { .affiliate-card > a { padding: 0 16px 23px; } .affiliate-cover { width: calc(100% + 32px); } }

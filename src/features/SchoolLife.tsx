@@ -1,6 +1,8 @@
 import {ContentSeen} from '../components/ContentSeen';
+import {InstitutionPdfButton} from '../components/InstitutionPdfButton';
+import { CareBatchModal } from "./CareBatch";
 import { useState, type FormEvent } from "react";
-import { Plus, Heart, Download, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Plus, Heart, Download, ArrowRight, CheckCircle2, Users } from "lucide-react";
 import {
   Button,
   Empty,
@@ -231,6 +233,8 @@ function Loading({ loading, error }: { loading: boolean; error: string }) {
 export function Care(p: PageProps) {
   const [day, setDay] = useState(today()),
     [child, setChild] = useState(p.student?.id || p.students[0]?.id || "");
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [notice, setNotice] = useState("");
   const life = useLife(p, day),
     canWrite = ["director", "teacher"].includes(p.role),
     studentId = p.role === "guardian" ? p.student?.id : child;
@@ -302,12 +306,11 @@ export function Care(p: PageProps) {
         subtitle="Alimentación, descanso, higiene y observaciones para compartir con la familia."
         action={
           canWrite && (
-            <Button icon={Plus} onClick={() => edit()}>
-              Registrar cuidado
-            </Button>
+            <div className="care-group-actions"><Button variant="secondary" icon={Plus} onClick={() => edit()}>Registrar cuidado</Button><Button icon={Users} onClick={() => setGroupOpen(true)}>Registrar para el aula</Button></div>
           )
         }
       />
+      {notice && <p className="message info" role="status">{notice}</p>}
       <div className="toolbar">
         <Field label="Día" name="careDay">
           <input
@@ -379,6 +382,7 @@ export function Care(p: PageProps) {
         )}
       </section>
       {life.dialog}
+      {groupOpen && <CareBatchModal key={`${p.school?.id}:${p.identity.id}:${p.role}`} {...p} initialDay={day} onClose={() => setGroupOpen(false)} onSaved={(count, savedDay, studentId) => { setDay(savedDay); setChild(studentId); setNotice(`${count} cuidados guardados.`); setGroupOpen(false); life.refresh(); void p.store.refresh(); }} />}
     </>
   );
 }
@@ -625,10 +629,12 @@ function ReportCards({
   cards,
   yearId,
   studentId,
+  school,
 }: {
   cards: ReportCard[];
   yearId: string;
   studentId?: string;
+  school?: PageProps['school'];
 }) {
   const selected = cards.filter(
     (c) =>
@@ -686,6 +692,7 @@ function ReportCards({
               Escala de 0 a 100. Promedio ponderado de los periodos publicados;
               puede cambiar hasta el cierre de la gestión.
             </small>
+            <div className="life-actions no-print"><InstitutionPdfButton school={school} name={`libreta-${first.studentName}-${first.year}.pdf`} build={api=>api.reportCardsPdf(school!,group)}/></div>
           </section>
         );
       })}
@@ -957,6 +964,7 @@ export function Gradebook(p: PageProps & {onOpenSheet?:()=>void}) {
             </Button>
           </div>
           <ReportCards
+            school={p.school}
             cards={life.data.cards}
             yearId={year?.id || ""}
             studentId={guardian ? p.student?.id : undefined}

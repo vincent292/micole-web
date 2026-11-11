@@ -3,8 +3,8 @@ project_id = "micole-app"
 verify_jwt = false # La función verifica el JWT con auth.getUser; admite signing keys asimétricas.
 
 [auth]
-site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5173/auth/callback", "http://localhost:5175/auth/callback", "http://localhost:5173/invite/**", "http://localhost:5175/invite/**"]
+site_url = "https://www.micole.click"
+additional_redirect_urls = ["https://www.micole.click", "https://www.micole.click/auth/callback", "https://www.micole.click/invite/**", "https://micole.click", "https://micole.click/auth/callback", "https://micole.click/invite/**", "micoleandroid://auth/callback", "http://localhost:5173/auth/callback", "http://localhost:5175/auth/callback", "http://localhost:5173/invite/**", "http://localhost:5175/invite/**", "http://localhost:8081/auth/callback", "http://localhost:8082/auth/callback", "https://micole-web.vercel.app", "https://micole-web.vercel.app/auth/callback", "https://micole-web.vercel.app/invite/**", "https://www.micole.click/matricula/**", "https://micole.click/matricula/**", "http://localhost:5173/matricula/**", "http://localhost:5175/matricula/**"]
 
 [auth.email]
 enable_confirmations = true
@@ -22,4 +22,4 @@ verify_jwt = false # Formulario público; valida origen, consentimiento y límit
 verify_jwt = false # Valida JWT con auth.getUser, Dirección y cuota antes de llamar a Gemini.
 
 [functions.guide-assistant]
-verify_jwt = true # Gateway JWT, auth.getUser, permisos por sede y cuota antes de Gemini.
+verify_jwt = false # Verifica JWT con auth.getUser; admite signing keys asimétricas, exige rol/sede y cuota antes de Gemini.

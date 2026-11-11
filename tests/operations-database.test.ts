@@ -111,14 +111,15 @@ describe('operación conectada, cobros y permisos',()=>{
   await checkout([{chargeId:id(100),amount:100}],id(90),'qr',{},true);
   expect((await q('select verification_source from school_receipts')).rows[0].verification_source).toBe('manual');
  });
- it('habilita al alcanzar 50% pero exige 100% en las últimas dos cuotas',async()=>{
+ it('exige el umbral del mes y el 100% en las últimas dos cuotas',async()=>{
   await acting(director,()=>q('select create_payment_plan($1::jsonb)',[JSON.stringify({id:id(80),school_id:school,student_id:child,start_date:'2026-01-01',months:12,monthly_fee:71,snack_fee:0,enrollment_fee:0,due_day:10,discount:0,discount_from:null,discount_to:null,prorate:false})]));
-  const charges=(await q('select id,period from school_charges where student_id=$1 order by period',[child])).rows;
+  const charges=(await q('select id,period,minimum_access_ratio from school_charges where student_id=$1 order by period',[child])).rows;
   // Aislar el mes actual: las anteriores ya fueron cobradas por el mismo flujo.
   const current=new Intl.DateTimeFormat('en-CA',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit'}).format(new Date());
   await checkout(charges.filter(c=>c.period<current).map(c=>({chargeId:c.id,amount:100})));
   const c=charges.find(c=>c.period===current);expect(c).toBeTruthy();
-  await checkout([{chargeId:c.id,amount:49}],id(91));expect((await as(mother,()=>q('select family_access($1) as ok',[child]))).rows[0].ok).toBe(false);
+  const required=100*Number(c.minimum_access_ratio);
+  await checkout([{chargeId:c.id,amount:required-1}],id(91));expect((await as(mother,()=>q('select family_access($1) as ok',[child]))).rows[0].ok).toBe(false);
   await checkout([{chargeId:c.id,amount:1}],id(92));expect((await as(mother,()=>q('select family_access($1) as ok',[child]))).rows[0].ok).toBe(true);
   expect((await q('select minimum_access_ratio from school_charges where period in ($1,$2)',['2026-11','2026-12'])).rows.map(c=>Number(c.minimum_access_ratio))).toEqual([1,1]);
  });

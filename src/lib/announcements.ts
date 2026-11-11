@@ -8,6 +8,13 @@ export const noticeCategories = {
 } as const;
 export type NoticeCategory = keyof typeof noticeCategories;
 export interface AnnouncementView extends Announcement {
+  payment?: {
+    studentId: string;
+    studentName: string;
+    amount: number;
+    day: string;
+    charges: {id:string;concept:string;dueDate:string;remaining:number;daysLeft:number}[];
+  };
   readAt?: string;
   acknowledgedAt?: string;
   canManage: boolean;
@@ -28,6 +35,10 @@ export function pendingConfirmation(notice: Partial<AnnouncementView>) {
     !notice.acknowledgedAt &&
     notice.canAcknowledge === true
   );
+}
+export function pendingImportantRead(notice: Partial<AnnouncementView>) {
+  return notice.canAcknowledge === true && !notice.readAt &&
+    (!!notice.payment || ["health", "pickup"].includes(notice.category || ""));
 }
 export function normalizePending(value: unknown): AnnouncementView[] {
   return Array.isArray(value)
@@ -61,6 +72,7 @@ export function alertType(notice: {
   if (presentationTypes.includes(notice.alertType as AlertType))
     return notice.alertType as AlertType;
   const kind = notice.kind || "";
+  if (kind.startsWith("attendance_")) return "attendance";
   return isAnnouncementNotice(kind)
     ? "announcement"
     : kind === "grade"

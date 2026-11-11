@@ -7,7 +7,7 @@ import {
 } from "../src/lib/studentAttendance";
 import { demoStudentAttendanceRpc } from "../src/lib/demo-student-attendance";
 import { setDemoRole } from "../src/lib/demo-config";
-import { readDemoData, resetDemo } from "../src/lib/demo";
+import { readDemoData, writeDemoData, resetDemo } from "../src/lib/demo";
 import { today } from "../src/lib/billing";
 it("distingue sin marcar, falta, presente, tardanza y permiso", () => {
   expect(
@@ -75,12 +75,16 @@ beforeEach(() => {
       throw new Error("Sin servicios externos en demo");
     }),
   );
-  setDemoRole("director");
+  setDemoRole("teacher");
 });
 afterEach(() => vi.unstubAllGlobals());
 it("la demo guarda borradores, confirma, notifica una vez y permite consultar al familiar sin red", async () => {
-  const data = readDemoData(),
-    room = data.students.find((s) => s.id === "a1")!.classroomId;
+  const data = readDemoData();
+  data.requests = [];
+  // This case tests confirmation, independently of the weekday running the suite.
+  data.classrooms.forEach(room=>{room.weekdays=[1,2,3,4,5,6,7];});
+  writeDemoData(data, true);
+  const room = data.students.find((s) => s.id === "a1")!.classroomId;
   const p = {
     p_classroom_id: room,
     p_day: today(),
@@ -120,13 +124,15 @@ it("la demo guarda borradores, confirma, notifica una vez y permite consultar al
       p_confirm: true,
     }),
   ).rejects.toThrow("no puede modificarse");
-  await expect(demoStudentAttendanceRpc("save_student_attendance", {
-    ...p,
-    p_records: marks,
-    p_revision: 2,
-    p_confirm: true,
-    p_reason: "Revisado otra vez",
-  })).rejects.toThrow("no puede modificarse");
+  await expect(
+    demoStudentAttendanceRpc("save_student_attendance", {
+      ...p,
+      p_records: marks,
+      p_revision: 2,
+      p_confirm: true,
+      p_reason: "Revisado otra vez",
+    }),
+  ).rejects.toThrow("no puede modificarse");
   expect(
     readDemoData().notifications.filter((n) => n.kind === "attendance_absent"),
   ).toHaveLength(1);

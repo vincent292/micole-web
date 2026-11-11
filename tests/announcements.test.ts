@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import { firebaseMessage } from "../supabase/functions/push-dispatch/core";
 import {
   isAnnouncementNotice,
+  alertType,
   pendingConfirmation,
+  pendingImportantRead,
   normalizePending,
 } from "../src/lib/announcements";
 import {
@@ -11,6 +13,16 @@ import {
   consumeAnnouncement,
 } from "../src/lib/announcementEvents";
 describe("Avisos y presentación privada", () => {
+  it("salud y recojo esperan una lectura explícita sin exigir aceptación en nombre de otra cuenta", () => {
+    expect(alertType({kind:"attendance_absent"})).toBe("attendance");
+    expect(alertType({kind:"attendance_corrected"})).toBe("attendance");
+    for (const category of ["health", "pickup"] as const) {
+      expect(pendingImportantRead({category,canAcknowledge:true})).toBe(true);
+      expect(pendingImportantRead({category,canAcknowledge:true,readAt:"2026-10-29"})).toBe(false);
+      expect(pendingImportantRead({category,canAcknowledge:false})).toBe(false);
+    }
+    expect(pendingImportantRead({category:"academic",canAcknowledge:true})).toBe(false);
+  });
   it("mantiene pendiente un aviso leído hasta la confirmación de lectura personal", () => {
     expect(
       pendingConfirmation({

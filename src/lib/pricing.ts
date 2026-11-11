@@ -1,5 +1,6 @@
 import { rpc } from "./repository";
 import { liveMode } from "./supabase";
+import { LICENSE_FEE } from "./billing";
 export interface PlatformTariffs {
   schoolId?: string | null;
   activationFee: number;
@@ -15,7 +16,7 @@ export const defaultTariffs: PlatformTariffs = {
   configuredActivationFee: 50,
   activationEnabled: false,
   initialCredit: 500,
-  monthlyLicenseFee: 29,
+  monthlyLicenseFee: LICENSE_FEE,
   inherited: true,
 };
 export function parseTariffs(value: unknown): PlatformTariffs {

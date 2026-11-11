@@ -4,7 +4,7 @@
 
 El propietario modifica activación y licencia mensual desde **Configuración → Tarifas de MiCole** o **Facturación MiCole**. Puede cambiar las tarifas generales o establecer un acuerdo por institución. **Usar las tarifas generales** elimina el acuerdo particular y vuelve a heredar el general. Se exige motivo y se registra antes/después en auditoría.
 
-Las tarifas iniciales siguen siendo Bs 50 y Bs 29. Esta entrega no modifica los precios acordados ni recalcula deudas existentes. La landing consulta la tarifa general vigente y la inscripción consulta la de su institución. Las credenciales bancarias son independientes de esta configuración.
+Desde el 5 de noviembre de 2026, por solicitud del propietario, la licencia general es **Bs 25 por estudiante activo al mes**, en reemplazo de Bs 29. La activación configurada conserva Bs 50 y continúa deshabilitada. El crédito inicial conserva Bs 500 por sede. El cambio se registra mediante `save_platform_tariffs`, con motivo y auditoría, y aplica a nuevas emisiones. La landing consulta la tarifa general vigente y la inscripción consulta la de su institución. Las credenciales bancarias son independientes de esta configuración.
 
 Al crear un plan se fija la licencia que corresponde a su tarifa. La matrícula, base, merienda, descuentos y cuota resultante se emiten con esos valores. La activación usa su tarifa al inscribir. Cada liquidación mensual conserva cantidad de estudiantes y tarifa unitaria; los reportes utilizan esa cantidad, sin dividir por Bs 29.
 

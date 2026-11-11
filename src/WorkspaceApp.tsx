@@ -7,10 +7,17 @@ import {NotificationTests} from "./features/NotificationTests";
 import {clearDrafts} from "./lib/sessionDraft";
 import { StaffWorkspaceScreen } from "./features/StaffWorkspace";
 import { ownerPaymentAccess } from "./lib/support-access";
+import { isKinderWorkspace, kinderNavigation, kinderPageLabel } from "./lib/kinder";
 import { DirectorAssistant } from "./features/DirectorAssistant";
-import { guideActions } from "./lib/assistant";
+import { SchoolMetrics } from "./features/SchoolMetrics";
+import {InstitutionStudio,SchoolCredentials} from './features/InstitutionStudio';
+import {SchoolSidebarIdentity} from './components/SchoolSidebarIdentity';
+import {VirtualEnrollment} from './features/VirtualEnrollment';
+import {ClipboardList} from 'lucide-react';
+import {SchoolDocumentContext} from './components/SchoolDocumentContext';
+import {parseAppearance,schoolAppearanceStyle,type SchoolAppearance} from './lib/schoolAppearance';
+import { guideActions, type GuideAction } from "./lib/assistant";
 import { InstitutionSites } from "./features/InstitutionSites";
-import { siteLabel,schoolGroup } from "./lib/sites";
 import {ViewHistory,ContentAreaTracker} from './features/ViewHistory';
 import {AnnouncementGate,AlertIcon} from './features/Announcements';
 import {isAnnouncementNotice} from './lib/announcements';
@@ -98,6 +105,7 @@ import { Subjects, Assignments } from "./features/Academics";
 import {Care,Years,Onboarding} from "./features/SchoolLife";
 import {Gradebook} from "./features/GradeSheet";
 import { Reports } from "./features/Reports";
+import "./styles/kinder-navigation.css";
 const roleNames: Record<Role, string> = {
   scheduler: "Secretaría académica",
   superadmin: "Superadministración",
@@ -108,6 +116,10 @@ const roleNames: Record<Role, string> = {
 };
 const ALL: Role[] = ["superadmin", "director", "teacher", "guardian", "student"];
 const pageDescriptions: Record<string, string> = {
+  identityStudio:'Logo, colores y documentos que representan a tu institución.',
+  enrollment:'Listas oficiales, fichas QR y confirmación de inscripciones.',
+  credentials:'Identificación escolar y verificación de vigencia por gestión.',
+  schoolMetrics: "La operación de tus colegios por semana y mes.",
  viewHistory:"Registro de consultas y descargas por persona y estudiante.",
  credit:"Adelanto, saldo a favor y aplicación de las licencias mensuales.", demoRequests:"Solicitudes recibidas desde la landing y su seguimiento.",
   care:"Cuidados y resumen diario para las familias.",gradebook:"Evaluaciones, promedios y libretas publicadas.",years:"Reinscripciones e historial por gestión.",onboarding:"Configura e importa tu comunidad por pasos.",
@@ -146,6 +158,9 @@ const nav: {
   group: string;
   hidden?: boolean;
 }[] = [
+  {key:'identityStudio',label:'Identidad y documentos',icon:Building2,roles:['director'],group:'ADMINISTRACIÓN'},
+  {key:'enrollment',label:'Inscripciones',icon:ClipboardList,roles:['director','teacher'],group:'ADMINISTRACIÓN'},
+  {key:'credentials',label:'Carnets escolares',icon:GraduationCap,roles:['director'],group:'ADMINISTRACIÓN'},
   {key:"bolivia",label:"Gestión educativa Bolivia",icon:BookOpen,roles:["director","teacher"],group:"TU ESPACIO"},
   {key:"timetables",label:"Horarios de clases",icon:CalendarDays,roles:["director","scheduler","teacher","guardian","student"],group:"TU ESPACIO"},
   {key:"promotion",label:"Promoción anual",icon:GraduationCap,roles:["director"],group:"TU ESPACIO"},
@@ -219,6 +234,7 @@ const nav: {
     roles: ["superadmin", "director"],
     group: "TU ESPACIO",
   },
+  {key:"schoolMetrics",label:"Métricas de colegios",icon:ChartNoAxesCombined,roles:["superadmin"],group:"TU ESPACIO"},
   {key:"studentRecord",label:"Expediente del alumno",icon:BookOpen,roles:["director","teacher","guardian"],group:"TU ESPACIO",hidden:true},
   {key:"interviews",label:"Entrevistas",icon:CalendarDays,roles:["director","teacher","guardian"],group:"COMUNIDAD"},
   {key:"studentAttendance",label:"Asistencia de alumnos",icon:ListChecks,roles:["director","teacher","guardian"],group:"COMUNIDAD"},
@@ -365,7 +381,13 @@ function Workspace({
 }) {
   const location = useLocation(),
     navigate = useNavigate();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const [role, setRole] = useState<Role>(liveIdentity?.roles[0] || (publicDemo ? demoRole() : null) || "director");
+  useEffect(() => {
+    if (!liveMode && !publicDemo) setDemoRole(role);
+  }, [role]);
   const siteSelectionKey=`micole_selected_site:${liveIdentity?.id||"local"}:${role}`;
   const [schoolId, setSelectedSchoolId] = useState(
     liveIdentity?.support?.schoolId || sessionStorage.getItem(siteSelectionKey) || "s1",
@@ -427,6 +449,19 @@ function Workspace({
       : store.data.schools;
   const school =
     availableSchools.find((s) => s.id === schoolId) || availableSchools[0];
+  const [appearancePreview,setAppearancePreview]=useState<SchoolAppearance>();
+  useEffect(()=>{
+    setAppearancePreview(undefined);
+    const change=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail?.schoolId===school?.id&&school?.appearance&&role==='director')setAppearancePreview(parseAppearance(detail.config));};
+    window.addEventListener('micole:appearance-preview',change);
+    return()=>window.removeEventListener('micole:appearance-preview',change);
+  },[school?.id,role]);
+  const institutionalAppearance=!isPlatform?parseAppearance(appearancePreview||school?.appearance):undefined;
+  useEffect(()=>{
+    if(!institutionalAppearance||!school)return;
+    const title=document.title;document.title=`${school.name} · Portal institucional`;
+    return()=>{document.title=title;};
+  },[school?.id,school?.name,!!institutionalAppearance]);
   const schoolStudents = store.data.students.filter(
     (s) => s.schoolId === school?.id,
   );
@@ -468,12 +503,16 @@ function Workspace({
   const navItems = nav.filter(
     (n) =>
       n.roles.includes(role) &&
+      (!['identityStudio','credentials'].includes(n.key)||!!school?.appearance) &&
       (n.key !== "bolivia" || store.data.classrooms.some(r => r.schoolId === school?.id && schoolRoom(r,school))) &&
       (!startupLocked||startupAllowed.includes(n.key))&&
       (n.key !== "support" || identity.canSupport) &&
       (!locked || ["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(n.key)) &&
       (!needsProfile || ["overview", "payments", "cash", "invoices", "family", "studentAttendance", "studentRecord", "interviews"].includes(n.key)),
   );
+  const kinderMode = !isPlatform && ["director", "teacher", "guardian"].includes(role) && isKinderWorkspace(school);
+  const visibleNav = navItems.filter(n => n.key !== "calendarImport" && (!n.hidden || role === "guardian" && n.key === "studentRecord"));
+  const kinderNav = kinderNavigation(visibleNav, role);
   const validPage = startupLocked ? (startupAllowed.includes(page)?page:role==="director"?"credit":startupAllowed[0]) : studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
     ? (["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(page) ? page : "payments")
     : needsProfile && !["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(page)
@@ -481,6 +520,9 @@ function Workspace({
       : navItems.some((n) => n.key === page)
         ? page
         : "overview";
+  const currentPageLabel = kinderMode
+    ? kinderPageLabel(validPage, role, nav.find(n => n.key === validPage)?.label || "MiCole")
+    : nav.find(n => n.key === validPage)?.label;
   const announcements = store.data.announcements.filter(
     (a) =>
       a.schoolId === school?.id &&
@@ -502,7 +544,7 @@ function Workspace({
         students.some((s) => s.id === n.studentId)) &&
       (navItems.some((item) => item.key === n.target) ||
         (locked && n.kind === "payment") || isAnnouncementNotice(n.kind)),
-  );
+  ).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length;
   const go = (next: string) => {
     if (!window.dispatchEvent(new Event("micole:before-navigate", {cancelable:true}))) return;
@@ -517,6 +559,16 @@ function Workspace({
     setNotifications(false);
     setProfile(false);
   };
+  const renderNavItem = (n: typeof nav[number]) => <button
+    key={n.key}
+    aria-current={validPage === n.key ? "page" : undefined}
+    className={`nav-link ${validPage === n.key ? "active" : ""}`}
+    onClick={() => go(n.key)}
+  >
+    <n.icon size={18} strokeWidth={1.8} />
+    <span>{n.label}</span>
+    {n.key === "announcements" && announcements.length > 0 && <span className="nav-count" aria-hidden="true">{announcements.length}</span>}
+  </button>;
   const open = (type: string, item?: { id: string }) => {
     if (type === "materials") { go("materials"); return; }
     if (["payment", "qr"].includes(type)) {
@@ -641,15 +693,16 @@ function Workspace({
       </main>
     );
   return (
-    <div
-      className="app-layout"
+    <SchoolDocumentContext.Provider value={!isPlatform?school:undefined}><div
+      className={`app-layout ${institutionalAppearance?'institution-branded':''}`}
+      data-template={institutionalAppearance?.template}
       style={
-        { "--school-color": school?.color || "#3D6EF7" } as React.CSSProperties
+        { "--school-color": school?.color || "#3D6EF7",...(institutionalAppearance?schoolAppearanceStyle(school,institutionalAppearance):{}) } as React.CSSProperties
       }
     >
       <aside className={`sidebar ${mobile ? "sidebar-open" : ""}`}>
-        <div className="brand">
-          <Brand />
+        <div className={`brand ${!isPlatform&&school?'brand-institution':''}`}>
+          {(isPlatform||!school)&&<Brand />}
           <button
             className="icon-button mobile-close"
             aria-label="Cerrar menú"
@@ -669,59 +722,22 @@ function Workspace({
             </div>
           </div>
         ) : (
-          <div className="school-switcher">
-            {school?.logoUrl ? (
-              <img src={school.logoUrl} alt="" />
-            ) : (
-              <span
-                className="school-symbol"
-                style={{ background: school?.color || "#3D6EF7" }}
-              >
-                {school?.initials || "MC"}
-              </span>
-            )}
-            <div>
-              <small>{support ? "COLEGIO EN SOPORTE" : "MI INSTITUCIÓN"}</small>
-              <select
-                aria-label="Institución"
-                disabled={!!support}
-                value={school?.id || ""}
-                onChange={(e) => {
-                  setSchoolId(e.target.value);
-                  setStudentId("");
-                }}
-              >
-                {[...new Set(availableSchools.map(schoolGroup))].map(root=><optgroup key={root} label={availableSchools.find(s=>s.id===root)?.name||availableSchools.find(s=>schoolGroup(s)===root)?.name}>{availableSchools.filter(s=>schoolGroup(s)===root).map(s=><option key={s.id} value={s.id}>{siteLabel(s)}</option>)}</optgroup>)}
-              </select>
-              {!availableSchools.length && <b>MiCole</b>}
-            </div>
-          </div>
+          school?<SchoolSidebarIdentity school={school} schools={availableSchools} support={support} kinderMode={kinderMode} onHome={()=>go('overview')} onChoose={id=>{setSchoolId(id);setStudentId('');}}/>:<div className="school-switcher"><small>No tienes una institución asignada para este rol.</small></div>
         )}
         <nav aria-label="Navegación principal">
-          {["TU ESPACIO", "COMUNIDAD", "EQUIPO", "ADMINISTRACIÓN"].map(
+          {kinderMode ? <>
+            <div className="sidebar-label">TU JORNADA</div>
+            {kinderNav.primary.map(renderNavItem)}
+            {kinderNav.secondary.length > 0 && <details className="kinder-more-options" open={kinderNav.secondary.some(item => item.key === validPage) || undefined}>
+              <summary>Más opciones <ChevronDown size={16} /></summary>
+              {["TU ESPACIO", "COMUNIDAD", "EQUIPO", "ADMINISTRACIÓN"].map(group => kinderNav.secondary.some(item => item.group === group) && <div key={group}><div className="sidebar-label">{group}</div>{kinderNav.secondary.filter(item => item.group === group).map(renderNavItem)}</div>)}
+            </details>}
+          </> : ["TU ESPACIO", "COMUNIDAD", "EQUIPO", "ADMINISTRACIÓN"].map(
             (group) =>
               navItems.some((n) => n.group === group) && (
                 <div key={group}>
                   <div className="sidebar-label">{group}</div>
-                  {navItems
-                    .filter((n) => n.group === group && n.key!=="calendarImport" && (!n.hidden || role==="guardian"&&n.key==="studentRecord"))
-                    .map((n) => (
-                      <button
-                        key={n.key}
-                        aria-current={validPage === n.key ? "page" : undefined}
-                        className={`nav-link ${validPage === n.key ? "active" : ""}`}
-                        onClick={() => go(n.key)}
-                      >
-                        <n.icon size={18} strokeWidth={1.8} />
-                        <span>{n.label}</span>
-                        {n.key === "announcements" &&
-                          announcements.length > 0 && (
-                            <span className="nav-count" aria-hidden="true">
-                              {announcements.length}
-                            </span>
-                          )}
-                      </button>
-                    ))}
+                  {visibleNav.filter(n => n.group === group).map(renderNavItem)}
                 </div>
               ),
           )}
@@ -732,7 +748,7 @@ function Workspace({
             <b>Gestión {today().slice(0, 4)}</b>
             <span>{roleNames[role]}</span>
           </div>
-          <small>MiCole · Cerca en cada paso</small>
+          {!isPlatform&&school?<div className="sidebar-platform-credit"><span>Con tecnología de</span><Brand linked={false} className="sidebar-credit-logo"/></div>:<small>MiCole · Cerca en cada paso</small>}
         </div>
       </aside>
       {mobile && (
@@ -751,7 +767,7 @@ function Workspace({
             </button>
             <span className="breadcrumb">
               Mi espacio <ChevronRight size={14} />
-              <strong>{nav.find((n) => n.key === validPage)?.label}</strong>
+              <strong>{currentPageLabel}</strong>
             </span>
           </div>
           <div className="top-actions">
@@ -835,7 +851,7 @@ function Workspace({
                         await store.readNotification(n.id);
                         if (role === "guardian" && n.studentId)
                           setStudentId(n.studentId);
-                        if(isAnnouncementNotice(n.kind)){setNotifications(false);openAnnouncement(n.sourceId);}
+                        if(isAnnouncementNotice(n.kind)&&role!=="student"){setNotifications(false);openAnnouncement(n.sourceId);}
                         else go(n.target);
                       }, "");
                     }}
@@ -904,7 +920,7 @@ function Workspace({
                       if (sid) await rpc("end_support_session", { p_id: sid });
                       setSupportSession(null);
                       clearDrafts();
-                      await supabase?.auth.signOut();
+                      await supabase?.auth.signOut({ scope: "local" });
                     })().catch((e) =>
                       setNoticeError(
                         e instanceof Error
@@ -974,7 +990,7 @@ function Workspace({
                   ? isPlatform
                     ? "Resumen de plataforma"
                     : "Tu día, de un vistazo"
-                  : nav.find((n) => n.key === validPage)?.label}
+                  : currentPageLabel}
               </h1>
               <p>
                 {validPage === "overview"
@@ -1054,6 +1070,7 @@ function Workspace({
           )}
           {(!liveMode || !store.error) && (
             <div className="workspace-page" key={`${validPage}-${school?.id || "platform"}-${identity.id}`}>
+              {validPage==='overview'&&institutionalAppearance&&school&&<section className="institution-welcome">{school.bannerUrl&&<img src={school.bannerUrl} alt=""/>}<div><span>{school.siteName||school.name}</span><h2>{institutionalAppearance.welcome||`Bienvenidos a ${school.name}`}</h2><p>{institutionalAppearance.tagline}</p></div></section>}
               {validPage === "overview" && isPlatform && (
                 <PlatformOverview {...props} />
               )}
@@ -1139,6 +1156,10 @@ function Workspace({
               <ContentAreaTracker key={`${role}:${school?.id}:${student?.id}:${validPage}`} page={validPage==="journal"?"daily":validPage} studentId={student?.id} enabled={["guardian","student"].includes(role)&&!locked&&!studentLocked&&!needsProfile}/>
               {validPage==='viewHistory'&&<ViewHistory {...props}/>}
               {validPage === "reports" && ["superadmin", "director"].includes(role) && <Reports {...props} />}
+              {validPage === "schoolMetrics" && isPlatform && <SchoolMetrics {...props} />}
+              {validPage==='identityStudio'&&role==='director'&&school?.appearance&&<InstitutionStudio key={school.id} {...props}/>}
+              {validPage==='enrollment'&&school&&['director','teacher'].includes(role)&&<VirtualEnrollment key={school.id} {...props}/>}
+              {validPage==='credentials'&&role==='director'&&school?.appearance&&<SchoolCredentials key={school.id} {...props}/>}
               {!school && !isPlatform && validPage !== "schools" && (
                 <div className="soft-note">
                   {role === "superadmin"
@@ -1160,8 +1181,24 @@ function Workspace({
           </span>
         </footer>
       </div>
-      <AnnouncementGate key={`${identity.id}:${identity.support?.id||''}:${role}:${school?.id||''}`} identity={identity} role={role} schoolId={school?.id} store={store}/>
-      {role==="director" && school && !modal && <DirectorAssistant key={school.id} schoolId={school.id} onAction={id=>{const action=guideActions[id];if("page" in action)go(action.page);else open(action.form);}}/>}
+      <AnnouncementGate key={`${identity.id}:${identity.support?.id||''}:${role}:${school?.id||''}`} identity={identity} role={role} schoolId={school?.id} store={store} onPaymentOpen={id=>{setStudentId(id);go("payments");}}/>
+      {!modal && <DirectorAssistant
+        key={`${identity.id}:${identity.support?.id||""}:${role}:${isPlatform?"platform":school?.id||"none"}`}
+        context={{userId:identity.id,role,schoolId:isPlatform?undefined:school?.id,page:validPage}}
+        schoolName={school?.name}
+        availableActions={(Object.keys(guideActions) as GuideAction[]).filter(id=>{
+          const action=guideActions[id];
+          if("page" in action)return navItems.some(n=>n.key===action.page);
+          const page={student:"students",teacher:"teachers",classroom:"classrooms",announcement:"announcements"}[action.form];
+          return navItems.some(n=>n.key===page)&&(role==="director"||role==="teacher"&&action.form==="announcement");
+        })}
+        onAction={id=>{const action=guideActions[id];if("page" in action){if(navItems.some(n=>n.key===action.page))go(action.page);}else if(role==="director"||role==="teacher"&&action.form==="announcement")open(action.form);}}
+        onRefresh={async()=>{await store.refresh();}}
+        onPublishDemo={async proposal=>{
+          if(liveMode||role!=="director"||proposal.schoolId!==school?.id)throw Error("Esta publicación de demostración no está disponible en este panel.");
+          await store.save("announcements",{id:proposal.id,schoolId:proposal.schoolId,title:proposal.payload.title,content:proposal.payload.content,audience:proposal.payload.audience,classroomId:"",category:"general",requiresAcknowledgment:false,remindHourly:false,urgent:false,targetStudentIds:[],targeted:false,createdBy:identity.id,createdAt:new Date().toISOString()});
+        }}
+      />}
       {modal?.type === "studentLogin" && <StudentLoginModal {...props} id={modal.id} onClose={() => setModal(null)} /> }
       {modal?.type === "emergency" && <StudentEmergency student={store.data.students.find(s=>s.id===modal.id)} onClose={()=>setModal(null)}/>}
       {modal?.type === "intake" && (
@@ -1204,6 +1241,6 @@ function Workspace({
           </button>
         </div>
       )}
-    </div>
+    </div></SchoolDocumentContext.Provider>
   );
 }

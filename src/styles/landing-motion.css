@@ -1,4 +1,4 @@
-/* Motion is loaded only by the public landing. The application keeps native scrolling. */
+/* Public-page motion stays scoped; the workspace keeps its own layout and scrolling. */
 html:has(.landing-motion) {
   scroll-behavior: smooth;
   scroll-padding-top: 112px;
@@ -7,6 +7,7 @@ html:has(.landing-motion) {
 .landing-motion {
   --landing-border: #e3eaf9;
   --landing-ink: #263238;
+  background: linear-gradient(180deg, #fffefb 0, #fff 950px);
 }
 
 .landing-scroll-progress {
@@ -14,7 +15,13 @@ html:has(.landing-motion) {
   inset: 0 0 auto;
   height: 3px;
   transform-origin: 0 50%;
-  background: linear-gradient(90deg, #3d6ef7 0%, #3d6ef7 64%, #54d2a0 87%, #ffc857 100%);
+  background: linear-gradient(
+    90deg,
+    #3d6ef7 0%,
+    #3d6ef7 64%,
+    #54d2a0 87%,
+    #ffc857 100%
+  );
   z-index: 70;
   pointer-events: none;
 }
@@ -22,7 +29,7 @@ html:has(.landing-motion) {
 .landing-motion .landing-header {
   background: #ffffffed;
   border-bottom-color: var(--landing-border);
-  box-shadow: 0 4px 22px #26323804;
+  box-shadow: 0 6px 24px #26323806;
 }
 
 .landing-motion .landing-links {
@@ -33,6 +40,7 @@ html:has(.landing-motion) {
   position: relative;
   padding-block: 10px;
   color: #526477;
+  font-size: 12px;
 }
 
 .landing-motion .landing-links > a::after {
@@ -56,7 +64,12 @@ html:has(.landing-motion) {
 .landing-motion .landing-hero {
   position: relative;
   isolation: isolate;
-  background-image: radial-gradient(ellipse at 82% 35%, #3d6ef70b, transparent 64%);
+  background-image: radial-gradient(
+    ellipse at 78% 42%,
+    #e9f5f0 0,
+    #f1f5ff70 36%,
+    transparent 69%
+  );
 }
 
 .landing-motion .landing-hero::before {
@@ -91,7 +104,144 @@ html:has(.landing-motion) {
 }
 
 .landing-motion .landing-hero-copy > p {
-  color: #5b6e80;
+  color: #52677a;
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+.landing-motion .landing-hero h1 {
+  color: #24363d;
+  text-wrap: balance;
+}
+.landing-motion .product-preview-scene {
+  isolation: isolate;
+}
+.landing-motion .product-preview-scene::before {
+  content: "";
+  position: absolute;
+  inset: 25px -13px 12px 13px;
+  background: linear-gradient(145deg, #eaf0ff, #e7f4ed 70%, #fff3d6);
+  border: 1px solid #e0eaf5;
+  border-radius: 42% 42% 27% 27%;
+  z-index: -1;
+  transform: rotate(5deg);
+}
+.landing-motion .preview-floating {
+  border-color: #dee8f3;
+  box-shadow: 0 12px 30px #25445c0a;
+}
+.landing-motion .audience-card {
+  border-radius: 23px;
+}
+.landing-motion .feature-card {
+  border-radius: 20px;
+  background: #ffffffed;
+}
+.landing-motion .features-section {
+  background: linear-gradient(180deg, #f6f9ff, #f9fbff);
+  border-block: 1px solid #eaf0f9;
+}
+.landing-motion .landing-section-heading h2 {
+  text-wrap: balance;
+}
+.landing-motion .care-visual {
+  border: 1px solid #dfebe4;
+  box-shadow: 0 16px 45px #28674907;
+}
+.landing-motion .demo-contact-form {
+  box-shadow: 0 18px 55px #2b4e8109;
+  border-radius: 22px;
+}
+
+.landing-day {
+  padding-top: 8px;
+  padding-bottom: 96px;
+}
+.landing-day-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 30px;
+}
+.landing-day-heading > p {
+  color: #63768a;
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0 0 4px;
+}
+.landing-day-heading h2 {
+  font:
+    700 clamp(27px, 3vw, 36px) / 1.3 "Poppins",
+    sans-serif;
+  letter-spacing: -1px;
+  margin: 14px 0 0;
+}
+.landing-day-heading h2 span {
+  color: #3d6ef7;
+}
+.landing-day-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.landing-day-card {
+  border: 1px solid #dfe7f1;
+  border-radius: 21px;
+  padding: 24px 22px;
+  background: #fff;
+  position: relative;
+}
+.landing-day-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 27px;
+}
+.landing-day-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  color: #315ecd;
+  background: #edf2ff;
+}
+.day-mint .landing-day-icon {
+  color: #257959;
+  background: #e8f6ee;
+}
+.day-yellow .landing-day-icon {
+  color: #986b1a;
+  background: #fff3d6;
+}
+.landing-day-number {
+  font:
+    600 12px "Inter",
+    sans-serif;
+  color: #8091a5;
+}
+.landing-day-card > small {
+  display: block;
+  color: #62788c;
+  font-size: 11px;
+  margin-bottom: 9px;
+}
+.landing-day-card h3 {
+  font:
+    600 16px/1.5 "Poppins",
+    sans-serif;
+  letter-spacing: -0.3px;
+  margin: 0 0 10px;
+}
+.landing-day-card > p {
+  color: #5f7388;
+  font-size: 12px;
+  line-height: 1.85;
+  margin: 0;
 }
 
 .landing-motion .landing-hero h1 > span::after {
@@ -122,7 +272,9 @@ html:has(.landing-motion) {
 
 .landing-motion .product-preview {
   border-color: #d6e2fb;
-  box-shadow: 0 24px 70px #204a8f1a, 0 3px 14px #214a8f08;
+  box-shadow:
+    0 24px 70px #204a8f1a,
+    0 3px 14px #214a8f08;
   will-change: auto;
 }
 
@@ -154,7 +306,9 @@ html:has(.landing-motion) {
   cursor: pointer;
   background: transparent;
   color: #6d83a3;
-  transition: background-color 170ms ease, color 170ms ease;
+  transition:
+    background-color 170ms ease,
+    color 170ms ease;
 }
 
 .landing-motion .preview-body > aside > button.preview-nav-active {
@@ -238,7 +392,9 @@ html:has(.landing-motion) {
 .landing-motion .audience-card,
 .landing-motion .feature-card,
 .landing-motion .pricing-card {
-  transition: box-shadow 220ms ease, border-color 180ms ease;
+  transition:
+    box-shadow 220ms ease,
+    border-color 180ms ease;
 }
 
 .landing-motion .feature-card {
@@ -261,7 +417,12 @@ html:has(.landing-motion) {
   position: absolute;
   inset: 0 0 auto;
   height: 4px;
-  background: linear-gradient(90deg, #3d6ef7 0% 65%, #54d2a0 65% 88%, #ffc857 88%);
+  background: linear-gradient(
+    90deg,
+    #3d6ef7 0% 65%,
+    #54d2a0 65% 88%,
+    #ffc857 88%
+  );
 }
 
 .landing-motion .landing-final-cta {
@@ -286,7 +447,9 @@ html:has(.landing-motion) {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .landing-motion :is(.landing-cta, .cta-white, .audience-card a, .landing-login):hover svg {
+  .landing-motion
+    :is(.landing-cta, .cta-white, .audience-card a, .landing-login):hover
+    svg {
     transform: translateX(3px);
   }
 
@@ -328,7 +491,13 @@ html:has(.landing-motion) {
   }
 
   .landing-motion .landing-links {
-    display: none;
+    display: flex;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    flex-direction: column;
+    align-items: stretch;
     position: absolute;
     top: calc(100% - 1px);
     left: 20px;
@@ -340,6 +509,10 @@ html:has(.landing-motion) {
     box-shadow: 0 14px 40px #204a8f18;
     margin: 0;
     z-index: 26;
+    transition:
+      opacity 160ms ease,
+      transform 180ms ease,
+      visibility 180ms;
   }
 
   .landing-motion .landing-links.is-open {
@@ -347,6 +520,10 @@ html:has(.landing-motion) {
     flex-direction: column;
     align-items: stretch;
     gap: 2px;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
   }
 
   .landing-motion .landing-links > a {
@@ -362,9 +539,37 @@ html:has(.landing-motion) {
   .landing-motion .landing-links > a::after {
     display: none;
   }
+  .landing-day-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
+  .landing-day {
+    padding-top: 0;
+    padding-bottom: 58px;
+  }
+  .landing-day-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 23px;
+  }
+  .landing-day-heading > p br {
+    display: none;
+  }
+  .landing-day-heading > p {
+    font-size: 13px;
+  }
+  .landing-day-card {
+    padding: 22px 17px;
+  }
+  .landing-day-card-top {
+    margin-bottom: 21px;
+  }
+  .landing-motion .landing-hero-copy > p {
+    font-size: 14px;
+  }
   html:has(.landing-motion) {
     scroll-padding-top: 90px;
   }
@@ -391,6 +596,35 @@ html:has(.landing-motion) {
 }
 
 @media (max-width: 480px) {
+  .landing-day-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .landing-day-card {
+    padding: 22px;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    column-gap: 16px;
+  }
+  .landing-day-card-top {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    margin: 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 13px;
+  }
+  .landing-day-card > small,
+  .landing-day-card > h3,
+  .landing-day-card > p {
+    grid-column: 2;
+  }
+  .landing-day-card h3 {
+    font-size: 15px;
+  }
+  .landing-motion .product-preview-scene::before {
+    inset-inline: 3px;
+  }
   .landing-motion .landing-hero-copy > .landing-eyebrow {
     font-size: 8px;
     letter-spacing: 1.2px;

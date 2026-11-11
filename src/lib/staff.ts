@@ -90,6 +90,29 @@ export interface StaffWorkspace {
   openRecords: StaffRecord[];
   payrolls: StaffPayroll[];
 }
+/** Personal views stay scoped to the account even if it also has management access. */
+export function staffWorkspaceForAccount(
+  workspace: StaffWorkspace,
+  role: string,
+  teacherIds: readonly string[],
+  schoolId: string,
+): StaffWorkspace {
+  const manager = role === "director" && workspace.canManage;
+  const permitted = (teacherId: string) =>
+    manager || (role === "teacher" && teacherIds.includes(teacherId));
+  const inSchool = (row: { school_id: string; teacher_id: string }) =>
+    row.school_id === schoolId && permitted(row.teacher_id);
+  return {
+    ...workspace,
+    canManage: manager,
+    settings: workspace.settings?.school_id === schoolId ? workspace.settings : null,
+    teachers: workspace.teachers.filter((row) => permitted(row.id)),
+    profiles: workspace.profiles.filter(inSchool),
+    records: workspace.records.filter(inSchool),
+    openRecords: workspace.openRecords.filter(inSchool),
+    payrolls: workspace.payrolls.filter((row) => inSchool(row) && (manager || row.status !== "draft")),
+  };
+}
 export interface StaffLocation {
   latitude: number;
   longitude: number;

@@ -1,11 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { r2OriginHeaders } from "../r2-media/origins.ts";
 import { callGemini } from "../document-analyze/gemini.ts";
-import {
-  buildGuidePayload,
-  normalizeGuideReply,
-  type GuideMessage,
-} from "../_shared/assistant-guide.ts";
+import { type GuideMessage } from "../_shared/assistant-guide.ts";
+import { assistantRoles, buildAssistantRouterPayload, localAssistantReply, pauseMessage, routedGuideReply, type AssistantRole } from "../_shared/assistant-policy.ts";
 Deno.serve(async (req: Request) => {
   const cors = r2OriginHeaders(
     req.headers.get("origin"),
@@ -72,8 +69,7 @@ Deno.serve(async (req: Request) => {
     const body = JSON.parse(text),
       messages = body.messages as GuideMessage[];
     if (
-      typeof body.schoolId !== "string" ||
-      !/^[-a-f0-9]{36}$/i.test(body.schoolId) ||
+      !(body.schoolId == null || typeof body.schoolId === "string" && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(body.schoolId)) ||
       !Array.isArray(messages) ||
       !messages.length ||
       messages.length > 8 ||
@@ -87,61 +83,60 @@ Deno.serve(async (req: Request) => {
       )
     )
       return reply({ error: "Revisa tu consulta." }, 400);
-    const { error: permission } = await db.rpc("reserve_assistant_request", {
-      p_school_id: body.schoolId,
+    const role:AssistantRole = body.role || "director";
+    if(!assistantRoles.includes(role))return reply({error:"Rol no válido."},400);
+    const { data:state,error: permission } = await db.rpc("micole_assistant_state", {
+      p_school_id: body.schoolId || null,p_role:role,p_reserve:true,
     });
     if (permission)
       return reply(
         {
           error: permission.message.startsWith("Se alcanzó")
             ? permission.message
-            : "Solo Dirección puede consultar sobre esta sede.",
+            : "No tienes acceso al asistente en este panel o sede.",
         },
         permission.message.startsWith("Se alcanzó") ? 429 : 403,
       );
+    if(state.pausedUntil)return reply({answer:pauseMessage,steps:[],actions:[],pausedUntil:state.pausedUntil});
     const key = Deno.env.get("GEMINI_API_KEY");
-    if (!key)
-      return reply(
-        {
-          error:
-            "El asistente todavía no está configurado. Usa las guías de cada módulo o contacta a MiCole.",
-        },
-        503,
-      );
+    let result;
+    let mode="ia";
+    try {
+    if(!key)throw Error("Provider unavailable");
     const { response } = await callGemini({
       apiKey: key,
       model: Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash",
       fallbackModel: Deno.env.get("GEMINI_FALLBACK_MODEL") || undefined,
       signal: AbortSignal.timeout(55000),
       attemptTimeoutMs: 25000,
-      payload: JSON.stringify(buildGuidePayload(messages)),
+      payload: JSON.stringify(buildAssistantRouterPayload(messages,role,typeof body.page==="string" ? body.page.slice(0,60):"overview")),
     });
-    if (!response.ok)
-      return reply(
-        {
-          error:
-            response.status === 429
-              ? "El asistente alcanzó su límite temporal. Inténtalo más tarde."
-              : "El asistente está ocupado. Vuelve a intentarlo.",
-        },
-        502,
-      );
+    if (!response.ok)throw Error("Provider unavailable");
     const output = await response.json(),
       candidate = output.candidates?.[0];
-    if (candidate?.finishReason !== "STOP")
-      return reply(
-        {
-          error: "La respuesta no se completó. Intenta una pregunta más breve.",
-        },
-        422,
-      );
+    if (candidate?.finishReason !== "STOP")throw Error("Incomplete classification");
     const content = candidate.content?.parts
       ?.filter(
         (p: { text?: string; thought?: boolean }) => p.text && !p.thought,
       )
       .map((p: { text: string }) => p.text)
       .join("");
-    return reply(normalizeGuideReply(JSON.parse(content)));
+    result=routedGuideReply(JSON.parse(content),role);
+    } catch {
+      // A provider failure only falls back to documented guidance/local routing.
+      result=localAssistantReply(messages.at(-1)!.text,role);
+      mode="guide";
+    }
+    if(result.offTopic){
+      const admin=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,{auth:{persistSession:false,autoRefreshToken:false}});
+      const {data:pausedUntil,error:pauseError}=await admin.rpc("pause_micole_assistant",{p_user_id:auth.user.id});
+      if(pauseError)throw Error("Could not persist pause");
+      return reply({answer:pauseMessage,steps:[],actions:[],pausedUntil,mode});
+    }
+    const {data:latest,error:stateError}=await db.rpc("micole_assistant_state",{p_school_id:body.schoolId||null,p_role:role});
+    if(stateError)throw Error("Could not validate current session");
+    if(latest.pausedUntil)return reply({answer:pauseMessage,steps:[],actions:[],pausedUntil:latest.pausedUntil});
+    return reply({...result,mode});
   } catch {
     return reply(
       {

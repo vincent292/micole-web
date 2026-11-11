@@ -52,7 +52,7 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
     if (
       expired &&
       header &&
-      ["students", "workspace_identity"].includes(name)
+      ["students", "student_directory", "workspace_identity"].includes(name)
     ) {
       await route.fulfill({
         status: 400,
@@ -121,6 +121,8 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
   await expect(
     page.getByRole("heading", { name: "Resumen de plataforma" }),
   ).toBeVisible();
+  await expect(page.locator('.sidebar .brand .micole-logo')).toBeVisible();
+  await expect(page.getByRole('region',{name:'Identidad de la institución'})).toHaveCount(0);
   await page.getByRole("button", { name: "Menú de perfil" }).click();
   await expect(
     page
@@ -130,7 +132,7 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
   await page.getByRole("button", { name: "Menú de perfil" }).click();
   expect(
     calls.filter((c) =>
-      ["students", "teachers", "daily_entries", "messages"].includes(c.name),
+      ["students", "student_directory", "teachers", "daily_entries", "messages"].includes(c.name),
     ),
   ).toEqual([]);
   await page
@@ -148,9 +150,13 @@ test("el cliente conectado abre, recarga y cierra soporte sin cambiar el login n
   await expect(
     page.getByRole("button", { name: "Estudiantes", exact: true }),
   ).toBeVisible();
+  await expect(page.locator('.school-identity-copy strong')).toHaveText('Colegio de revisión');
+  await expect(page.locator('.school-identity-support')).toHaveText('Soporte activo');
+  await expect(page.getByRole('combobox',{name:'Institución',exact:true})).toBeDisabled();
+  await expect(page.locator('.sidebar-platform-credit .micole-logo')).toBeVisible();
   await expect
     .poll(() =>
-      calls.some((c) => c.name === "students" && c.support === supportId),
+      calls.some((c) => c.name === "student_directory" && c.support === supportId),
     )
     .toBe(true);
   await page.reload();

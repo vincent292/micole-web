@@ -1,16 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { onWorkspaceChange } from "./workspaceEvents";
 import { subscribeAnnouncements } from "./announcementEvents";
 import {
   normalizePending,
   pendingConfirmation,
+  pendingImportantRead,
   type AnnouncementView,
   type AnnouncementReceipt,
 } from "./announcements";
 export interface NoticeApi {
   pending: () => Promise<AnnouncementView[]>;
   view: (id: string) => Promise<AnnouncementView>;
-  read: (id: string, agree: boolean) => Promise<AnnouncementView>;
+  read: (id: string, agree: boolean) => Promise<unknown>;
   report: (id: string) => Promise<AnnouncementReceipt[]>;
   withdraw: (id: string) => Promise<void>;
 }
@@ -43,14 +44,23 @@ export function useAnnouncementInbox({
     generation = useRef(0),
     queued = useRef<string | undefined>(undefined);
   const retry = useRef<() => void>(() => {});
+  const retryInbox = useCallback(() => retry.current(), []);
   useEffect(() => {
     const version = ++generation.current;
     let alive = true;
     active.current = null;
     working.current = false;
+    queued.current = undefined;
+    let deferred: ReturnType<typeof setTimeout> | undefined;
+    let validatingPayment = false;
+    function defer() {
+      clearTimeout(deferred);
+      deferred = setTimeout(() => void check(), 750);
+    }
     async function show(id: string) {
       if (working.current || !current.current.canOpen()) {
         queued.current = id;
+        defer();
         return;
       }
       if (
@@ -64,10 +74,7 @@ export function useAnnouncementInbox({
       setBusy(true);
       setError("");
       try {
-        let value = await current.current.api.view(id);
-        if (!alive || generation.current !== version) return;
-        if (value.canAcknowledge)
-          value = await current.current.api.read(id, false);
+        const value = await current.current.api.view(id);
         if (!alive || generation.current !== version) return;
         active.current = value;
         setNotice(value);
@@ -89,11 +96,37 @@ export function useAnnouncementInbox({
       if (
         !enabled ||
         !alive ||
-        working.current ||
-        active.current ||
-        !current.current.canOpen()
+        working.current
       )
         return;
+      if (active.current) {
+        const shown = active.current;
+        if (!shown.payment || validatingPayment) return;
+        validatingPayment = true;
+        let resolved = false;
+        try {
+          const latest = await current.current.api.view(shown.id);
+          resolved = !!latest.readAt;
+        } catch (e) {
+          // A changed balance has a new fingerprint; a paid charge has no alert.
+          resolved = e instanceof Error && e.message.startsWith("Este aviso de pago cambió.");
+        } finally {
+          validatingPayment = false;
+        }
+        if (resolved && alive && generation.current === version && active.current?.id === shown.id) {
+          active.current = null;
+          setNotice(null);
+          setReport(null);
+          setAgree(false);
+          current.current.onChanged();
+          defer();
+        }
+        return;
+      }
+      if (!current.current.canOpen()) {
+        defer();
+        return;
+      }
       if (queued.current) {
         const id = queued.current;
         queued.current = undefined;
@@ -126,8 +159,9 @@ export function useAnnouncementInbox({
     void check();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const offChanges = onWorkspaceChange(change => {
-      if (!["*", "announcements", "announcement_receipts", "notifications", "workspace_ready"].includes(change.table)) return;
+      if (!["*", "announcements", "announcement_receipts", "notifications", "workspace_ready", "school_charges", "school_payments", "school_receipts"].includes(change.table)) return;
       clearTimeout(timer);
+      clearTimeout(deferred);
       timer = setTimeout(() => void check(), 300);
     });
     return () => {
@@ -136,12 +170,13 @@ export function useAnnouncementInbox({
       off();
       offChanges();
       clearTimeout(timer);
+      clearTimeout(deferred);
     };
   }, [scope, enabled]);
   useEffect(() => {
     retry.current();
   }, [revision]);
-  async function action(kind: "accept" | "report" | "withdraw") {
+  async function action(kind: "accept" | "read" | "report" | "withdraw") {
     const value = active.current;
     if (!value || working.current) return;
     const version = generation.current;
@@ -152,6 +187,10 @@ export function useAnnouncementInbox({
       if (kind === "accept") {
         if (pendingConfirmation(value) && !agree) return;
         await current.current.api.read(value.id, true);
+      }
+      if (kind === "read") {
+        if (pendingConfirmation(value)) return;
+        if (value.canAcknowledge) await current.current.api.read(value.id, false);
       }
       if (kind === "report") {
         const rows = await current.current.api.report(value.id);
@@ -166,6 +205,7 @@ export function useAnnouncementInbox({
       setAgree(false);
       current.current.onChanged();
       setTimeout(() => { if(generation.current===version)retry.current(); }, 0);
+      return true;
     } catch (e) {
       if (generation.current === version)
         setError(
@@ -181,7 +221,7 @@ export function useAnnouncementInbox({
     }
   }
   function close() {
-    if (working.current || pendingConfirmation(active.current || {})) return;
+    if (working.current || pendingConfirmation(active.current || {}) || pendingImportantRead(active.current || {})) return;
     active.current = null;
     setNotice(null);
     setReport(null);
@@ -198,7 +238,8 @@ export function useAnnouncementInbox({
     report,
     action,
     close,
-    retry: () => retry.current(),
+    retry: retryInbox,
     required: pendingConfirmation(notice || {}),
+    mustRead: pendingImportantRead(notice || {}),
   };
 }

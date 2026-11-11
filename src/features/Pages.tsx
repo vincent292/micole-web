@@ -283,6 +283,7 @@ export function Directory({
                     </td>
                     <td>
                       <div className="table-actions">
+                        {school&&['director','teacher'].includes(role)&&<button className="mini-btn" onClick={()=>go(`enrollment?classroom=${encodeURIComponent(s.classroomId)}&student=${encodeURIComponent(s.id)}`)}>Generar QR de inscripción</button>}
                         <button className="mini-btn" onClick={()=>go(`studentRecord?student=${encodeURIComponent(s.id)}`)}>Ver expediente</button>
                         <button className="mini-btn" onClick={()=>open("emergency",s)}>Emergencias</button>
                         {canEdit && (
@@ -1406,7 +1407,7 @@ export function Family({ student, store, open }: PageProps) {
     </>
   );
 }
-export function Settings({ store, school, role, open, act }: PageProps) {
+export function Settings({ store, school, role, open, act,go }: PageProps) {
   const download = () => {
     const blob = new Blob([JSON.stringify(store.data, null, 2)], {
       type: "application/json",
@@ -1426,6 +1427,7 @@ export function Settings({ store, school, role, open, act }: PageProps) {
         subtitle="La identidad de tu institución, en cada detalle."
       />
       <div className="settings-grid">
+        {school?.appearance&&role==='director'&&<section className="panel"><SectionTitle title="Tu institución, tu identidad" subtitle="Cinco plantillas y documentos con tu membrete."/><Button onClick={()=>go('identityStudio')}>Personalizar mi institución</Button><Button variant="secondary" onClick={()=>go('credentials')}>Carnets escolares</Button></section>}
         <section className="panel">
           <SectionTitle title="Identidad de la institución" />
           <div className="brand-preview">

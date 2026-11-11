@@ -426,3 +426,83 @@ describe("sedes, permisos e integración del asistente", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("Mica: todos los paneles, pausa y acciones confirmadas",()=>{
+ it("autoriza cada rol vinculado y plataforma, sin permitir suplantar roles ni sedes",async()=>{
+  for(const [user,role] of [[director,"director"],[teacher,"teacher"],[mother,"guardian"],[kid,"student"]]){
+   const state=(await as(user,()=>q("select micole_assistant_state($1,$2,true) as value",[school,role]))).rows[0].value;
+   expect(state.pausedUntil).toBeNull();expect(state.canPublish).toBe(role==="director");
+  }
+  expect((await as(owner,()=>q("select micole_assistant_state(null,'superadmin') as value"))).rows[0].value.pausedUntil).toBeNull();
+  for(const [user,sid,role] of [[teacher,school,"director"],[stranger,school,"guardian"],[director,otherSchool,"director"],[owner,school,"superadmin"]])await expect(as(user,()=>q("select micole_assistant_state($1,$2)",[sid,role]))).rejects.toThrow();
+ });
+ it("mantiene la pausa por usuario aunque cambie de sede, rol o conversación, sin extenderla al consultar",async()=>{
+  await q("insert into school_memberships(school_id,user_id,role) values($1,$2,'director'),($3,$2,'teacher')",[otherSchool,director,school]);
+  await expect(as(director,()=>q("select pause_micole_assistant($1)",[director]))).rejects.toThrow();
+  const until=(await q("select pause_micole_assistant($1) as value",[director])).rows[0].value;
+  for(const [sid,role] of [[school,"director"],[otherSchool,"director"],[school,"teacher"]])expect(new Date((await acting(director,()=>q("select micole_assistant_state($1,$2,true) as value",[sid,role]))).rows[0].value.pausedUntil).getTime()).toBe(new Date(until).getTime());
+  expect((await q("select count(*)::int as n from aulanexo_private.assistant_usage")).rows[0].n).toBe(0);
+  await expect(acting(director,()=>q("select prepare_assistant_announcement($1,'Título','Contenido de prueba','staff')",[school]))).rejects.toThrow("pausa");
+  await q("update aulanexo_private.assistant_pauses set paused_until=now()-interval '1 second'");
+  expect((await acting(director,()=>q("select micole_assistant_state($1,'director',true) as value",[school]))).rows[0].value.pausedUntil).toBeNull();
+ });
+ it("prepara sin publicar y ejecuta solo después del sí, con idempotencia y auditoría",async()=>{
+  const before=(await q("select count(*)::int as n from announcements")).rows[0].n;
+  const prepare=(await acting(director,()=>q("select prepare_assistant_announcement($1,'Reunión de prueba','Revisaremos el funcionamiento de MiCole.','staff') as value",[school]))).rows[0].value;
+  expect(prepare.schoolId).toBe(school);expect(prepare.payload.audience).toBe("staff");
+  expect((await q("select count(*)::int as n from announcements")).rows[0].n).toBe(before);
+  await expect(as(teacher,()=>q("select confirm_assistant_proposal($1,true)",[prepare.id]))).rejects.toThrow("sesión");
+  await expect(as(director,()=>q("update aulanexo_private.assistant_proposals set payload='{}' where id=$1",[prepare.id]))).rejects.toThrow();
+  for(let i=0;i<2;i++)expect((await acting(director,()=>q("select confirm_assistant_proposal($1,true) as value",[prepare.id]))).rows[0].value).toEqual({status:"executed",id:prepare.id});
+  expect((await q("select count(*)::int as n from announcements")).rows[0].n).toBe(before+1);
+  expect((await q("select count(*)::int as n from audit_events where entity='assistant_proposals' and entity_id=$1",[prepare.id])).rows[0].n).toBe(1);
+ });
+ it("rechaza propuestas sin destinatarios, con datos incompletos y de roles no autorizados",async()=>{
+  for(const audience of [null,"","external"])await expect(as(director,()=>q("select prepare_assistant_announcement($1,'Prueba','Contenido',$2)",[school,audience]))).rejects.toThrow("destinatarios");
+  await expect(as(director,()=>q("select prepare_assistant_announcement($1,'Reunión','Será el [fecha].','staff')",[school]))).rejects.toThrow("corchetes");
+  await expect(as(teacher,()=>q("select prepare_assistant_announcement($1,'Prueba','Contenido','all')",[school]))).rejects.toThrow();
+ });
+ it.each(["cancelled","expired","revoked","paused"])("vuelve a comprobar la propuesta y el acceso antes de ejecutar: %s",async mode=>{
+  const proposal=(await acting(director,()=>q("select prepare_assistant_announcement($1,'Prueba','Contenido de ejemplo','staff') as value",[school]))).rows[0].value;
+  if(mode==="cancelled")await acting(director,()=>q("select confirm_assistant_proposal($1,false)",[proposal.id]));
+  if(mode==="expired")await q("update aulanexo_private.assistant_proposals set expires_at=now()-interval '1 second' where id=$1",[proposal.id]);
+  if(mode==="revoked")await q("update school_memberships set active=false where school_id=$1 and user_id=$2",[school,director]);
+  if(mode==="paused")await q("select pause_micole_assistant($1)",[director]);
+  await expect(as(director,()=>q("select confirm_assistant_proposal($1,true)",[proposal.id]))).rejects.toThrow();
+  expect((await q("select count(*)::int as n from announcements where id=$1",[proposal.id])).rows[0].n).toBe(0);
+ });
+});
+
+describe('identidad institucional piloto y carnets únicos',()=>{
+ const config={version:1,template:'bosque',primary:'#23614f',accent:'#A76D31',welcome:'Bienvenida de prueba',tagline:'Nuestra comunidad'};
+ async function sandbox(){await q('insert into aulanexo_private.test_institutions(school_id,updated_by) values($1,$2)',[school,owner]);await q('insert into aulanexo_private.persisted_test_workspaces(school_id,created_by) values($1,$2)',[school,owner]);}
+ it('rechaza personalizar instituciones reales incluso con Dirección y permite solo la sede de pruebas',async()=>{
+  await expect(as(director,()=>q('select save_school_appearance($1,$2)',[school,JSON.stringify(config)]))).rejects.toThrow('pruebas');
+  await sandbox();
+  for(const who of [teacher,mother,kid,stranger])await expect(as(who,()=>q('select save_school_appearance($1,$2)',[school,JSON.stringify(config)]))).rejects.toThrow();
+  const result=(await acting(director,()=>q('select save_school_appearance($1,$2) as value',[school,JSON.stringify(config)]))).rows[0].value;expect(result.primary).toBe('#23614F');
+  await expect(as(director,()=>q("update schools set appearance=$2 where id=$1",[otherSchool,JSON.stringify(config)]))).rejects.toThrow();
+  expect((await q('select appearance from schools where id=$1',[otherSchool])).rows[0].appearance).toBeNull();
+ });
+ it('valida plantillas, longitudes y colores, y no permite CSS ni propiedades arbitrarias',async()=>{
+  await sandbox();for(const bad of [{...config,primary:'url(https://evil.test)'},{...config,template:'custom'},{...config,welcome:'x'.repeat(141)}])await expect(as(director,()=>q('select save_school_appearance($1,$2)',[school,JSON.stringify(bad)]))).rejects.toThrow('Revisa');
+  const result=(await acting(director,()=>q('select save_school_appearance($1,$2) as value',[school,JSON.stringify({...config,script:'alert(1)',css:'body{}'})]))).rows[0].value;expect(result).not.toHaveProperty('css');expect(result).not.toHaveProperty('script');
+ });
+ it('emite un solo carnet por estudiante y gestión, conserva el historial y revoca el anterior al reemitir',async()=>{
+  await sandbox();const year=Number(new Intl.DateTimeFormat('en',{timeZone:'America/La_Paz',year:'numeric'}).format(new Date()));
+  const issue=async(replace:string|null=null)=>(await acting(director,()=>q('select issue_school_credential($1,$2,$3,$4) as value',[school,child,year,replace]))).rows[0].value;
+  const first=await issue();expect(first.code).toMatch(/^MC-[A-F0-9]{32}$/);expect((await issue()).id).toBe(first.id);
+  const next=await issue(first.id);expect(next.code).not.toBe(first.code);expect(next.status).toBe('active');
+  const old=(await as(director,()=>q('select verify_school_credential($1,$2) as value',[school,first.code]))).rows[0].value;expect(old.status).toBe('revoked');
+  await expect(as(director,()=>q('select issue_school_credential($1,$2,$3,$4)',[school,child,year,first.id]))).rejects.toThrow('cambió');
+  expect((await q('select count(*)::int as n from aulanexo_private.school_credentials where student_id=$1',[child])).rows[0].n).toBe(2);
+ });
+ it('no permite emitir carnets para otro colegio ni leer sus datos desde una cuenta ajena o anónima',async()=>{
+  await sandbox();const year=new Date().getUTCFullYear();const card=(await acting(director,()=>q('select issue_school_credential($1,$2,$3) as value',[school,child,year]))).rows[0].value;
+  for(const who of [teacher,mother,kid,stranger])await expect(as(who,()=>q('select issue_school_credential($1,$2,$3)',[school,child,year]))).rejects.toThrow();
+  await expect(as(director,()=>q('select issue_school_credential($1,$2,$3)',[otherSchool,child,year]))).rejects.toThrow();
+  await expect(as(stranger,()=>q('select verify_school_credential($1,$2)',[school,card.code]))).rejects.toThrow();
+  await expect(as(null,()=>q('select verify_school_credential($1,$2)',[school,card.code]),undefined,'anon')).rejects.toThrow();
+  await expect(as(mother,()=>q('select * from aulanexo_private.school_credentials'))).rejects.toThrow();
+ });
+});

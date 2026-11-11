@@ -193,6 +193,45 @@ const start = async (role: string, target: string | null = null, relationship: s
  return r.rows[0].value.id as string;
 };
 describe("pruebas reales de roles reservadas al propietario",()=>{
+ it("cada docente de pruebas solo marca su propia entrada con hora del servidor",async()=>{
+  const otherTeacher=id(51);
+  await q("insert into teachers(id,school_id,name,email,status) values($1,$2,'Otra profesora','otra@example.invalid','active')",[otherTeacher,school]);
+  await acting(director,()=>q("select save_staff_settings($1,$2::jsonb)",[school,JSON.stringify({arrivalEnabled:true,latitude:-16.5,longitude:-68.1,radiusM:150,maxAccuracyM:50})]));
+  for(const teacherId of [id(50),otherTeacher]) await acting(director,()=>q("select save_staff_profile($1,$2::jsonb)",[school,JSON.stringify({teacherId,payType:'monthly',monthlySalary:3000,hourlyRate:60,active:true,schedule:Array.from({length:7},(_,weekday)=>({weekday,start:'00:00',end:'23:59',breakMinutes:0}))})]));
+  const sid=await start('teacher',id(50));
+  const month=(await q("select date_trunc('month',now() at time zone 'America/La_Paz')::date::text value")).rows[0].value;
+  const workspace=(await as(owner,()=>q("select staff_workspace($1,$2::date) value",[school,month]),sid)).rows[0].value;
+  expect(workspace.canManage).toBe(false);expect(workspace.teachers.map((t:any)=>t.id)).toEqual([id(50)]);
+  const point={latitude:-16.5,longitude:-68.1,accuracy:5,capturedAt:new Date().toISOString(),checkIn:'2000-01-01T00:00:00Z'};
+  await expect(as(owner,()=>q("select mark_staff_attendance($1,'in',$2::jsonb,$3)",[otherTeacher,JSON.stringify(point),id(601)]),sid)).rejects.toThrow();
+  await expect(as(owner,()=>q("select correct_staff_attendance($1,$2::jsonb,'Intento de corregir como docente')",[school,JSON.stringify({teacherId:id(50)})]),sid)).rejects.toThrow(/Dirección/);
+  await acting(owner,()=>q("select mark_staff_attendance($1,'in',$2::jsonb,$3)",[id(50),JSON.stringify(point),id(600)]),sid);
+  expect((await q("select teacher_id,check_in=now() server_time,source from staff_attendance_records where id=$1",[id(600)])).rows[0]).toEqual({teacher_id:id(50),server_time:true,source:'gps'});
+  const next=await start('teacher',otherTeacher);
+  const other=(await as(owner,()=>q("select staff_workspace($1,$2::date) value",[school,month]),next)).rows[0].value;
+  expect(other.teachers.map((t:any)=>t.id)).toEqual([otherTeacher]);expect(other.openRecords).toEqual([]);
+  await expect(as(owner,()=>q("select workspace_identity()"),sid)).rejects.toThrow(/support_expired/);
+  for(const role of ['director','guardian','student']){
+   const current=await start(role,role==='director'?null:child,role==='guardian'?'mother':null);
+   await expect(as(owner,()=>q("select mark_staff_attendance($1,'in',$2::jsonb,$3)",[id(50),JSON.stringify(point),id(602)]),current)).rejects.toThrow();
+  }
+ });
+ it("la autoría de mensajes identifica a la persona elegida y conserva el operador real en auditoría",async()=>{
+  const sid=await start('teacher',id(50));
+  const message=(await acting(owner,()=>q("insert into messages(school_id,student_id,body,author_id,author_name,author_role) values($1,$2,'Mensaje de prueba',$3,'Nombre ajeno','director') returning id,author_name,author_role,author_id",[school,child,stranger]),sid)).rows[0];
+  expect(message.author_role).toBe('teacher');expect(message.author_name).toBe('Profesora (pruebas MiCole)');expect(message.author_id).toBe(owner);
+  const audit=(await q("select actor_id,summary from audit_events where entity='messages' and entity_id=$1",[message.id])).rows[0];
+  expect(audit.actor_id).toBe(owner);expect(audit.summary).toMatchObject({supportSessionId:sid,supportRole:'teacher',targetTeacherId:id(50),mode:'test'});
+ });
+ it("Dirección, madre y padre de pruebas publican con su identidad, sin aceptar otro autor enviado por el cliente",async()=>{
+  for(const [role,relationship,label] of [['director',null,'Dirección de pruebas'],['guardian','mother','Madre'],['guardian','father','Padre']] as const){
+   const sid=await start(role,role==='director'?null:child,relationship);
+   const message=(await acting(owner,()=>q("insert into messages(school_id,student_id,body,author_id,author_name,author_role) values($1,$2,'Respuesta de prueba',$3,'Otro autor','teacher') returning id,author_name,author_role,author_id",[school,child,stranger]),sid)).rows[0];
+   expect(message).toMatchObject({author_name:label+' (pruebas MiCole)',author_role:role,author_id:owner});
+   const audit=(await q("select actor_id,summary from audit_events where entity='messages' and entity_id=$1",[message.id])).rows[0];
+   expect(audit.actor_id).toBe(owner);expect(audit.summary).toMatchObject({supportSessionId:sid,supportRole:role,mode:'test',...(relationship?{targetStudentId:child,targetRelationship:relationship}:{})});
+  }
+ });
  it("rechaza a directores, docentes y familias aunque alteren el cliente",async()=>{
   for(const user of [director,teacher,mother,kid,stranger]){
    await expect(as(user,()=>q("select set_test_institution($1,true)",[school]))).rejects.toThrow(/propietario/);

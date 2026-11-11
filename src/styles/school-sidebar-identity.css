@@ -1,0 +1,22 @@
+.sidebar .brand.brand-institution{padding:0;position:relative;min-height:0}
+.school-identity{padding:24px 18px 17px;flex:none;color:var(--institution-sidebar-ink,#253746);border-bottom:1px solid color-mix(in srgb,currentColor 11%,transparent);margin-bottom:7px}
+.school-identity-home{display:grid;grid-template-columns:72px minmax(0,1fr);gap:13px;align-items:center;text-decoration:none;color:inherit;border-radius:15px;min-width:0}
+.school-identity-logo{width:72px;height:72px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #e5e9ec;border-radius:19px;box-shadow:0 4px 14px #25374608;overflow:hidden;flex:none}
+.school-identity-logo img{display:block;width:100%;height:100%;padding:6px;object-fit:contain;box-sizing:border-box}
+.school-identity-initials{font:700 25px/1.1 Poppins,Inter,sans-serif;color:var(--institution-primary,#315b88);letter-spacing:-1px}
+.school-identity-copy{min-width:0}.school-identity-copy>small{display:block;font-size:8px;line-height:1.5;letter-spacing:1.25px;opacity:.72;margin-bottom:7px;font-weight:600}
+.school-identity-copy>strong{font-size:16px;line-height:1.35;letter-spacing:-.25px;display:block;overflow-wrap:anywhere;font-weight:700}
+.school-identity-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:13px}
+.school-identity-meta>span{display:inline-flex;align-items:center;gap:4px;padding:4px 7px;border-radius:6px;font-size:9px;font-weight:600;line-height:1.4}
+.school-identity-level{background:#e9f4ed;color:#286445}.school-identity-support{background:#fff3dd;color:#775319}
+.school-identity-site{display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px 11px;background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid color-mix(in srgb,currentColor 12%,transparent);border-radius:10px;color:inherit}
+.school-identity-site>svg{flex:none;opacity:.75}.school-identity-site>div{min-width:0;flex:1}
+.school-identity-site label{display:block;font-size:9px;line-height:1.4;opacity:.75;margin-bottom:3px}
+.school-identity-site select{display:block;width:100%;min-width:0;max-width:100%;padding:2px 17px 2px 0;border:0;background:transparent;color:inherit;font:600 11px/1.5 Inter,sans-serif;cursor:pointer;border-radius:3px}
+.school-identity-site select:disabled{opacity:1;color:inherit;-webkit-text-fill-color:currentColor;cursor:default;background-image:none;padding-right:0;appearance:none}
+.school-identity-site option,.school-identity-site optgroup{background:#fff;color:#253746}
+.school-identity-home:focus-visible,.school-identity-site select:focus-visible{outline:3px solid var(--institution-accent,#446de8);outline-offset:4px}
+.sidebar-platform-credit{display:flex;align-items:center;gap:6px;margin-top:9px;color:#718394;font-size:9px;line-height:1.5}
+.sidebar .sidebar-platform-credit .micole-logo{display:block;width:58px;height:auto;max-height:22px;opacity:.82}
+.institution-branded .school-identity{color:var(--institution-sidebar-ink)}
+@media(max-width:760px){.sidebar .brand.brand-institution .mobile-close{position:absolute;right:8px;top:7px;width:30px;height:30px;min-width:30px;min-height:30px;z-index:2;background:transparent;color:var(--institution-sidebar-ink,#52677b)}.school-identity{padding-top:37px}.school-identity-home{grid-template-columns:76px minmax(0,1fr)}.school-identity-logo{width:76px;height:76px}.school-identity-copy>strong{font-size:16px}}

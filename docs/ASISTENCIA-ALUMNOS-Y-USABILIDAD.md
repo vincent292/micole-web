@@ -1,50 +1,74 @@
-# Asistencia de alumnos y revisión de usabilidad
+# Asistencia de alumnos y permisos familiares
+
+Regla actualizada el 29 de octubre de 2026: **solo el docente asignado pasa lista y corrige con justificativo. Dirección tiene acceso de consulta.** Esta asistencia es distinta de la marcación laboral del equipo.
+
+## Antes de pasar lista
+
+La familia solicita una ausencia desde **Permisos y recogidas**, con el hijo, la fecha y el motivo. Al abrir la asistencia de esa fecha, el docente ve un modal con los pedidos del aula: alumno, motivo, estado y respuesta. Dirección puede consultar los pedidos y el historial.
+
+El docente responde **Aceptar permiso** o **Rechazar permiso**, con una respuesta de entre 5 y 1000 caracteres. No se permite confirmar una lista mientras tenga pedidos pendientes. Al continuar, los permisos aceptados se proponen como **Con permiso**, conservando Presente o Tardanza si el niño efectivamente asistió. Un permiso aceptado impide confirmar al alumno como Falta.
+
+El servidor comprueba la revisión de los permisos al confirmar. Si llega o cambia un pedido mientras se prepara la lista, exige actualizar y revisarlo. Este control también protege frente a una APK antigua o una llamada directa al API. Una solicitud recibida después de confirmar se atiende mediante la corrección justificada del docente, conservando el original.
 
 ## Pasar lista
 
-Dirección y los docentes asignados abren **Asistencia de alumnos** desde Inicio, un aula o el menú. Este registro es distinto de **Asistencia del equipo**, que corresponde al horario laboral de docentes.
+1. Seleccionar un aula asignada y una fecha permitida. No se admiten fechas futuras ni una gestión cerrada.
+2. Revisar los permisos familiares. Marcar Presente, Falta, Tardanza o Con permiso según lo ocurrido.
+3. Escribir las observaciones que debe consultar la familia. **Marcar pendientes como presentes** conserva los estados que ya fueron elegidos, incluidos los permisos.
+4. **Guardar borrador** conserva el trabajo sin publicar asistencia a la familia ni enviar avisos de falta.
+5. **Revisar y confirmar** muestra el resumen y exige que todos tengan estado. Las faltas confirmadas se notifican a mamá y papá vinculados. Reintentar el mismo pedido no duplica la lista ni los avisos.
 
-1. Seleccionar aula y fecha. No se admiten fechas futuras ni cambios en una gestión cerrada.
-2. Marcar la casilla de quienes asistieron. Para los demás, seleccionar **Falta**, **Tardanza** o **Con permiso**. **Completar sin marcar como presentes** permite comenzar una lista en la que la mayoría asistió, conservando estados ya elegidos.
-3. Agregar observaciones si corresponden. Estas observaciones se comparten con la familia; el motivo interno de una corrección se conserva en el respaldo y no se muestra al familiar.
-4. Guardar borrador para continuar después. Un borrador no genera notificaciones y no se muestra a las familias.
-5. **Revisar y confirmar** muestra el resumen antes de guardar. Es necesario marcar a todos. Entonces se crean los avisos de falta para las cuentas verificadas de madre y padre vinculados; Android los recibe mediante el worker de Firebase existente. En web aparecen en la campanita. No se necesita mantener la app abierta para enviar el aviso.
+**Sin marcar no significa falta.** Un día sin lista confirmada, feriado, fin de semana o borrador incompleto no genera automáticamente una ausencia.
 
-**Sin marcar no significa falta.** Un día sin lista confirmada, fin de semana o feriado no produce ausencias automáticamente. La confirmación del docente evita avisar antes de terminar el registro. Las notificaciones del teléfono requieren sus permisos y una sesión/dispositivo registrado; siguen el horario de descanso y preferencias ya configurados.
+## Corregir con justificativo
 
-## Consulta y correcciones
+Solo el docente asignado dispone de **Corregir con justificativo**. Selecciona alumno y fecha, estado corregido, observación familiar y un justificativo obligatorio de 5 a 1000 caracteres. La corrección se aplica sin aprobación de Dirección y se avisa a la familia.
 
-- **Historial del mes** muestra fecha, estudiante, estado y observación. La web permite exportar los registros confirmados a CSV.
-- Cada familia consulta únicamente a sus hijos. Puede revisar asistencia incluso si tiene cuotas pendientes; esto no habilita tareas, notas o galerías bloqueadas por mensualidades.
-- Las listas confirmadas se corrigen con un motivo de al menos cinco caracteres. Se conserva una copia del registro anterior y su autor. Corregir una falta ya notificada genera una actualización para la familia.
-- Una actualización simultánea de otra persona se rechaza por revisión; no sobrescribe silenciosamente su trabajo. Guardar de nuevo no repite el aviso a la misma cuenta por estudiante y fecha.
-- Se usan los expedientes de inscripción para el padrón de cada fecha y se conserva la historia de estudiantes que cambian de aula o se retiran. Dirección y docentes de un aula solo consultan los grupos autorizados de su sede.
+La lista original confirmada es inmutable. Se agrega un registro de corrección que conserva el estado anterior, el nuevo, el motivo, la cuenta y la fecha. Dirección consulta ese historial, pero no puede crear, aprobar, rechazar ni editar una corrección de asistencia. Los motivos internos no aparecen en la vista familiar; la observación familiar sí.
 
-## Cambios de interfaz
+Cada corrección incluye la revisión efectiva que leyó el docente. Si otra sesión corrige primero, se rechaza el envío obsoleto y se pide actualizar; un reintento idéntico no duplica el historial ni los avisos.
 
-- Modales web fuera de contenedores transformados, con contenido desplazable, acciones visibles y altura/posición ajustadas al área disponible del navegador. Cerrar con cambios solicita descartarlos; los errores se muestran sin tener que buscar al final del formulario.
-- Pasos secuenciales y validación de campos antes de avanzar. Los valores permanecen al volver a un paso anterior.
-- Formularios Android con confirmación al descartar cambios y desplazamiento al inicio del nuevo paso. Los selectores con ocho o más opciones incluyen búsqueda sin distinguir tildes; las listas de selección muestran estados vacíos y recuentos.
-- Materias con búsqueda, filtros de disponibles/archivadas para Dirección, recuento de materias sin docente y acceso a tareas conservando el aula y la materia.
-- Accesos directos para pasar lista desde Inicio y Aulas; asistencia de alumnos en la navegación inferior del docente Android. Listas virtualizadas para no montar todo un curso a la vez.
-- La demo privada permite probar listas, borradores, correcciones y avisos ficticios, conservados en el navegador, sin consultar servicios reales.
+El historial conserva correcciones y decisiones anteriores a este cambio de regla. No se reescribe la historia ya registrada.
 
-## Alcance de verificación
+## Consulta y privacidad
 
-Recorrido web de 28 módulos de Dirección a 390, 768 y 1366 px, abriendo los formularios disponibles y comprobando desbordes, desplazamiento y visibilidad del pie. Flujos completos de inscripción, materias, tareas, avisos, pagos y sedes cubiertos por las pruebas existentes. Se añade la confirmación de asistencia y su consulta familiar, los cambios sin guardar y la reducción de altura del navegador.
+- Cada familia ve únicamente la asistencia confirmada de sus hijos. Los borradores y justificativos internos no se comparten con otras familias ni con cuentas infantiles.
+- El docente accede solo a sus aulas. Dirección consulta las aulas de su sede. No se concede acceso al elegir un rol o enviar un ID ajeno.
+- El padrón se obtiene de la inscripción correspondiente a cada fecha y conserva la historia de cambios de aula.
+- Las actualizaciones simultáneas se rechazan por revisión para evitar sobrescribir el trabajo de otra persona.
+- La recepción Android requiere permisos de notificación y un dispositivo registrado; se distingue de la creación del aviso y de su lectura.
 
-Android se verifica en el runtime Expo para formularios, materias, Realtime y asistencia. Se deben comprobar adicionalmente teclado, TalkBack, permisos de notificación y recepción con la app cerrada en teléfonos físicos al instalar la siguiente APK. Esta tarea no genera APK.
+## Implementación y verificación
 
-## Publicación
-
-Desde el proyecto web:
+Migraciones: `202610290001_teacher_attendance_permissions.sql` y `202610290002_attendance_correction_revision.sql`. Ambas aplicadas el 29 de octubre de 2026.
 
 ```sh
-npm run supabase:migrate:attendance
+node scripts/migrate-attendance-permissions.mjs
+node scripts/migrate-attendance-permissions.mjs --apply
 ```
 
-La migración es transaccional y añade tablas, políticas RLS, RPC y avisos. Publicar junto con la web, la demo privada y las funciones `push-dispatch` y `guide-assistant`. No añade un proceso periódico: reutiliza la cola de notificaciones existente. El servidor impide editar tablas directamente y valida permisos y padrón en cada guardado.
+Sin `--apply`, valida en una transacción que termina con rollback. El servidor conserva las funciones de versiones anteriores con protección de permisos; el nuevo cliente envía además la revisión de los pedidos familiares. La web y la APK deben actualizarse para mostrar el modal y las acciones actuales. No se aplica una segunda migración desde Android.
 
-Android usa la misma base y funciones; no se aplica una segunda migración desde su proyecto. Su código está actualizado, pero una APK previamente instalada no incorpora cambios automáticamente.
+Resultados de esta tanda: `output/qa/2026-10-29-asistencia/`. Se distinguen pruebas de base de datos, recorridos de navegador local, API real con cuentas normales y pantallas del teléfono. La web quedó publicada en `https://www.micole.click` y la APK 17 fue compilada y firmada localmente con el certificado existente e instalada mediante `adb install -r`, conservando la sesión. El flujo de permiso y corrección fue ejecutado físicamente en la APK. Los resultados diferencian la persistencia de notificaciones de su entrega push.
 
-Referencias de interfaz: [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/), [ScrollView](https://reactnative.dev/docs/scrollview), [KeyboardAvoidingView](https://reactnative.dev/docs/keyboardavoidingview).
+## Hoja semanal y calendario escolar — 3 de noviembre de 2026
+
+En «Asistencia de alumnos → Pasar lista», la hoja muestra de lunes a domingo con fechas reales. Puede ordenarse por los apellidos o nombres registrados, conserva las marcas por estudiante al ordenar y permite elegir la fecha desde la cabecera. Una semana nueva empieza sin marcas si aún no hay registros; las semanas anteriores se conservan. Las casillas vacías siguen pendientes: nunca se convierten automáticamente en faltas.
+
+La casilla marca Presente; el estado permite Falta, Tardanza o Con permiso. Guardar borrador no avisa a la familia. La confirmación sigue requiriendo revisar los permisos familiares y todos los estudiantes. Solo el docente asignado marca o corrige con justificativo; Dirección consulta. El historial mensual y su exportación siguen disponibles.
+
+«Horarios de clases → Abrir calendario escolar» permite a Dirección o Secretaría delegada registrar feriados, suspensiones y jornadas especiales. Se respeta el horario semanal del aula. Un día sin clases bloquea la marcación también en la base de datos; una lista que nunca se tomó no genera faltas ni notificaciones. Los cambios quedan auditados y las revisiones concurrentes se rechazan para evitar sobrescribirlas.
+
+«Consultar feriados nacionales de Bolivia» consulta únicamente BO y solicita revisar las fechas antes de aplicarlas. Para 2026, la propuesta corrige las diferencias de la API con el calendario oficial: traslados del 23 de enero y 22 de junio, y días adicionales del 5 de junio y 7 de agosto. Los feriados regionales y vacaciones se registran manualmente. Fuente oficial: https://mintrabajo.gob.bo/index.php/nota_prensa/la-paz-22/ .
+
+Guardar o importar fechas no publica avisos. Para comunicar una fecha, use «Preparar comunicado», revise el texto y pulse «Publicar comunicado». Secretaría necesita delegación de publicación. Se evita repetir el mismo comunicado por revisión y las familias con deuda también pueden consultar este aviso operativo, sin habilitarles el resto de módulos académicos.
+
+La matriz nativa mantiene los nombres visibles al deslizar los días. En pantallas cortas el historial se desplaza con el contenido y las acciones se compactan en horizontal. Las pruebas automatizadas móviles emplean React Native Web con datos ficticios; no sustituyen el piloto físico.
+
+## Adaptación de la lista a celular y tablet — actualización 6
+
+En el celular, «Pasar lista» abre «Lista del día»: nombres completos, casilla de Presente con área amplia, selector de estado y observación por estudiante. Los días de lunes a domingo siguen disponibles arriba. «Hoja semanal» permite consultar y marcar en la matriz; cambiar de formato conserva el borrador y las marcas.
+
+La web decide el formato inicial según el ancho real disponible, incluido el espacio que ocupa el menú lateral. En la app se consideran el ancho, la altura y la escala de letra. Las pantallas grandes muestran inicialmente la hoja semanal. Las acciones de descartar e historial se desplazan con el contenido, dejando una barra inferior breve para guardar y confirmar.
+
+Las fechas, permisos y reglas de confirmación siguen siendo las mismas. Esta actualización modifica la presentación y no necesita migraciones ni crear registros en instituciones. Evidencias: `output/qa/2026-11-03-asistencia-responsive`.

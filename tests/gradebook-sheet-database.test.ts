@@ -340,6 +340,8 @@ it("tarea puntuable crea columna y la revisión se guarda también en notas de f
   ).toBe("18.00");
 });
 it("la asistencia confirmada bloquea API, SQL y borrado, sin excepciones de rol", async () => {
+  // Immutability must also be tested when the suite runs on a weekend.
+  await q("update classrooms set weekdays=array[1,2,3,4,5,6,7] where id=$1",[room]);
   const day = new Intl.DateTimeFormat('en-CA',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),
     records = JSON.stringify([
       { studentId: child, status: "present", note: "" },
@@ -355,7 +357,7 @@ it("la asistencia confirmada bloquea API, SQL y borrado, sin excepciones de rol"
       "select save_student_attendance($1,$2,$3::jsonb,1,true,'Corregir')",
       [room, day, records],
     ),
-  ).rejects.toThrow(/no puede modificarse/);
+  ).rejects.toThrow(/consulta/);
   await db.exec("savepoint imm");
   await expect(
     q("update student_attendance_records set status='absent'"),
