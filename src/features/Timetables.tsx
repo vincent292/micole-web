@@ -1,3 +1,4 @@
+import {useLocation} from 'react-router-dom';
 import { SchoolCalendar } from "./SchoolCalendar";
 import {validateSchoolTimetable} from "../lib/boliviaTimetable";
 import { useState } from "react";
@@ -26,9 +27,10 @@ import {
 } from "../lib/timetable";
 import "../styles/academic-planning.css";
 export function Timetables(p: PageProps) {
+  const parameters=new URLSearchParams(useLocation().search);
   const [year, setYear] = useState(""),
     [selected, setSelected] = useState(""),
-    [room, setRoom] = useState(""),
+    [room, setRoom] = useState(parameters.get("classroom")||""),
     [teacher, setTeacher] = useState(""),
     [edit, setEdit] = useState<TimetableVersion | null>(),
     [publish, setPublish] = useState<TimetableVersion>(),

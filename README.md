@@ -107,6 +107,7 @@ El selector de perfil ofrece únicamente los roles autorizados de la cuenta. En 
 - Cuaderno por estudiante o por toda un aula: actividades, alimentación, descanso, observaciones y tareas.
 - Modo kínder configurable desde la identidad: jornada, cuidados, cuaderno y familias como prioridad; herramientas secundarias en Más opciones. Registro de cuidados para varios niños con selección explícita, revisión de excepciones individuales y guardado conjunto sin duplicados al reintentar. Ver [jornada para kínderes](docs/KINDER.md).
 - Inscripciones virtuales para todas las instituciones: listas oficiales, reparto equilibrado de nuevos alumnos, QR individual, formulario familiar y confirmación tras el pago exigible. La importación admite solo nombres; RUDE, carnet, apellidos separados y correo son opcionales al cargar. Ver [inscripciones virtuales](docs/INSCRIPCIONES-VIRTUALES-PILOTO.md).
+- Organización por grados, paralelos y materias, tablero de Dirección, vista docente y Secretaría con cobros habilitados por Dirección. Ver [organización académica y roles](docs/ORGANIZACION-ACADEMICA-Y-SECRETARIA.md).
 - Comunicados generales de dirección y por curso de docentes.
 - Agenda, tareas, cumpleaños, materiales, notas y recomendaciones.
 - Inbox por estudiante, compartido por sus responsables, docentes asignados y Dirección. Realtime utiliza señales por colegio con RLS, sin datos personales, y recarga selectiva; los cambios en segundo plano esperan al cierre del modal para conservar escritura, foco y scroll. No hay sondeo cada minuto.

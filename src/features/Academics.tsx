@@ -1,3 +1,4 @@
+import {isAcademicAdministrator} from '../lib/academicWorkspace';
 import {useSchoolWorkspace} from "../lib/useSchoolWorkspace";
 import {today} from "../lib/billing";
 import { useState } from "react";
@@ -70,7 +71,7 @@ export function Subjects({
           r.teacherIds.some((t) => identity.teacherIds.includes(t))),
   );
   const room = rooms.find((r) => r.id === roomId) || rooms[0],
-    director = role === "director";
+    director = isAcademicAdministrator(role,identity,school?.id);
   const courses = data.classSubjects.filter(
       (cs) => cs.classroomId === room?.id && (director ? (!availability || (availability === "active" ? cs.active : !cs.active)) : cs.active) && subjectName(data,cs.id).toLocaleLowerCase().includes(query.toLocaleLowerCase()),
     ),
@@ -237,12 +238,12 @@ export function Subjects({
             <p>Si no existe, se crea para esta institución al guardar.</p>
           )}
           <fieldset className="academic-checkboxes">
-            <legend>Docentes asignados al aula</legend>
-            {!data.teachers.some(t=>room?.teacherIds.includes(t.id)&&t.status!=="inactive") && <p>Primero asigna docentes al aula desde Aulas y cursos. Después podrás vincularlos a esta materia.</p>}
+            <legend>Docente responsable de la materia</legend>
+            {!data.teachers.some(t=>t.schoolId===school?.id&&t.status!=="inactive") && <p>Registra primero al docente en el directorio de la institución.</p>}
             {data.teachers
               .filter(
                 (t) =>
-                  room?.teacherIds.includes(t.id) && t.status !== "inactive",
+                  t.schoolId===school?.id && t.status !== "inactive",
               )
               .map((t) => (
                 <label key={t.id}>

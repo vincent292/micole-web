@@ -113,6 +113,6 @@ export async function readInstitutionIdentity(
     showOnLanding: form.get("showOnLanding") === "on",
     publicDescription,
     showPublicContact: form.get("showPublicContact") === "on",
-    workspaceMode: readWorkspaceMode(text("workspaceMode") || "auto"),
+    workspaceMode: readWorkspaceMode(text("workspaceMode") || "school"),
   };
 }

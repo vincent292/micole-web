@@ -1,3 +1,8 @@
+import {liveMode} from '../lib/supabase';
+import {AcademicStructure} from './AcademicStructure';
+import {SubjectCenter, FamilySubjects} from './SubjectCenter';
+import {AcademicFollowup, ConsolidatedGrades} from './AcademicFollowup';
+import {isAcademicAdministrator} from '../lib/academicWorkspace';
 import {Care} from "./SchoolLife";
 import {classroomWork} from "../lib/classroomWork";
 import {schoolRoom} from "../lib/bolivia";
@@ -63,7 +68,7 @@ function Tabs({
 export function ClassroomEntry(p: PageProps) {
   const params = new URLSearchParams(useLocation().search),
     id = params.get("classroom");
-  if (!id) return <Directory page="classrooms" {...p} />;
+  if (!id) return liveMode ? <AcademicStructure {...p} /> : <Directory page="classrooms" {...p}/>;
   return <ClassroomCenter key={id} {...p} roomId={id} />;
 }
 function ClassroomCenter(p: PageProps & { roomId: string }) {
@@ -71,7 +76,7 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
     rooms = schoolRooms(p.store.data, p.school?.id, p.role, p.identity),
     room = rooms.find((r) => r.id === p.roomId),
     kinderMode = !!room && isKinderClassroom(room, p.school),
-    requested = params.get("tab") || (p.role === "teacher" || kinderMode ? "today" : "students"),
+    requested = params.get("tab") || (p.role === "scheduler" ? "subjects" : "today"),
     tab = Object.hasOwn(classroomTabs, requested)
       ? (requested as ClassroomTab)
       : "students";
@@ -116,7 +121,14 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
       else p.go(next);
     },
   };
-  const availableTabs = Object.entries(classroomTabs).filter(([key]) => key !== "tutoring" || p.role === "director" || isClassroomTutor(p.store.data, p.identity, p.role, room.id));
+  const tutor = isClassroomTutor(p.store.data, p.identity, p.role, room.id);
+  const availableTabs = Object.entries(classroomTabs).filter(([key]) => {
+    if (key === 'subject' || !liveMode && ['records','followup'].includes(key)) return false;
+    if (['tutoring','records'].includes(key)) return p.role === 'director' || tutor;
+    if (key === 'care') return kinderMode;
+    if (!kinderMode && ['assignments','gradebook','journal'].includes(key)) return false;
+    return true;
+  });
   const kinderTabs = kinderClassroomNavigation(availableTabs);
   return (
     <>
@@ -141,13 +153,14 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
               : `${Math.max(0, (room.capacity || 30) - children.filter((s) => s.status !== "inactive").length)} cupos disponibles`}
           </p>
         </div>
-        {p.school&&['director','teacher'].includes(p.role)&&<Button variant="secondary" onClick={()=>p.go(`enrollment?classroom=${encodeURIComponent(room.id)}`)}>Inscripciones de esta aula</Button>}
-        {p.role === "director" && (
+        {p.school&&['director','teacher','scheduler'].includes(p.role)&&<Button variant="secondary" onClick={()=>p.go(`enrollment?classroom=${encodeURIComponent(room.id)}`)}>Inscripciones de esta aula</Button>}
+        {isAcademicAdministrator(p.role,p.identity,p.school?.id) && (
           <Button variant="secondary" onClick={() => p.open("classroom", room)}>
             Editar aula
           </Button>
         )}
       </section>
+      <div className="focus-actions"><Button variant="secondary" onClick={()=>p.go(`timetables?classroom=${room.id}`)}>Ver horario del paralelo</Button></div>
       <Tabs
         label="Trabajo del aula"
         value={tab}
@@ -174,11 +187,14 @@ function ClassroomCenter(p: PageProps & { roomId: string }) {
           </div> : <div className="focus-grid">
            {classroomWork(p.store.data,room,p.identity,p.role).map(subject=><article key={subject.id} className="panel focus-card">
             <h3>{subject.name}</h3><p>{subject.pending} entregas por revisar · {subject.canWrite?"A tu cargo":"Consulta de tutoría"}</p>
-            <div className="focus-actions"><Button onClick={()=>setTab("assignments",`subject=${subject.id}`)}>Tareas y entregas</Button><Button variant="secondary" onClick={()=>setTab("gradebook",`subject=${subject.id}`)}>Evaluaciones</Button></div>
+            <div className="focus-actions"><Button onClick={()=>setTab(liveMode?"subject":"assignments",`subject=${subject.id}`)}>{liveMode?"Abrir materia":"Tareas y entregas"}</Button></div>
            </article>)}
           </div>}
-          {!kinderMode&&!room.subjectsEnabled&&<div className="focus-actions"><Button onClick={()=>setTab("assignments")}>Actividades del grupo</Button><Button variant="secondary" onClick={()=>setTab("care")}>Cuidados diarios</Button><Button variant="secondary" onClick={()=>setTab("journal")}>Cuaderno digital</Button><Button variant="secondary" onClick={()=>setTab("gradebook")}>Evaluaciones y seguimiento</Button></div>}
+          {kinderMode&&!room.subjectsEnabled&&<div className="focus-actions"><Button onClick={()=>setTab("assignments")}>Actividades del grupo</Button><Button variant="secondary" onClick={()=>setTab("care")}>Cuidados diarios</Button><Button variant="secondary" onClick={()=>setTab("journal")}>Cuaderno digital</Button><Button variant="secondary" onClick={()=>setTab("gradebook")}>Evaluaciones y seguimiento</Button></div>}
         </>}
+        {tab === 'subject' && params.get('subject') && <SubjectCenter {...childProps} roomId={room.id} subjectId={params.get('subject')!}/>}
+        {tab === 'followup' && <AcademicFollowup {...childProps} roomId={room.id}/>}
+        {tab === 'records' && (p.role === 'director' || tutor) && <ConsolidatedGrades {...childProps} roomId={room.id}/>}
         {tab === "students" && <Directory page="students" {...childProps} />}
         {tab === "subjects" && <Subjects {...childProps} />}
         {tab === "tutoring" && <Tutoring {...childProps} roomId={room.id}/>}
@@ -204,7 +220,7 @@ export function StudentRecord(p: PageProps) {
         : params.get("student") || p.student?.id;
   const child = p.students.find((s) => s.id === requestedId),
     room = p.store.data.classrooms.find((r) => r.id === child?.classroomId);
-  const tabs = recordTabs(p.role).filter(key=>key!=="tutoring"||p.role==="director"||(room&&isClassroomTutor(p.store.data,p.identity,p.role,room.id))),
+  const tabs = recordTabs(p.role).filter(key=>liveMode||!["followup","subjects"].includes(key)).filter(key=>key!=="tutoring"||p.role==="director"||(room&&isClassroomTutor(p.store.data,p.identity,p.role,room.id))),
     requested = params.get("tab") || "summary",
     tab = tabs.includes(requested as StudentTab)
       ? (requested as StudentTab)
@@ -293,6 +309,8 @@ export function StudentRecord(p: PageProps) {
         onChange={setTab}
       />
       <div className="focus-content" key={`${child.id}:${tab}`}>
+        {tab === "followup" && <AcademicFollowup {...focused} childId={child.id}/> }
+        {tab === "subjects" && <FamilySubjects {...focused}/> }
         {tab === "summary" && (
           <>
             <div className="focus-grid">

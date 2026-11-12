@@ -1,3 +1,5 @@
+import type {AcademicSummary} from './academicWorkspace';
+import {percentage} from './academicWorkspace';
 import {PDFDocument,StandardFonts,rgb,type PDFFont,type PDFPage,type PDFImage} from 'pdf-lib';
 import QRCode from 'qrcode';
 import type {School,Announcement,SchoolReceipt} from './types';
@@ -75,9 +77,9 @@ async function letterhead(school:School,title:string,reference:string){
   const size=options.size||11,f=options.strong?bold:font;for(const raw of String(text??'').split('\n'))for(const l of lines(raw,f,size,507)){ensure(size*1.6);page.drawText(l,{x:44,y,size,font:f,color:options.color||ink});y-=size*1.5;}y-=options.gap??7;
  }
  function row(label:string,value:unknown){paragraph(label.toUpperCase(),{size:8,strong:true,color:muted,gap:0});paragraph(value,{size:11,gap:10});}
- function table(headers:string[],rows:(string|number|null)[][],widths:number[]){
+ function table(headers:string[],rows:(string|number|null)[][],widths:number[],failed?:(row:number,column:number)=>boolean){
   const header=()=>{ensure(35);page.drawRectangle({x:44,y:y-12,width:507,height:26,color:rgb(.95,.96,.97)});let x=52;headers.forEach((h,i)=>{page.drawText(safe(h,bold),{x,y:y-2,size:9,font:bold,color:readableInk(a?.primary||school.color)!=='#FFFFFF'?ink:primary});x+=widths[i];});y-=35;};header();
-  rows.forEach(values=>{const cells=values.map((v,i)=>lines(String(v??'—'),font,10,widths[i]-15));const height=Math.max(...cells.map(c=>c.length))*14+16;if(y-height<78){addPage();header();}let x=52;cells.forEach((cell,i)=>{cell.forEach((l,n)=>page.drawText(l,{x,y:y-n*14,size:10,font,color:ink}));x+=widths[i];});y-=height;page.drawLine({start:{x:44,y:y+18},end:{x:551,y:y+18},color:rule,thickness:.5});});y-=12;
+  rows.forEach((values,rowIndex)=>{const cells=values.map((v,i)=>lines(String(v??'—'),font,10,widths[i]-15));const height=Math.max(...cells.map(c=>c.length))*14+16;if(y-height<78){addPage();header();}let x=52;cells.forEach((cell,i)=>{cell.forEach((l,n)=>page.drawText(l,{x,y:y-n*14,size:10,font,color:failed?.(rowIndex,i)?rgb(.72,.12,.17):ink}));x+=widths[i];});y-=height;page.drawLine({start:{x:44,y:y+18},end:{x:551,y:y+18},color:rule,thickness:.5});});y-=12;
  }
  async function qr(source:string,label:string){const qrImage=await image(pdf,source);if(!qrImage)throw Error('No se pudo preparar la imagen QR. Reintenta la descarga.');ensure(205);fitLogo(page,qrImage,205,y-165,165);y-=182;paragraph(label,{size:10,strong:true});}
  async function save(){pages.forEach((p,i)=>{p.drawLine({start:{x:44,y:57},end:{x:551,y:57},color:rule,thickness:.7});p.drawText(safe(reference,font).slice(0,85),{x:44,y:41,size:7,font,color:muted});p.drawText(`${i+1} / ${pages.length}`,{x:518,y:41,size:8,font,color:muted});p.drawText(school.appearance?'PRUEBA INSTITUCIONAL · Tecnología MiCole':'Documento de la institución · Tecnología MiCole',{x:44,y:29,size:7,font,color:muted});});return pdf.save();}
@@ -126,3 +128,32 @@ export async function credentialPdf(original:School,card:SchoolCredential){
  page.drawText('Identificación escolar interna. No sustituye un documento oficial ni autoriza recogidas.',{x,y:305,font,size:9,color:muted});pdf.setTitle('Carnet escolar · '+school.name);pdf.setAuthor(school.name);return pdf.save();
 }
 export function downloadPdf(bytes:Uint8Array,name:string){const blob=new Blob([new Uint8Array(bytes)],{type:'application/pdf'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name.replace(/[^a-zA-Z0-9._-]/g,'-');a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+
+export async function academicSummaryPdf(school:School,summary:AcademicSummary){
+ if(summary.publishedOnly)throw Error('La familia descarga sus libretas publicadas desde el expediente.');
+ const document=await letterhead(school,'Consolidado académico',`${summary.year} - ${summary.studentName}`);
+ document.row('Alumno',summary.studentName);
+ document.row('Paralelo y gestión',`${summary.classroomName} - ${summary.year}`);
+ document.paragraph(`Nota mínima de aprobación: ${summary.passMark} / 100. Los resultados incompletos conservan sus notas pendientes.`,{size:10});
+ for(const subject of summary.subjects||[]){
+  document.paragraph(subject.name,{size:15,strong:true});
+  const periods=subject.periods;
+  document.table(['Período','Resultado','Cálculo'],periods.map(period=>[
+   period.termName,
+   period.total.score==null?'Sin nota':`${period.total.score} / ${period.total.max_score||100}${period.total.missing?` (${period.total.missing} pendientes)`:''}`,
+   period.method==='weighted'?'Promedio ponderado':period.method==='average'?'Promedio simple':period.method==='sum'?'Suma de puntos':period.method==='bolivia2026'?'Ser, Saber, Hacer y Autoevaluación':period.method==='qualitative'?'Evaluación cualitativa':period.method
+  ]),[170,170,167],(row,column)=>{
+   const score=percentage(periods[row].total);
+   return column===1&&score!=null&&score<summary.passMark;
+  });
+  for(const period of periods){
+   if(period.assessments?.length){
+    document.paragraph(period.termName+' - Detalle de evaluaciones',{size:10,strong:true});
+    document.table(['Evaluación','Nota','Peso'],period.assessments.map(item=>[item.title,item.exempt?'Exento':item.qualitative||`${item.score??'Pendiente'} / ${item.maxScore}`,String(item.weight)]),[270,147,90]);
+   }
+   for(const dimension of period.total.dimensions||[])document.paragraph(`${period.termName} - ${dimension.code}: ${dimension.score??'Pendiente'} / ${dimension.max}`,{size:9});
+   for(const item of period.total.qualitative||[])document.paragraph(`${period.termName} - ${item.title}: ${item.value||'Pendiente'}`,{size:9});
+  }
+ }
+ return document.save();
+}

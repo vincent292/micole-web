@@ -29,7 +29,7 @@ export function useAcademicPlanning<T>(
       "students",
       "school_calendar_days", "school_calendar_announcements",
       "student_attendance_sessions", "student_attendance_records", "student_attendance_corrections", "enrollment_history",
-      "school_memberships",
+      "school_memberships", "school_grades", "institution_academic_settings", "student_observations", "subject_posts", "subject_attendance",
       "school_charges",
       "school_payments",
       "platform_credit_accounts",

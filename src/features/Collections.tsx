@@ -1,3 +1,4 @@
+import {canCollectPayments} from '../lib/academicWorkspace';
 import {AccountStatementButton,PaymentEvidencePanel,InvoiceAttachments} from './FinancialRecords';
 import {recordView} from '../lib/financialApi';
 import {publicDemo} from '../lib/demo-config';
@@ -19,7 +20,7 @@ function exportCsv(name:string,headers:string[],rows:(string|number)[][]) {
  const url=URL.createObjectURL(new Blob([csvContent(headers,rows)],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 type Selection={chargeId:string;amount:number}[];
-export function Collections({store,school,role,students,student}:PageProps) {
+export function Collections({store,school,role,students,student,identity}:PageProps) {
  const location=useLocation(),params=new URLSearchParams(location.search);
  const [chosenStudent,setChosenStudent]=useState(params.get('student')||student?.id||students[0]?.id||'');
  const selectedChild=students.find(s=>s.id===(role==='guardian'?student?.id:chosenStudent));
@@ -36,7 +37,7 @@ export function Collections({store,school,role,students,student}:PageProps) {
  const items=available.filter(c=>selected[c.id]!==undefined).map(c=>({chargeId:c.id,amount:selected[c.id]==='__balance'?chargeBalance(c):Number(selected[c.id])}));
  const total=items.reduce((sum,item)=>sum+Math.round(item.amount*100),0)/100;
  const receipts=store.data.schoolReceipts.filter(r=>r.schoolId===school?.id&&(role==='guardian'?r.studentId===student?.id:(!childId||r.studentId===childId))&&(methodFilter==='all'||r.paymentMethod===methodFilter)).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
- const canConfirm=role==='director'||role==='teacher';
+ const canConfirm=canCollectPayments(role,identity,school?.id)||role==='teacher';
  const selectedInvoiceCharge=visible.find(c=>selected[c.id]!==undefined&&c.invoiceName);
  function prepare(type:'record'|'link') {
   setError('');setNotice('');setPaymentLink('');

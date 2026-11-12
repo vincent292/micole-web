@@ -255,3 +255,109 @@ it('reconoce alumnos existentes por identificador con lista mínima sin vincular
  const rows=await rpc('import_registration_roster',[campaign,roomA,JSON.stringify([{id:id(300),firstName:'Ana María',rude:'000123'}])]);
  expect(rows[0]).toMatchObject({studentId:child,newStudent:false,seed:{firstName:'Ana María',lastName:'Pérez López'}});
 });
+
+// Academic administration and subject isolation use the same complete migration history.
+async function enableSecretary(collect=false){await rpc('save_secretary_access',[school,'stranger@test.bo',true,collect]);}
+async function academicFixture(){
+ await q("insert into teacher_classrooms(school_id,teacher_id,classroom_id) values($1,$2,$3) on conflict do nothing",[school,id(50),roomA]);
+ await rpc('set_classroom_tutor',[roomA,id(50)]);
+ await q("insert into auth.users(id,email,email_confirmed_at) values($1,'subject-other@test.bo',now())",[id(8)]);
+ await q("insert into school_memberships(school_id,user_id,role) values($1,$2,'teacher')",[school,id(8)]);
+ await q("insert into teachers(id,school_id,user_id,name,email,status) values($1,$2,$3,'Otro docente','subject-other@test.bo','active')",[id(52),school,id(8)]);
+ await q('insert into teacher_classrooms(school_id,teacher_id,classroom_id) values($1,$2,$3)',[school,id(52),roomA]);
+ const math=await rpc('configure_class_subject',[roomA,'Matemáticas',[id(50)],true]);
+ const history=await rpc('configure_class_subject',[roomA,'Historia',[id(52)],true]);
+ await rpc('create_registration_application',[id(300),campaign,roomA,JSON.stringify(seed(300)),false,null]);
+ const app=await rpc('save_registration_form',[id(300),null,JSON.stringify(profile),true,1,true]);
+ await q("insert into school_memberships(school_id,user_id,role) values($1,$2,'guardian') on conflict do nothing",[school,mother]);
+ await q("insert into student_guardians(student_id,user_id,relationship,verified_at,can_view) values($1,$2,'mother',now(),true) on conflict do nothing",[app.studentId,mother]);
+ await rpc('pay_registration',[id(300),'cash',null,true]);
+ return {math,history,student:app.studentId};
+}
+it('Secretaría organiza grados, paralelos y materias sin recibir rol de Dirección ni cobros implícitos',async()=>{
+ await enableSecretary();const identity=await rpc('workspace_identity',[],stranger);
+ expect(identity.secretarySchoolIds).toContain(school);expect(identity.collectionSchoolIds).not.toContain(school);
+ expect(await rpc('has_school_role',[school,['director']],stranger)).toBe(false);
+ const gid=await rpc('save_school_grade',[school,id(600),year,'Sala de cinco','Inicial','initial'],stranger);
+ const parallel=await rpc('save_academic_parallel',[gid,id(601),'Blanco',id(50),30,'Mañana'],stranger);
+ expect((await q('select grade_id,parallel_name,tutor_teacher_id from classrooms where id=$1',[parallel])).rows[0]).toMatchObject({grade_id:gid,parallel_name:'Blanco',tutor_teacher_id:id(50)});
+ await expect(rpc('configure_class_subject',[parallel,'Lenguaje',[id(50)],true],stranger)).resolves.toBeTruthy();
+ await expect(rpc('save_school_grade',[other,id(602),year,'Ajeno','Inicial',null],stranger)).rejects.toThrow('Secretaría');
+ expect((await rpc('registration_workspace',[school],stranger)).canManage).toBe(true);
+ expect((await rpc('registration_workspace',[school],stranger)).canCollect).toEqual([]);
+ await expect(rpc('save_secretary_access',[school,'teacher@test.bo',true,true],stranger)).rejects.toThrow('Solo Dirección');
+});
+it('activar y revocar cobros de Secretaría se aplica en el servidor a cada operación',async()=>{
+ await enableSecretary();await create(100);const app=await rpc('save_registration_form',[id(100),null,JSON.stringify(profile),true,1,true]);
+ await expect(rpc('pay_registration',[id(100),'cash',null,true],stranger)).rejects.toThrow('autorizado');
+ expect((await as(stranger,()=>q('select count(*)::int n from school_charges'))).rows[0].n).toBe(0);
+ await enableSecretary(true);expect((await rpc('workspace_identity',[],stranger)).collectionSchoolIds).toContain(school);
+ expect((await as(stranger,()=>q('select count(*)::int n from school_charges'))).rows[0].n).toBe(1);
+ const charge=(await q('select charge_id from aulanexo_private.registration_applications where id=$1',[id(100)])).rows[0].charge_id;
+ await expect(rpc('checkout_school_payment',[id(605),app.studentId,JSON.stringify([{chargeId:charge,amount:1}]),'cash','SECRETARIA-TEST',JSON.stringify({}),false],stranger)).resolves.toBeTruthy();
+ await rpc('save_secretary_access',[school,'stranger@test.bo',false,false]);
+ await expect(rpc('registration_workspace',[school],stranger)).rejects.toThrow('habilitarte');
+ await expect(rpc('school_cashier_for_student',[app.studentId],stranger)).resolves.toBe(false);
+});
+it('el seguimiento de una materia llega a tutoría, Dirección y la familia, sin edición por otro profesor',async()=>{
+ const {math,history,student}=await academicFixture();
+ const observation=await rpc('save_student_observation',[id(610),student,history,'positive','Excelente participación.',null],id(8));
+ expect(await rpc('observation_visible',[observation],teacher)).toBe(true);
+ expect(await rpc('observation_visible',[observation],mother)).toBe(true);
+ expect(await rpc('observation_visible',[observation],stranger)).toBe(false);
+ await expect(rpc('save_student_observation',[id(611),student,history,'incident','Observación ajena.',null],teacher)).rejects.toThrow('propia materia');
+ await expect(rpc('save_student_observation',[id(610),student,history,'positive','Texto alterado.',null],id(8))).rejects.toThrow('referencia');
+ const observations=await rpc('student_observation_workspace',[null,student,null],mother);expect(observations).toHaveLength(1);
+ const notices=(await q("select user_id from notifications where kind='student_observation' and source_id=$1",[observation])).rows.map((r:any)=>r.user_id);
+ expect(notices).toContain(teacher);expect(notices).toContain(mother);expect(notices).toContain(director);expect(notices).not.toContain(stranger);
+});
+it('cada materia tiene publicaciones y mensajes privados del alumno correspondiente',async()=>{
+ const {math,history,student}=await academicFixture();
+ await rpc('save_subject_post',[id(620),math,null,'notice','Aviso de Matemáticas','Práctica para la próxima clase.',null],teacher);
+ await expect(rpc('save_subject_post',[id(621),history,null,'notice','Ajeno','Intento fuera de mi materia.',null],teacher)).rejects.toThrow('Solo el docente');
+ await rpc('save_subject_post',[id(622),math,student,'message','Consulta familiar','Tengo una consulta de la tarea.',null],mother);
+ const family=await rpc('subject_feed_workspace',[math,student],mother);expect(family.posts).toHaveLength(2);expect(family.canWrite).toBe(false);
+ await expect(rpc('subject_feed_workspace',[math,student],stranger)).rejects.toThrow('acceso');
+ expect((await rpc('subject_feed_workspace',[history,student],teacher)).canWrite).toBe(false);
+});
+it('la asistencia por materia separa fecha y clase, valida nómina y conserva revisiones',async()=>{
+ const {math,history,student}=await academicFixture();
+ const day=(await q("select to_char(now() at time zone 'America/La_Paz','YYYY-MM-DD') as attendance_day")).rows[0].attendance_day;
+ const workspace=await rpc('subject_attendance_workspace',[math,day,'08:00',null],teacher);
+ const rows=workspace.roster.map((s:any)=>({studentId:s.student_id,status:'present',note:''}));
+ expect(rows.length).toBeGreaterThan(0);
+ await expect(rpc('save_subject_attendance',[history,day,'08:00',JSON.stringify(rows),0,true],teacher)).rejects.toThrow('Solo el docente');
+ await rpc('save_subject_attendance',[math,day,'08:00',JSON.stringify(rows),0,false],teacher);
+ await expect(rpc('save_subject_attendance',[math,day,'08:00',JSON.stringify(rows),0,true],teacher)).rejects.toThrow('cambió');
+ await rpc('save_subject_attendance',[math,day,'08:00',JSON.stringify(rows),1,true],teacher);
+ const family=await rpc('subject_attendance_workspace',[math,day,'08:00',student],mother);expect(family.roster).toEqual([]);expect(family.records).toEqual(rows.filter((r:any)=>r.studentId===student));
+});
+it('el tablero de Dirección está limitado al colegio y conserva datos incompletos',async()=>{
+ const {math,student}=await academicFixture();
+ const from=year+'-01-01',to=year+'-12-31';
+ const dashboard=await rpc('institution_dashboard',[from,to,'month',school,null,'all']);
+ expect(dashboard.schools.every((s:any)=>s.id===school)).toBe(true);
+ await expect(rpc('institution_dashboard',[from,to,'month',other,null,'all'])).rejects.toThrow('Solo Dirección');
+ await expect(rpc('institution_dashboard',[from,to,'month',school,null,'all'],teacher)).rejects.toThrow('Solo Dirección');
+ const own=await rpc('teacher_academic_dashboard',[school],teacher);expect(own.subjects.map((s:any)=>s.id)).toEqual([math]);expect(own.tutorRooms.map((r:any)=>r.id)).toContain(roomA);
+});
+it('el consolidado conserva el método de cálculo, las notas faltantes y el umbral institucional',async()=>{
+ const {math,history,student}=await academicFixture();
+ const academicYear=(await q('select id from academic_years where school_id=$1 and year=$2',[school,year])).rows[0].id;
+ await q("insert into academic_terms(id,school_id,year_id,name,starts_on,ends_on) values($1,$2,$3,'Primer período',$4,$5)",[id(700),school,academicYear,year+'-01-01',year+'-12-31']);
+ for(const [assessment,subject] of [[id(701),math],[id(702),history]])await q("insert into assessments(id,school_id,term_id,classroom_id,class_subject_id,title,assessment_date,max_score,weight,created_by) values($1,$2,$3,$4,$5,'Evaluación',$6,100,1,$7)",[assessment,school,id(700),roomA,subject,year+'-05-01',teacher]);
+ await q('insert into assessment_scores(school_id,assessment_id,student_id,score,updated_by) values($1,$2,$3,45,$4)',[school,id(701),student,teacher]);
+ await rpc('save_institution_pass_mark',[school,60,0]);
+ const summary=await rpc('student_academic_summary',[student],teacher);
+ expect(summary.passMark).toBe(60);expect(summary.subjects.find((s:any)=>s.id===math).periods[0].total.score).toBe(45);
+ expect(summary.subjects.find((s:any)=>s.id===history).periods[0].total.missing).toBeGreaterThan(0);
+ await expect(rpc('student_academic_summary',[student],id(8))).rejects.toThrow('Solo tutoría');
+ const family=await rpc('student_academic_summary',[student],mother);expect(family.publishedOnly).toBe(true);expect(family.subjects).toBeUndefined();
+ const dashboard=await rpc('institution_dashboard',[year+'-01-01',year+'-12-31','month',school,null,'all']);expect(dashboard.summary.studentsAtRisk).toBe(1);
+});
+it('Secretaría invita docentes de su institución y no puede conceder Dirección ni enlazar alumnos ajenos',async()=>{
+ await enableSecretary();
+ await expect(rpc('create_invitation',[JSON.stringify({school_id:school,teacher_id:id(50),email:'teacher@test.bo',role:'teacher'})],stranger)).resolves.toMatch(/^[a-f0-9]{64}$/);
+ await expect(rpc('create_invitation',[JSON.stringify({school_id:school,email:'stranger@test.bo',role:'director'})],stranger)).rejects.toThrow('rol');
+ await expect(rpc('create_invitation',[JSON.stringify({school_id:school,email:'mother@test.bo',student_id:id(999),role:'guardian'})],stranger)).rejects.toThrow('institución');
+});

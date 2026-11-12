@@ -109,7 +109,7 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
   return (
     <>
       <FormSection title="Niveles de esta sede"><p>Las reglas de colegio se aplican a aulas de primaria/secundaria. Inicial y guardería conservan su funcionamiento.</p><div className="checkbox-grid">{educationLevels.map(level=><label className="check-field" key={level}><input type="checkbox" name="educationLevels" value={level} defaultChecked={institution?.educationLevels?.includes(level)}/>{level}</label>)}</div>
-        <Field label="Modo de trabajo" name="workspaceMode"><select name="workspaceMode" defaultValue={institution?.workspaceMode || "auto"}>{workspaceModes.map(mode => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></Field>
+        <Field label="Tipo de institución" name="workspaceMode"><select name="workspaceMode" defaultValue={institution?.workspaceMode || "school"}>{workspaceModes.filter(mode => mode.value!=="auto" || institution?.workspaceMode==="auto").map(mode => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></Field>
         <p className="muted">El modo kínder da prioridad a la jornada, los cuidados y las familias. Las otras herramientas siguen disponibles en Más opciones. Automático usa este modo cuando todos los niveles de la sede son de educación infantil.</p>
       </FormSection>
       <FormSection title="Logo y portada">

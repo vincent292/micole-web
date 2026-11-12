@@ -34,6 +34,8 @@ export interface School {
   activeStudentCount?: number;
 }
 export interface Classroom {
+  gradeId?: string;
+  parallelName?: string;
   boliviaRegular?: boolean;
   tutorTeacherId?: string;
   subjectsEnabled?: boolean;
@@ -449,6 +451,8 @@ export interface SupportAccount {
   role: Exclude<Role, "superadmin">;
 }
 export interface Identity {
+  secretarySchoolIds?: string[];
+  collectionSchoolIds?: string[];
   testing?: boolean;
   canSupport?: boolean;
   support?: SupportSession;

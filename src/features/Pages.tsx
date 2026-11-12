@@ -1,3 +1,5 @@
+import {isClassroomTutor} from '../lib/tutoring';
+import {isAcademicAdministrator} from '../lib/academicWorkspace';
 import { useCoordination } from "../lib/useTutoring";
 import { canManageAssignment } from "../lib/learning";
 import { interviewCalendar } from "../lib/tutoring";
@@ -136,7 +138,7 @@ export function Directory({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const data = store.data,
-    canEdit = role === "director" || role === "superadmin";
+    canEdit = isAcademicAdministrator(role,identity,school?.id) || role === "superadmin";
   const teachers = data.teachers.filter((t) => t.schoolId === school?.id);
   const rooms = data.classrooms.filter(
     (c) =>
@@ -172,7 +174,7 @@ export function Directory({
             <Button
               icon={Plus}
               onClick={() =>
-                open(
+                page === "students" ? go("enrollment") : open(
                   page === "schools"
                     ? "school"
                     : page === "teachers"
@@ -283,10 +285,11 @@ export function Directory({
                     </td>
                     <td>
                       <div className="table-actions">
-                        {school&&['director','teacher'].includes(role)&&<button className="mini-btn" onClick={()=>go(`enrollment?classroom=${encodeURIComponent(s.classroomId)}&student=${encodeURIComponent(s.id)}`)}>Generar QR de inscripción</button>}
+                        {(role==='director'||isClassroomTutor(data,identity,role,s.classroomId))&&<button className="mini-btn" onClick={()=>go(`classrooms?classroom=${s.classroomId}&tab=records&student=${s.id}`)}>Ver notas y PDF</button>}
+                        {school&&['director','teacher','scheduler'].includes(role)&&<button className="mini-btn" onClick={()=>go(`enrollment?classroom=${encodeURIComponent(s.classroomId)}&student=${encodeURIComponent(s.id)}`)}>Generar QR de inscripción</button>}
                         <button className="mini-btn" onClick={()=>go(`studentRecord?student=${encodeURIComponent(s.id)}`)}>Ver expediente</button>
                         <button className="mini-btn" onClick={()=>open("emergency",s)}>Emergencias</button>
-                        {canEdit && (
+                        {canEdit && role !== "scheduler" && (
                           <>
                             <button
                               className="icon-button"

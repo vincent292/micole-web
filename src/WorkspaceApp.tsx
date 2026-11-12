@@ -1,3 +1,7 @@
+import {TeacherHome, SecretaryHome} from './features/TeacherHome';
+import {InstitutionDashboard} from './features/InstitutionDashboard';
+import {AcademicAdministration} from './features/AcademicAdministration';
+import {isAcademicAdministrator, canCollectPayments} from './lib/academicWorkspace';
 import {BoliviaSchool} from './features/BoliviaSchool';
 import {schoolRoom} from './lib/bolivia';
 import {Timetables} from './features/Timetables';
@@ -107,7 +111,7 @@ import {Gradebook} from "./features/GradeSheet";
 import { Reports } from "./features/Reports";
 import "./styles/kinder-navigation.css";
 const roleNames: Record<Role, string> = {
-  scheduler: "Secretaría académica",
+  scheduler: "Secretaría",
   superadmin: "Superadministración",
   director: "Dirección",
   teacher: "Docente",
@@ -159,7 +163,7 @@ const nav: {
   hidden?: boolean;
 }[] = [
   {key:'identityStudio',label:'Identidad y documentos',icon:Building2,roles:['director'],group:'ADMINISTRACIÓN'},
-  {key:'enrollment',label:'Inscripciones',icon:ClipboardList,roles:['director','teacher'],group:'ADMINISTRACIÓN'},
+  {key:'enrollment',label:'Inscripciones',icon:ClipboardList,roles:['director','teacher','scheduler'],group:'ADMINISTRACIÓN'},
   {key:'credentials',label:'Carnets escolares',icon:GraduationCap,roles:['director'],group:'ADMINISTRACIÓN'},
   {key:"bolivia",label:"Gestión educativa Bolivia",icon:BookOpen,roles:["director","teacher"],group:"TU ESPACIO"},
   {key:"timetables",label:"Horarios de clases",icon:CalendarDays,roles:["director","scheduler","teacher","guardian","student"],group:"TU ESPACIO"},
@@ -396,7 +400,7 @@ function Workspace({
   const [demoSupport, setDemoSupport] = useState<SupportSession | null>(null);
   const [supportBusy, setSupportBusy] = useState(false);
   const [demoAccount, setDemoAccount] = useState<SupportAccount | null>(null);
-  const [studentId, setStudentId] = useState("a1");
+  const [studentId, setStudentId] = useState(() => new URLSearchParams(location.search).get("student") || "a1");
   const [modal, setModal] = useState<{ type: string; id?: string } | null>(
     null,
   );
@@ -499,10 +503,11 @@ function Workspace({
   const needsProfile =
     !paymentBypass && role === "guardian" && !!student && !student.profileComplete;
   const requestedPage = location.pathname.split("/")[2] || "overview";
-  const page = role === "scheduler" ? "timetables" : requestedPage === "imports" ? "admissionForms" : requestedPage;
+  const page = role === "scheduler" && !identity.secretarySchoolIds?.includes(school?.id || '') ? "timetables" : requestedPage === "imports" ? "admissionForms" : requestedPage;
   const navItems = nav.filter(
     (n) =>
-      n.roles.includes(role) &&
+      (n.roles.includes(role) || isAcademicAdministrator(role,identity,school?.id) && ['overview','classrooms','teachers','students','subjects','enrollment','admissionForms','calendarImport','settings'].includes(n.key) || canCollectPayments(role,identity,school?.id) && n.key === 'cash') &&
+      (n.key !== 'care' || isKinderWorkspace(school)) &&
       (!['identityStudio','credentials'].includes(n.key)||!!school?.appearance) &&
       (n.key !== "bolivia" || store.data.classrooms.some(r => r.schoolId === school?.id && schoolRoom(r,school))) &&
       (!startupLocked||startupAllowed.includes(n.key))&&
@@ -511,7 +516,7 @@ function Workspace({
       (!needsProfile || ["overview", "payments", "cash", "invoices", "family", "studentAttendance", "studentRecord", "interviews"].includes(n.key)),
   );
   const kinderMode = !isPlatform && ["director", "teacher", "guardian"].includes(role) && isKinderWorkspace(school);
-  const visibleNav = navItems.filter(n => n.key !== "calendarImport" && (!n.hidden || role === "guardian" && n.key === "studentRecord"));
+  const visibleNav = navItems.filter(n => !(liveMode && ['director','teacher','scheduler'].includes(role) && ['subjects','assignments','gradebook','grades','journal','care'].includes(n.key)) && n.key !== "calendarImport" && (!n.hidden || role === "guardian" && n.key === "studentRecord"));
   const kinderNav = kinderNavigation(visibleNav, role);
   const validPage = startupLocked ? (startupAllowed.includes(page)?page:role==="director"?"credit":startupAllowed[0]) : studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
     ? (["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(page) ? page : "payments")
@@ -542,7 +547,7 @@ function Workspace({
         role === "superadmin" ||
         role === "director" ||
         students.some((s) => s.id === n.studentId)) &&
-      (navItems.some((item) => item.key === n.target) ||
+      (navItems.some((item) => item.key === n.target.split("?")[0]) ||
         (locked && n.kind === "payment") || isAnnouncementNotice(n.kind)),
   ).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length;
@@ -856,7 +861,7 @@ function Workspace({
                       }, "");
                     }}
                   >
-                    <span className="row-icon">
+                    <span className={`row-icon ${n.kind==='student_observation'?(n.title.startsWith('Reconocimiento')?'observation-notice-positive':'observation-notice-incident'):''}`}>
                       <AlertIcon notice={n} size={18}/>
                     </span>
                     <span>
@@ -989,7 +994,7 @@ function Workspace({
                 {validPage === "overview"
                   ? isPlatform
                     ? "Resumen de plataforma"
-                    : "Tu día, de un vistazo"
+                    : role === 'director' ? 'Tablero de Dirección' : role === 'teacher' ? 'Mi jornada docente' : role === 'scheduler' ? 'Gestión de Secretaría' : "Tu día, de un vistazo"
                   : currentPageLabel}
               </h1>
               <p>
@@ -1083,8 +1088,11 @@ function Workspace({
                   onTest={startTest}
                 />
               )}
+              {validPage === 'overview' && liveMode && role === 'teacher' && <TeacherHome {...props}/>}
+              {validPage === 'overview' && role === 'scheduler' && <SecretaryHome {...props}/>}
+              {validPage === 'overview' && liveMode && role === 'director' && <InstitutionDashboard {...props}/>}
               {validPage === "overview" && role === "student" && <StudentOverview {...props} /> }
-              {validPage === "overview" && !isPlatform && role !== "student" && (
+              {validPage === "overview" && !isPlatform && role !== "student" && (!liveMode || role !== "director" && role !== "teacher" && role !== "scheduler") && (
                 <Overview
                   data={store.data}
                   school={school}
@@ -1129,6 +1137,7 @@ function Workspace({
               {validPage === "sites" && <InstitutionSites {...props} onIdentityChanged={refreshIdentity} onChoose={id=>{setSchoolId(id);setStudentId("");go("overview");}}/>}
               {["admissionForms","calendarImport"].includes(validPage) && <DocumentImports key={`${school?.id}:${validPage}`} {...props} documentKind={validPage==="admissionForms"?"form":"calendar"}/>}
               {["staffAttendance","staffPayroll"].includes(validPage) && <StaffWorkspaceScreen key={`${school?.id}:${validPage}`} {...props} view={validPage as "staffAttendance"|"staffPayroll"}/>}
+              {validPage === 'settings' && liveMode && role === 'director' && school && <AcademicAdministration {...props}/>}
               {validPage === "onboarding" && <Onboarding {...props} />}
               {validPage === "classrooms" && <ClassroomEntry {...props}/>}
               {validPage === "studentRecord" && <StudentRecord {...props}/>}
@@ -1158,7 +1167,7 @@ function Workspace({
               {validPage === "reports" && ["superadmin", "director"].includes(role) && <Reports {...props} />}
               {validPage === "schoolMetrics" && isPlatform && <SchoolMetrics {...props} />}
               {validPage==='identityStudio'&&role==='director'&&school?.appearance&&<InstitutionStudio key={school.id} {...props}/>}
-              {validPage==='enrollment'&&school&&['director','teacher'].includes(role)&&<VirtualEnrollment key={school.id} {...props}/>}
+              {validPage==='enrollment'&&school&&['director','teacher','scheduler'].includes(role)&&<VirtualEnrollment key={school.id} {...props}/>}
               {validPage==='credentials'&&role==='director'&&school?.appearance&&<SchoolCredentials key={school.id} {...props}/>}
               {!school && !isPlatform && validPage !== "schools" && (
                 <div className="soft-note">

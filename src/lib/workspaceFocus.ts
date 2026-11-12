@@ -3,6 +3,9 @@ import { studentAccess, today } from "./billing";
 import { ownerPaymentAccess } from "./support-access";
 export const classroomTabs = {
   today: "Tu jornada",
+  subject: "Materia",
+  followup: "Seguimiento",
+  records: "Consolidado de notas",
   students: "Alumnos",
   tutoring: "Tutoría",
   interviews: "Entrevistas",
@@ -18,11 +21,13 @@ export const classroomTabs = {
 export type ClassroomTab = keyof typeof classroomTabs;
 export const studentTabs = {
   summary: "Resumen",
+  followup: "Seguimiento",
   health: "Salud y emergencias",
   family: "Familia y recojos",
   attendance: "Asistencia",
   documents: "Documentos",
   learning: "Seguimiento",
+  subjects: "Materias",
   tutoring: "Tutoría",
   account: "Cuotas y recibos",
   invoices: "Facturas",
@@ -37,7 +42,7 @@ export function schoolRooms(
   return data.classrooms.filter(
     (r) =>
       r.schoolId === schoolId &&
-      (role === "director" ||
+      (role === "director" || role === "scheduler" && !!identity.secretarySchoolIds?.includes(r.schoolId) ||
         (role === "teacher" &&
           r.teacherIds.some((t) => identity.teacherIds.includes(t)))),
   );
@@ -58,6 +63,7 @@ export function canReadRecord(
       (identity.support?.schoolId === schoolId &&
         identity.support.role === "director")
     );
+  if (role === "scheduler") return !!identity.secretarySchoolIds?.includes(schoolId || "");
   if (role === "teacher")
     return schoolRooms(data, schoolId, role, identity).some(
       (r) => r.id === child.classroomId,
@@ -77,7 +83,7 @@ export function recordAcademicAccess(
   );
 }
 export function recordTabs(role: Role) {
-  return (Object.keys(studentTabs) as StudentTab[]).filter(k=>k!=="tutoring"||role==="teacher"||role==="director").filter(
+  return (Object.keys(studentTabs) as StudentTab[]).filter(k=>k!=="subjects"||role==="guardian").filter(k=>k!=="tutoring"||role==="teacher"||role==="director").filter(
     (k) =>
       role !== "teacher" || !["documents", "account", "invoices"].includes(k),
   );
@@ -105,7 +111,7 @@ export function focusData(
     ...data,
     classrooms: [room],
     students: children,
-    teachers: data.teachers.filter((t) => room.teacherIds.includes(t.id)),
+    teachers: data.teachers.filter((t) => (role === "director" || role === "scheduler") ? t.schoolId === room.schoolId : room.teacherIds.includes(t.id)),
     classSubjects: subjects,
     subjectTeachers: data.subjectTeachers.filter((s) =>
       subjectIds.has(s.classSubjectId),

@@ -254,14 +254,15 @@ describe("materias y entregas privadas", () => {
         .rows[0].subjects_enabled,
     ).toBe(true);
   });
-  it("solo Dirección administra materias y no acepta docentes de otra aula", async () => {
+  it("la administración vincula al docente con su paralelo y rechaza otras instituciones", async () => {
     for (const user of [owner, teacher, mother, kid, stranger])
       await expect(configure("Lenguaje", [], room, user)).rejects.toThrow(
         /Solo Dirección/,
       );
-    await expect(configure("Lenguaje", [id(50)], otherRoom)).rejects.toThrow(
-      /vinculados/,
-    );
+    await expect(configure("Lenguaje", [id(50)], otherRoom)).resolves.toBeTruthy();
+    expect((await q('select count(*)::int n from teacher_classrooms where teacher_id=$1 and classroom_id=$2',[id(50),otherRoom])).rows[0].n).toBe(1);
+    await q("insert into teachers(id,school_id,name,email,status) values($1,$2,'Docente externo','externo@test.bo','active')",[id(51),otherSchool]);
+    await expect(configure('Materia externa',[id(51)],room)).rejects.toThrow(/institución/);
     await expect(
       acting(teacher, () =>
         q("select set_class_subjects_enabled($1,true)", [room]),

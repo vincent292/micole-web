@@ -5,7 +5,7 @@ export const dimensions = {
   self: "Autoevaluación · 5",
 };
 export const gradeOptions = [
-  { value: "initial", label: "Inicial / kínder" },
+  { value: "initial", label: "Inicial" },
   ...["primary", "secondary"].flatMap((level) =>
     Array.from({ length: 6 }, (_, i) => ({
       value: `${level}${i + 1}`,
