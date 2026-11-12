@@ -1,3 +1,4 @@
+import {StudentKardex} from "./StudentKardex";
 import {liveMode} from '../lib/supabase';
 import {AcademicStructure} from './AcademicStructure';
 import {SubjectCenter, FamilySubjects} from './SubjectCenter';
@@ -220,7 +221,7 @@ export function StudentRecord(p: PageProps) {
         : params.get("student") || p.student?.id;
   const child = p.students.find((s) => s.id === requestedId),
     room = p.store.data.classrooms.find((r) => r.id === child?.classroomId);
-  const tabs = recordTabs(p.role).filter(key=>liveMode||!["followup","subjects"].includes(key)).filter(key=>key!=="tutoring"||p.role==="director"||(room&&isClassroomTutor(p.store.data,p.identity,p.role,room.id))),
+  const tabs = recordTabs(p.role).filter(key=>liveMode||!["followup","subjects","kardex"].includes(key)).filter(key=>key!=="tutoring"||p.role==="director"||(room&&isClassroomTutor(p.store.data,p.identity,p.role,room.id))),
     requested = params.get("tab") || "summary",
     tab = tabs.includes(requested as StudentTab)
       ? (requested as StudentTab)
@@ -309,6 +310,7 @@ export function StudentRecord(p: PageProps) {
         onChange={setTab}
       />
       <div className="focus-content" key={`${child.id}:${tab}`}>
+        {tab === "kardex" && <StudentKardex {...focused}/> }
         {tab === "followup" && <AcademicFollowup {...focused} childId={child.id}/> }
         {tab === "subjects" && <FamilySubjects {...focused}/> }
         {tab === "summary" && (

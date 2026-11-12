@@ -5,12 +5,13 @@ export function useAcademicPlanning<T>(
   method: string,
   args: Record<string, unknown>,
   school?: string,
+  watchTables?: readonly string[],
 ) {
   const key = JSON.stringify([method, args]),
     [version, setVersion] = useState(0),
     [result, setResult] = useState<{ key: string; data?: T; error?: string }>();
   const live = useWorkspaceRevision(
-    [
+    watchTables ? ["school_memberships", "student_guardians", "teacher_classrooms", "subject_teachers", "timetable_delegates", "school_charges", "school_payments", "platform_credit_accounts", ...watchTables] : [
       "bolivia_school_profiles",
       "bolivia_pedagogical_documents",
       "timetable_versions",
@@ -29,7 +30,7 @@ export function useAcademicPlanning<T>(
       "students",
       "school_calendar_days", "school_calendar_announcements",
       "student_attendance_sessions", "student_attendance_records", "student_attendance_corrections", "enrollment_history",
-      "school_memberships", "school_grades", "institution_academic_settings", "student_observations", "subject_posts", "subject_attendance",
+      "registration_campaigns", "registration_applications", "school_memberships", "school_grades", "institution_academic_settings", "student_observations", "subject_posts", "subject_attendance",
       "school_charges",
       "school_payments",
       "platform_credit_accounts",

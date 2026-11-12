@@ -2,6 +2,7 @@ import type { Collection } from "./types";
 const learning: Collection[] = ["subjects", "classSubjects", "subjectTeachers", "assignments", "submissions", "assignmentFiles"];
 const finance: Collection[] = ["charges", "schoolReceipts", "invoiceRequests", "students"];
 const changes: Record<string, Collection[]> = {
+  student_history_events: [],
   school_grades: ["classrooms"], institution_academic_settings: [], student_observations: [], subject_posts: [], subject_attendance: [], timetable_delegates: [],
   bolivia_school_profiles: [], bolivia_pedagogical_documents: [],
   timetable_versions: [], academic_class_policies: [], academic_reinforcements: [], academic_reinforcement_changes: [], promotion_batches: [],

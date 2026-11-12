@@ -1,0 +1,8 @@
+export const kardexKinds = {all:'Todo el historial',enrollment:'Inscripciones y cursos',administrative:'Cambios de ficha',attendance:'Asistencia y correcciones',academic:'Notas y libretas',followup:'Seguimiento',documents:'Documentos',payments:'Pagos',care:'Cuidados',requests:'Permisos y recojos'} as const;
+export type KardexKind=keyof typeof kardexKinds;
+export interface KardexEvent {key:string;at:string;kind:Exclude<KardexKind,'all'>;title:string;body:string;classroom:string|null;year:number|null;details:Record<string,unknown>}
+export interface StudentKardex {studentId:string;studentName:string;currentStatus:string;years:number[];events:KardexEvent[];hasMore:boolean;next:{at:string;key:string}|null;academicAvailable:boolean;financialAvailable:boolean}
+export function kardexDetail(event:KardexEvent){
+ const d=event.details,labels:Record<string,string>={present:'Presente',absent:'Falta',late:'Tardanza',excused:'Con permiso',enrolled:'Inscrito',completed:'Gestión completada',transferred:'Trasladado',withdrawn:'Retirado',pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado'};
+ return [d.status?labels[String(d.status)]||String(d.status):'',d.previousStatus?`Anterior: ${labels[String(d.previousStatus)]||d.previousStatus}`:'',d.exempt?'Exento':d.qualitative?String(d.qualitative):d.maxScore!=null?`${d.score??'Pendiente'} / ${d.maxScore}`:'',d.previousScore!=null?`Nota anterior: ${d.previousScore}`:'',d.weight!=null?`Peso ${d.weight}`:'',d.total!=null?`Bs ${Number(d.total).toFixed(2)}`:'',d.method?({cash:'Efectivo',qr:'QR',transfer:'Transferencia'}[String(d.method)]||String(d.method)):'',d.revoked?'Libreta revocada':'',d.hasPhoto?'Foto disponible en Seguimiento':''].filter(Boolean).join(' · ');
+}

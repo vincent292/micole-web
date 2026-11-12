@@ -1,3 +1,19 @@
+# Kárdex del 12 de noviembre · APK 24
+
+Paquete actual: `output/apk/micole-kardex-v24.apk`, compilado localmente para ARM64/ARMv7 y firmado con el certificado original. Incorpora el kárdex por alumno, filtros, PDF y asistencia optimizada por lote. Instalación pendiente por ausencia de un Android conectado. Ver `docs/KARDEX-Y-ASISTENCIA-POR-LOTE.md` y `output/qa/2026-11-12-kardex/apk24.json`. Firma reproducible: `node scripts/sign-kardex-apk.mjs`.
+
+Las entregas anteriores se conservan como historial.
+
+# Actualización del 12 de noviembre: organización académica · APK 23
+
+Paquete actual: `output/apk/micole-organizacion-academica-v23.apk`. Se compiló localmente para ARM64 y ARMv7, con `versionCode=23`, y se firmó con el mismo certificado de las instalaciones anteriores. No se usaron compilaciones en la nube. No había un Android conectado; la instalación física está pendiente.
+
+Incluye los tableros por rol, Secretaría con permiso independiente de cobros, grados y paralelos, centros de materia, asistencia de cada clase, seguimiento con foto, consolidado PDF e inscripciones con QR y lectura de Excel/PDF. Conserva Mica. Detalles: `docs/ORGANIZACION-ACADEMICA-MOVIL.md`.
+
+Firma reproducible desde este repositorio: `node scripts/sign-native-academic-apk.mjs`. Solo utiliza la clave privada ya configurada fuera del proyecto y no imprime contraseñas. Informe: `output/qa/2026-11-12-native-academic-workspaces/apk23.json`.
+
+Las entregas anteriores se conservan debajo como historial.
+
 # Actualización responsiva del 3 de noviembre: APK 22
 
 La entrega actual es `output/apk/micole-asistencia-comoda-v22.apk`, compilada y firmada localmente con la lista diaria amplia, nombres completos y hoja semanal opcional. La copia aislada fija `versionCode=22`; se firma desde la raíz web con `node scripts/sign-local-attendance-apk.mjs 22`. Certificado original comprobado, sin compilaciones en la nube. Instalación pendiente por falta de un Android conectado. Huella y evidencias: `output/qa/2026-11-03-asistencia-responsive/apk22.json`.

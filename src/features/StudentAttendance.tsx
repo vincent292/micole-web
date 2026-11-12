@@ -78,7 +78,7 @@ export function StudentAttendance({
     family ? student?.id : undefined,
     school?.id,
   );
-  const week = useAttendanceWeek(family ? "" : room?.id || "", day, school?.id);
+  const week = useAttendanceWeek(family || tab === "history" ? "" : room?.id || "", day, school?.id);
   const key = draftKey(
     `${identity.id}:${identity.support?.id || ""}`,
     role,

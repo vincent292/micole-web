@@ -1,6 +1,16 @@
 # MiCole: compilación local e instalación en iPhone
 
-## Actualización instalada el 9 de noviembre de 2026
+## Kárdex instalado el 12 de noviembre de 2026 · compilación 9
+
+MiCole 1.0.0 (9), con kárdex por estudiante, filtros, PDF y asistencia optimizada por lote, está firmada e instalada en el iPhone del propietario. Se verificaron la versión instalada y la apertura. Paquete: `output/ios/2026-11-12/MiCole-kardex-v9.ipa`. La firma personal conserva su vencimiento del 16 de noviembre de 2026 a las 15:00:48 UTC. Evidencias: `output/qa/2026-11-12-kardex/`. Ver `docs/KARDEX-Y-ASISTENCIA-POR-LOTE.md`.
+
+## Antecedente: organización académica del 12 de noviembre de 2026
+
+MiCole 1.0.0 (8), con la organización académica y Secretaría, está firmada e instalada en el iPhone del propietario. `devicectl` confirmó `bundleVersion=8` y el mismo identificador. Después de que el propietario desbloqueara el iPhone, se abrió la aplicación y se confirmó que el mismo proceso permanecía activo. La compilación instalada se verificó como 8. No se realizó una nueva revisión funcional completa de pantallas en el teléfono.
+
+Paquete: `output/ios/2026-11-12/MiCole-organizacion-academica-v8.ipa`. Firma verificada, perfil válido para este iPhone hasta el 16 de noviembre de 2026 a las 15:00:48 UTC. Comparte las fuentes verificadas con Android. Detalles: `docs/ORGANIZACION-ACADEMICA-MOVIL.md`. Evidencias: `output/qa/2026-11-12-native-academic-workspaces/`.
+
+## Antecedente: actualización del 9 de noviembre de 2026
 
 **MiCole 1.0.0 (7), con Mica · MiCole IA, está firmada, instalada y abierta en el iPhone 17 Pro Max del propietario.** Se comprobaron la versión instalada y el proceso activo mediante `devicectl`. Conserva el identificador y actualiza la aplicación existente sin desinstalarla.
 

@@ -21,6 +21,7 @@ export const classroomTabs = {
 export type ClassroomTab = keyof typeof classroomTabs;
 export const studentTabs = {
   summary: "Resumen",
+  kardex: "Kárdex e historial",
   followup: "Seguimiento",
   health: "Salud y emergencias",
   family: "Familia y recojos",

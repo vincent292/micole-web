@@ -1,3 +1,4 @@
+import {kardexDetail,kardexKinds,type StudentKardex} from './studentKardex';
 import type {AcademicSummary} from './academicWorkspace';
 import {percentage} from './academicWorkspace';
 import {PDFDocument,StandardFonts,rgb,type PDFFont,type PDFPage,type PDFImage} from 'pdf-lib';
@@ -156,4 +157,10 @@ export async function academicSummaryPdf(school:School,summary:AcademicSummary){
   }
  }
  return document.save();
+}
+
+export async function studentKardexPdf(school:School,data:StudentKardex,page:number){
+ const d=await letterhead(school,'Kárdex del estudiante',data.studentId);d.row('Estudiante',data.studentName);d.paragraph(`Página ${page} de la consulta del historial. ${data.hasMore?'Existen más registros; utiliza la paginación del kárdex.':''}`,{size:9});
+ for(const event of data.events){d.paragraph(event.title,{strong:true,size:13});d.paragraph(new Date(event.at).toLocaleString('es-BO',{timeZone:'America/La_Paz'})+' · '+kardexKinds[event.kind],{size:9});if(event.classroom)d.paragraph(event.classroom+' · Gestión '+event.year,{size:10});d.paragraph(event.body,{size:10});const detail=kardexDetail(event);if(detail)d.paragraph(detail,{size:10,strong:true});}
+ return d.save();
 }
