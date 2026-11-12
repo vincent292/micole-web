@@ -361,3 +361,12 @@ it('Secretaría invita docentes de su institución y no puede conceder Direcció
  await expect(rpc('create_invitation',[JSON.stringify({school_id:school,email:'stranger@test.bo',role:'director'})],stranger)).rejects.toThrow('rol');
  await expect(rpc('create_invitation',[JSON.stringify({school_id:school,email:'mother@test.bo',student_id:id(999),role:'guardian'})],stranger)).rejects.toThrow('institución');
 });
+it('la familia conserva las reglas de acceso académico y recibe el seguimiento inmediatamente',async()=>{
+ const {math,student}=await academicFixture();
+ await rpc('save_student_observation',[id(750),student,math,'positive','Reconocimiento compartido inmediatamente.',null],teacher);
+ await q("insert into school_charges(school_id,student_id,concept,due_date,amount) values($1,$2,'Cuota ficticia vencida',(now() at time zone 'America/La_Paz')::date-1,10)",[school,student]);
+ expect(await rpc('family_access',[student],mother)).toBe(false);
+ await expect(rpc('subject_feed_workspace',[math,student],mother)).rejects.toThrow('acceso');
+ await expect(rpc('student_academic_summary',[student],mother)).rejects.toThrow('acceso académico');
+ expect((await rpc('student_observation_workspace',[null,student,null],mother))).toHaveLength(1);
+});

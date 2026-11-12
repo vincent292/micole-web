@@ -13,7 +13,8 @@ const db = databaseClient(),
     ["202611110008", "subject_staff_assignment"],
     ["202611110009", "secretary_invitations"],
     ["202611110010", "subject_attendance_indicators"],
-    ["202611110011", "secretary_invitation_chain"]
+    ["202611110011", "secretary_invitation_chain"],
+    ["202611120001", "academic_family_access"]
   ];
 try {
   await db.connect();

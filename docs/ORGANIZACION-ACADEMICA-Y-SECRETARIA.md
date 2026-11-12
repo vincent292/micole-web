@@ -26,6 +26,6 @@ La creación de una institución solicita el tipo Colegio o Kínder y guardería
 
 ## Validación y publicación
 
-Las migraciones `202611110001` a `202611110011` se aplican con `node scripts/migrate-academic-workspaces.mjs --apply`; sin la opción se validan con rollback. La suite incluye permisos de Secretaría, revocación de cobros, aislamiento por materia y familia, asistencia por clase, consolidado y separación entre instituciones.
+Las migraciones `202611110001` a `202611110011` y `202611120001` se aplican con `node scripts/migrate-academic-workspaces.mjs --apply`; sin la opción se validan con rollback. La suite incluye permisos de Secretaría, revocación de cobros, aislamiento por materia y familia, asistencia por clase, consolidado y separación entre instituciones.
 
 Las comprobaciones del navegador usan exclusivamente cuentas y alumnos ficticios mediante `scripts/verify-academic-workspaces-smoke.mjs` y `scripts/verify-academic-workspaces-flows.mjs`. Evidencias de la entrega en `output/qa/2026-11-12-academic-workspaces/`. Android e iOS quedan para la siguiente etapa acordada.
