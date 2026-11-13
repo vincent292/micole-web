@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { Brand } from "../../components/Brand";
 import { Badge, Button, Field } from "../../components/UI";
+import { InstitutionLevelsFields } from "../../components/InstitutionLevelsFields";
+import { readInstitutionLevels } from "../../lib/institutionLevels";
 import {
   liveMode,
   signInGoogle,
@@ -460,6 +462,7 @@ function InstitutionOnboarding({
         <div className="request-status">
           <Badge status={request.status} />
           <h3>{request.schoolName}</h3>
+          {!!request.educationLevels?.length && <p>{request.educationLevels.map(level => level === "Inicial" ? "Inicial / kínder" : level).join(" · ")}</p>}
           <p>
             {request.status === "approved"
               ? "Tu institución ya tiene acceso. Verifica tu cuenta para entrar a tu espacio."
@@ -500,8 +503,10 @@ function InstitutionOnboarding({
               setBusy(true);
               setError("");
               try {
+                const { educationLevels } = readInstitutionLevels(f);
                 await store.requestInstitution(
                   {
+                    educationLevels,
                     schoolName: String(f.get("schoolName")).trim(),
                     city: String(f.get("city")).trim(),
                     contactName: String(f.get("contactName")).trim(),
@@ -542,12 +547,13 @@ function InstitutionOnboarding({
               required
               defaultValue={identity.name.includes("@") ? "" : identity.name}
             />
+            <fieldset className="onboarding-levels"><legend>Niveles de la institución</legend><InstitutionLevelsFields initialLevels={request?.educationLevels}/></fieldset>
             <Field name="message" label="Cuéntanos sobre tu institución">
               <textarea
                 name="message"
                 rows={3}
                 maxLength={2000}
-                placeholder="Niveles, cantidad aproximada de alumnos…"
+                placeholder="Cantidad aproximada de alumnos y otros detalles…"
               />
             </Field>
             {error && (

@@ -171,6 +171,7 @@ export function PlatformOperations({
               {r.email} · {r.phone}
             </small>
             <p>{r.message}</p>
+            {!!r.educationLevels?.length && <p>Niveles: {r.educationLevels.map(level => level === "Inicial" ? "Inicial / kínder" : level).join(" · ")}</p>}
             <div className="entity-footer">
               <small>{dateLabel(r.createdAt)}</small>
               {r.status === "pending" && (

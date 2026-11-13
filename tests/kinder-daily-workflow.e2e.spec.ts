@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { seed } from "../src/lib/seed";
+import { showFormSection } from "./form-sections";
 
 test.use({ reducedMotion: "reduce" });
 
@@ -34,8 +35,11 @@ async function setMode(page: Page, mode: "auto" | "kinder" | "school") {
   await page.goto("/app/settings");
   await page.getByRole("button", { name: "Editar identidad", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "Siguiente", exact: true }).click();
-  await dialog.getByRole("combobox", { name: "Modo de trabajo", exact: true }).selectOption(mode);
+  await showFormSection(page, "Niveles educativos");
+  const levels = mode === "kinder" ? ["Inicial / kínder"] : mode === "school" ? ["Primaria", "Secundaria"] : ["Inicial / kínder", "Primaria"];
+  for (const level of ["Inicial / kínder", "Primaria", "Secundaria", "Guardería", "Educación especial", "Otros"]) {
+    await dialog.getByRole("checkbox", { name: level, exact: true }).setChecked(levels.includes(level));
+  }
   while (await dialog.getByRole("button", { name: "Siguiente", exact: true }).count()) {
     await dialog.getByRole("button", { name: "Siguiente", exact: true }).click();
   }

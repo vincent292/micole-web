@@ -1,5 +1,5 @@
 import {educationLevels} from "../lib/sites";
-import { workspaceModes } from "../lib/kinder";
+import { InstitutionLevelsFields } from "../components/InstitutionLevelsFields";
 import {schoolRoom} from "../lib/bolivia";
 import {draftKey,readDraft,writeDraft,removeDraft} from "../lib/sessionDraft";
 import {useLocation} from "react-router-dom";
@@ -108,9 +108,8 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
 
   return (
     <>
-      <FormSection title="Niveles de esta sede"><p>Las reglas de colegio se aplican a aulas de primaria/secundaria. Inicial y guardería conservan su funcionamiento.</p><div className="checkbox-grid">{educationLevels.map(level=><label className="check-field" key={level}><input type="checkbox" name="educationLevels" value={level} defaultChecked={institution?.educationLevels?.includes(level)}/>{level}</label>)}</div>
-        <Field label="Tipo de institución" name="workspaceMode"><select name="workspaceMode" defaultValue={institution?.workspaceMode || "school"}>{workspaceModes.filter(mode => mode.value!=="auto" || institution?.workspaceMode==="auto").map(mode => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></Field>
-        <p className="muted">El modo kínder da prioridad a la jornada, los cuidados y las familias. Las otras herramientas siguen disponibles en Más opciones. Automático usa este modo cuando todos los niveles de la sede son de educación infantil.</p>
+      <FormSection title="Niveles de la institución">
+        <InstitutionLevelsFields initialLevels={institution?.educationLevels}/>
       </FormSection>
       <FormSection title="Logo y portada">
       <div className="institution-logo-preview" aria-live="polite">
@@ -373,7 +372,6 @@ export function WorkspaceModal({
         await store.save("schools", type === "branding" ? {
           ...editSchool!,
           ...institutionIdentity,
-          educationLevels:formData.getAll("educationLevels").map(String),
           name,
           city: val("city"),
           director: role === "superadmin" ? val("director") : editSchool!.director,
@@ -382,7 +380,6 @@ export function WorkspaceModal({
         } : {
           id: newId,
           ...institutionIdentity,
-          educationLevels:formData.getAll("educationLevels").map(String),
           name,
           slug: `${name
             .toLowerCase()

@@ -242,7 +242,7 @@ it("does not expose private finances or unpublished academic results to another 
  await expect(as(director,"select student_kardex($1,null,null,'all',null,101)",[child])).rejects.toThrow(/filtros/);
 });
 it("records confirmed attendance as a single checked batch, with deduplicated notices on retries",async()=>{
- const day=new Date().toISOString().slice(0,10),records=[{studentId:child,status:'absent',note:'Falta de prueba'}],request=id(990);
+ const day=(await q("select to_char(now() at time zone 'America/La_Paz','YYYY-MM-DD') local_day")).rows[0].local_day,records=[{studentId:child,status:'absent',note:'Falta de prueba'}],request=id(990);
  const result=(await mutate(teacher,"select save_student_attendance($1,$2,$3,0,true,'',$4,null) data",[room,day,JSON.stringify(records),request])).rows[0].data;
  expect(result.confirmed).toBe(true);
  const notices=Number((await q("select count(*) n from notifications where student_id=$1 and kind='attendance_absent'",[child])).rows[0].n);
@@ -256,7 +256,7 @@ it("records confirmed attendance as a single checked batch, with deduplicated no
 it("confirms a full classroom with one write batch and one notification invalidation",async()=>{
  for(let i=0;i<30;i++)await q("insert into students(id,school_id,classroom_id,first_name,last_name,status,profile_complete,mother_name,mother_email) values($1,$2,$3,'Alumno lote',$4,'active',true,'Madre','familia@pruebas.micole.test')",[id(500+i),school,room,String(i)]);
  await mutate(mother,"select workspace_identity()");
- const day=new Date().toISOString().slice(0,10),records=(await q("select id from students where classroom_id=$1",[room])).rows.map((s:any)=>({studentId:s.id,status:'absent',note:''}));
+ const day=(await q("select to_char(now() at time zone 'America/La_Paz','YYYY-MM-DD') local_day")).rows[0].local_day,records=(await q("select id from students where classroom_id=$1",[room])).rows.map((s:any)=>({studentId:s.id,status:'absent',note:''}));
  const revision=Number((await q("select revision from workspace_signals where school_id=$1",[school])).rows[0].revision);
  const saved=(await mutate(teacher,"select save_student_attendance($1,$2,$3,0,true,'',$4,null) data",[room,day,JSON.stringify(records),id(995)])).rows[0].data;
  expect(saved.notifications).toBe(records.length);
@@ -275,7 +275,7 @@ it("preserves enrollment history on transfer and revokes the former teacher acce
 });
 
 it("keeps correction justifications private from families in the unified history",async()=>{
- const day=new Date().toISOString().slice(0,10);await mutate(teacher,"select save_student_attendance($1,$2,$3,0,true,'',$4,null)",[room,day,JSON.stringify([{studentId:child,status:'absent',note:''}]),id(997)]);
+ const day=(await q("select to_char(now() at time zone 'America/La_Paz','YYYY-MM-DD') local_day")).rows[0].local_day;await mutate(teacher,"select save_student_attendance($1,$2,$3,0,true,'',$4,null)",[room,day,JSON.stringify([{studentId:child,status:'absent',note:''}]),id(997)]);
  const record=(await q("select id from student_attendance_records where student_id=$1",[child])).rows[0].id;
  await q("insert into student_attendance_corrections(id,school_id,record_id,previous_status,previous_note,proposed_status,proposed_note,reason,status,requested_by,reviewed_by,reviewed_at,review_note) values($1,$2,$3,'absent','','present','','JUSTIFICACION INTERNA','approved',$4,$5,now(),'Revision interna')",[id(996),school,record,teacher,director]);
  const own=(await as(mother,"select student_kardex($1,null,null,'attendance') data",[child])).rows[0].data;

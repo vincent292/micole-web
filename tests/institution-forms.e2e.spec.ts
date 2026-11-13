@@ -29,6 +29,8 @@ test("superadmin crea y edita identidad completa, conserva el logo y puede ocult
   await showFormSection(page,'Nombre de la institución'); await dialog.getByLabel("Nombre de la institución").fill("Colegio Nueva Comunidad");
   await showFormSection(page,'Ciudad'); await dialog.getByLabel("Ciudad", { exact: false }).selectOption("Tarija");
   await showFormSection(page,'Nombre de la directora'); await dialog.getByLabel("Nombre de la directora").fill("Ana Paredes");
+  await showFormSection(page,'Primaria'); await dialog.getByRole("checkbox", { name: "Primaria", exact: true }).check();
+  await dialog.getByRole("checkbox", { name: "Secundaria", exact: true }).check();
   await showFormSection(page,'Carnet de Dirección'); await dialog.getByLabel("Carnet de Dirección").fill("1234567 LP");
   await showFormSection(page,'Celular de Dirección'); await dialog.getByLabel("Celular de Dirección").fill("70000000");
   await showFormSection(page,'NIT (opcional)'); await dialog.getByLabel("NIT (opcional)").fill("1234567890");
@@ -38,6 +40,7 @@ test("superadmin crea y edita identidad completa, conserva el logo y puede ocult
   await showFormSection(page,'logo'); await dialog.locator('input[name="logoFile"]').setInputFiles(logo);
   await expect(dialog.getByAltText("Vista previa del logo de la institución")).toHaveAttribute("src", /^blob:/);
   await expect(dialog.getByLabel("Mostrar institución en la página de MiCole")).toBeChecked();
+  await showFormSection(page,'Mostrar institución');
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   let card = page.locator(".institution-card").filter({ hasText: "Colegio Nueva Comunidad" });
@@ -50,6 +53,7 @@ test("superadmin crea y edita identidad completa, conserva el logo y puede ocult
   await card.getByRole("button", { name: "Editar institución" }).click();
   await showFormSection(page,'Dirección de la institución'); await dialog.getByLabel("Dirección de la institución").fill("Calle Familia 55");
   await showFormSection(page,'Mostrar institución en la página de MiCole'); await dialog.getByLabel("Mostrar institución en la página de MiCole").uncheck();
+  await showFormSection(page,'Mostrar institución');
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(card).toContainText("Oculta en la página de MiCole");
@@ -64,6 +68,7 @@ test("superadmin crea y edita identidad completa, conserva el logo y puede ocult
   await card.getByRole("button", { name: "Editar institución" }).click();
   await expect(dialog.getByLabel("NIT (opcional)")).toHaveValue("1234567890");
   await showFormSection(page,'Quitar logo y usar las iniciales'); await dialog.getByLabel("Quitar logo y usar las iniciales").check();
+  await showFormSection(page,'Mostrar institución');
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(card.locator("img")).toHaveCount(0);
@@ -76,10 +81,12 @@ test("Dirección actualiza identidad, valida archivos y HTTPS y conserva cambios
   await menu(page, "Configuración");
   await page.getByRole("button", { name: "Editar identidad" }).click();
   const dialog = page.getByRole("dialog");
+  await showFormSection(page,'Primaria'); await dialog.getByRole("checkbox", { name: "Primaria", exact: true }).check();
   await showFormSection(page,'NIT (opcional)'); await dialog.getByLabel("NIT (opcional)").fill("987654321");
   await showFormSection(page,'Dirección de la institución'); await dialog.getByLabel("Dirección de la institución").fill("Zona Central, Calle 5");
   await showFormSection(page,'Teléfono de la institución'); await dialog.getByLabel("Teléfono de la institución").fill("76543210");
   await showFormSection(page,'Sitio web (opcional)'); await dialog.getByLabel("Sitio web (opcional)").fill("http://escuela.example.com");
+  await showFormSection(page,'Mostrar institución');
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("HTTPS");
   await showFormSection(page,'Sitio web (opcional)'); await dialog.getByLabel("Sitio web (opcional)").fill("https://escuela.example.com");
@@ -88,6 +95,7 @@ test("Dirección actualiza identidad, valida archivos y HTTPS y conserva cambios
   await showFormSection(page,'logo'); await dialog.locator('input[name="logoFile"]').setInputFiles(logo);
   await expect(dialog.getByAltText("Vista previa del logo de la institución")).toHaveAttribute("src", /^blob:/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await showFormSection(page,'Mostrar institución');
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   const panel = page.locator(".settings-grid > .panel").first();
@@ -99,6 +107,7 @@ test("Dirección actualiza identidad, valida archivos y HTTPS y conserva cambios
   await expect(dialog.getByLabel("NIT (opcional)")).toHaveValue("987654321");
   await expect(dialog.getByLabel("Sitio web (opcional)")).toHaveValue("https://escuela.example.com");
   await showFormSection(page,'Mostrar institución en la página de MiCole'); await dialog.getByLabel("Mostrar institución en la página de MiCole").uncheck();
+  await showFormSection(page,'Mostrar institución');
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   await page.reload();

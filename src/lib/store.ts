@@ -563,6 +563,7 @@ export function useAppStore(
   }
   async function requestInstitution(
     request: {
+      educationLevels: string[];
       schoolName: string;
       city: string;
       contactName: string;

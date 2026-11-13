@@ -1,11 +1,36 @@
 import { describe, expect, it } from "vitest";
 import type { Classroom, School } from "../src/lib/types";
-import { isEarlyChildhoodLevel, isKinderClassroom, isKinderWorkspace, kinderClassroomNavigation, kinderNavigation, kinderPageLabel, readWorkspaceMode } from "../src/lib/kinder";
+import { readInstitutionLevels } from "../src/lib/institutionLevels";
+import { isEarlyChildhoodLevel, isKinderClassroom, isKinderWorkspace, kinderClassroomNavigation, kinderNavigation, kinderPageLabel, readWorkspaceMode, workspaceModeForLevels } from "../src/lib/kinder";
 
 const school = { id: "school", educationLevels: ["Guardería", "Inicial"] } as School;
 const room = { id: "room", schoolId: "school", level: "Pre-Kínder" } as Classroom;
 
 describe("modo kínder y navegación", () => {
+  it("exige seleccionar niveles en el formulario y deriva el modo sin aceptar una elección contradictoria", () => {
+    const form = new FormData();
+    expect(() => readInstitutionLevels(form)).toThrow(/al menos un nivel/);
+    form.append("educationLevels", "Inicial");
+    form.append("educationLevels", "Primaria");
+    form.append("educationLevels", "Inicial");
+    form.set("workspaceMode", "kinder");
+    expect(readInstitutionLevels(form)).toEqual({ educationLevels: ["Inicial", "Primaria"], workspaceMode: "auto" });
+    form.append("educationLevels", "Inventado");
+    expect(() => readInstitutionLevels(form)).toThrow(/nivel educativo/);
+  });
+  it("configura kínder, colegio y todas sus combinaciones sin apagar las aulas de Inicial", () => {
+    for (const levels of [["Inicial"], ["Inicial", "Guardería"]]) expect(workspaceModeForLevels(levels)).toBe("kinder");
+    for (const levels of [["Primaria"], ["Secundaria"], ["Primaria", "Secundaria"]]) expect(workspaceModeForLevels(levels)).toBe("school");
+    for (const levels of [["Inicial", "Primaria"], ["Inicial", "Secundaria"], ["Inicial", "Primaria", "Secundaria"]]) {
+      const mixed = { ...school, educationLevels: levels, workspaceMode: workspaceModeForLevels(levels) };
+      expect(mixed.workspaceMode).toBe("auto");
+      expect(isKinderWorkspace(mixed)).toBe(false);
+      expect(isKinderClassroom(room, mixed)).toBe(true);
+      expect(isKinderClassroom({ ...room, level: "Primaria" }, mixed)).toBe(false);
+      expect(isKinderClassroom({ ...room, level: "Secundaria" }, mixed)).toBe(false);
+    }
+    expect(workspaceModeForLevels(["Educación especial"])).toBe("auto");
+  });
   it("detecta niveles infantiles explícitos y mantiene sedes mixtas en modo colegio", () => {
     expect(isKinderWorkspace(school)).toBe(true);
     expect(isKinderWorkspace({ ...school, educationLevels: ["Inicial", "Primaria"] })).toBe(false);

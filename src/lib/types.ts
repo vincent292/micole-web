@@ -254,6 +254,7 @@ export interface MediaAsset {
   localUrl?: string;
 }
 export interface InstitutionRequest {
+  educationLevels?: string[];
   id: string;
   userId: string;
   email: string;

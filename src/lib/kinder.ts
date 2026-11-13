@@ -18,6 +18,13 @@ export function isEarlyChildhoodLevel(level: string) {
   return /^(guarderia|inicial|educacion inicial|kinder|pre kinder|prekinder|nidito|maternal|preescolar|parvulario)(?:\s|$)/.test(normalized(level));
 }
 
+/** Mixed institutions keep classroom-specific tools instead of forcing one mode. */
+export function workspaceModeForLevels(levels: readonly string[]): WorkspaceMode {
+  if (levels.length > 0 && levels.every(isEarlyChildhoodLevel)) return "kinder";
+  if (levels.some(level => level === "Primaria" || level === "Secundaria") && !levels.some(isEarlyChildhoodLevel)) return "school";
+  return "auto";
+}
+
 /** Presentation preference only. Roles and server permissions remain authoritative. */
 export function isKinderWorkspace(school: School | undefined): boolean {
   if (!school || school.workspaceMode === "school") return false;

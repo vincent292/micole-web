@@ -25,11 +25,13 @@ test("una base pendiente de migrar mantiene el formulario y no descarta datos nu
     if (name === "schools") json = [{ id: schoolId, name: "Colegio de prueba", slug: "prueba", city: "La Paz", status: "active", brand_color: "#3D6EF7", director_name: "Dirección de prueba" }];
     if (name === "save_school") { saves++; json = null; }
     if (name === "institution_private_contact") json={directorIdentity:"",directorPhone:""};
+    if (name === "academic_structure") json={settings:{pass_mark:51,revision:0},grades:[],classrooms:[],teachers:[]};
     await route.fulfill({ json });
   });
   await page.goto("/app/settings");
   await page.getByRole("button", { name: "Editar identidad", exact: true }).click();
   const modal = page.getByRole("dialog");
+  await showFormSection(page,'Primaria'); await modal.getByRole("checkbox", { name: "Primaria", exact: true }).check();
   await showFormSection(page,'NIT (opcional)'); await modal.getByLabel("NIT (opcional)", { exact: true }).fill("987654321");
   await showFormSection(page,'Dirección de la institución'); await modal.getByLabel("Dirección de la institución", { exact: true }).fill("Calle de prueba 123");
   await showFormSection(page,'Presentación'); await modal.getByLabel("Presentación (opcional)").fill("Una presentación que debe conservarse.");

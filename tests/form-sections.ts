@@ -26,6 +26,7 @@ export async function showFormSection(page: Page, label: string) {
     /Carnet de Dirección|Celular de Dirección|Mostrar institución/.test(label)
   )
     title = "Dirección y publicación";
+  else if (/Inicial|kínder|Primaria|Secundaria|Niveles educativos/.test(label)) title = "Niveles de la institución";
   else if (/Logo|logo|banner|portada/.test(label)) title = "Logo y portada";
   else if (/Presentación|Publicar el teléfono/.test(label)) title = "Página pública de la institución";
   else if (

@@ -1,6 +1,6 @@
 export const institutionLogoMaxBytes = 10 * 1024 * 1024;
 import { validateMapsUrl } from "./operations";
-import { readWorkspaceMode } from "./kinder";
+import { readInstitutionLevels } from "./institutionLevels";
 const imageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 export function validateInstitutionLogoFile(file: Pick<File, "type" | "size">) {
@@ -73,6 +73,7 @@ export async function readInstitutionIdentity(
 ) {
   if (form.get("privateContactReady") === "false") throw new Error("Espera a que carguen los datos de Dirección antes de guardar.");
   const text = (name: string) => String(form.get(name) || "").trim();
+  const levels = readInstitutionLevels(form);
   const nit = validateInstitutionNit(text("nit"));
   const address = text("address");
   if (address.length > 500)
@@ -113,6 +114,6 @@ export async function readInstitutionIdentity(
     showOnLanding: form.get("showOnLanding") === "on",
     publicDescription,
     showPublicContact: form.get("showPublicContact") === "on",
-    workspaceMode: readWorkspaceMode(text("workspaceMode") || "school"),
+    ...levels,
   };
 }
