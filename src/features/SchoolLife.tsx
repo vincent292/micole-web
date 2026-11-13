@@ -493,7 +493,7 @@ export function Years(p: PageProps) {
           >
             {years.map((y) => (
               <option value={y.id} key={y.id}>
-                {y.name} · {y.status === "closed" ? "Cerrada" : "Abierta"}
+                Gestión {y.year} · {y.status === "closed" ? "Cerrada" : "Abierta"}
               </option>
             ))}
           </select>
@@ -536,7 +536,7 @@ export function Years(p: PageProps) {
       {director && year && (
         <div className="soft-note life-actions">
           <span>
-            <b>{year.name}</b> · {dateLabel(year.startsOn)} al{" "}
+            <b>Gestión {year.year}</b> · {dateLabel(year.startsOn)} al{" "}
             {dateLabel(year.endsOn)}. Cerrar una gestión conserva los cobros;
             para dejar de cobrar se usa la baja del estudiante.
           </span>
@@ -554,7 +554,7 @@ export function Years(p: PageProps) {
                     "Copiar desde",
                     years
                       .filter((y) => y.id !== year.id)
-                      .map((y) => ({ value: y.id, label: y.name })),
+                      .map((y) => ({ value: y.id, label: `Gestión ${y.year}` })),
                   ),
                 ],
                 submit: (v) =>
@@ -877,7 +877,7 @@ export function Gradebook(p: PageProps & {onOpenSheet?:()=>void}) {
           >
             {life.data.years.map((y) => (
               <option key={y.id} value={y.id}>
-                {y.name}
+                Gestión {y.year}
               </option>
             ))}
           </select>

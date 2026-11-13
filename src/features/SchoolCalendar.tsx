@@ -13,23 +13,26 @@ import {
 import type { Role } from "../lib/types";
 const kindNames = {
   holiday: "Feriado",
-  suspension: "Suspensión de clases",
+  suspension: "Descanso o suspensión de clases",
   school_day: "Sí hay clases (excepción)",
 };
 
 export function SchoolCalendar({
   schoolId,
   role,
+  expandedByDefault = false,
 }: {
   schoolId?: string;
   role: Role;
+  expandedByDefault?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(expandedByDefault);
   const [year, setYear] = useState(today().slice(0, 4));
   const ws = useAcademicPlanning<SchoolCalendarWorkspace>(
     "school_calendar_workspace",
     { p_school_id: schoolId, p_year: Number(year) },
     expanded ? schoolId : undefined,
+    ["school_calendar_days", "school_calendar_announcements", "school_memberships", "timetable_delegates"],
   );
   const data = ws.data && Array.isArray(ws.data.days) ? ws.data : undefined;
   const manager = ["director", "scheduler"].includes(role) && data?.canManage;
@@ -47,12 +50,12 @@ export function SchoolCalendar({
     setError("");
     setNotice("");
     try {
-      await rpc(method, values);
+      const result = await rpc<{added?:number;preserved?:number}>(method, values);
       setEdit(null);
       setProposed(null);
       setAnnounce(null);
       ws.refresh();
-      setNotice(message);
+      setNotice(method === "add_school_calendar_period" ? `${result.added} días agregados para toda la institución. ${result.preserved} fechas existentes se conservaron. No se enviaron comunicados.` : message);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -67,14 +70,14 @@ export function SchoolCalendar({
     >
       <SectionTitle
         title="Calendario escolar y feriados"
-        subtitle="Bolivia. Los días sin clases no generan faltas; importar o guardar el calendario no envía comunicados automáticamente."
+        subtitle="Un calendario para toda la institución: Inicial, Primaria y Secundaria. Los feriados, descansos y suspensiones se aplican a todos los cursos."
       />
-      <Button
+      {!expandedByDefault && <Button
         variant="secondary"
         onClick={() => setExpanded((value) => !value)}
       >
         {expanded ? "Ocultar calendario" : "Abrir calendario escolar"}
-      </Button>
+      </Button>}
       {expanded && (
         <>
           <div className="attendance-toolbar">
@@ -109,7 +112,7 @@ export function SchoolCalendar({
                     });
                   }}
                 >
-                  Agregar día al calendario
+                  Agregar feriado o descanso
                 </Button>
                 <Button
                   variant="secondary"
@@ -213,16 +216,19 @@ export function SchoolCalendar({
           {edit && ["director", "scheduler"].includes(role) && (
             <Modal
               title="Día del calendario escolar"
+              subtitle="Aplica a todos los cursos de esta institución. Las fechas que ya tienen una configuración se conservan al agregar un período."
               busy={busy}
               error={error}
               onClose={() => setEdit(null)}
               onSubmit={(e) => {
                 e.preventDefault();
                 const form = new FormData(e.currentTarget);
+                const period = !edit.id && !!form.get("endDate") && form.get("endDate") !== form.get("date");
                 void act(
-                  "save_school_calendar_day",
+                  period ? "add_school_calendar_period" : "save_school_calendar_day",
                   {
                     p_school_id: schoolId,
+                    ...(period ? {p_from:form.get("date"),p_to:form.get("endDate")} : {}),
                     p_values: {
                       date: form.get("date"),
                       label: form.get("label"),
@@ -245,6 +251,7 @@ export function SchoolCalendar({
                   defaultValue={edit.date}
                 />
               </Field>
+              {!edit.id && <Field label="Hasta (opcional, para descansos de varios días)" name="endDate" type="date"/>}
               <Field label="Motivo o nombre del día" name="label">
                 <input
                   name="label"

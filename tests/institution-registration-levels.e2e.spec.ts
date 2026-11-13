@@ -72,10 +72,17 @@ test("la creación administrativa guarda una institución mixta sin forzar modo 
   await expect(dialog.locator(".institution-level-summary")).toContainText("Colegio con kínder");
   await expect(dialog.getByRole("combobox", { name: "Tipo de institución", exact: true })).toHaveCount(0);
   await dialog.screenshot({ path: testInfo.outputPath("niveles-administracion.png") });
+  await showFormSection(page,"Código de unidad educativa");
+  await dialog.getByLabel("Código de unidad educativa",{exact:true}).fill("123456");
+  await dialog.getByLabel("Distrito educativo",{exact:true}).fill("Distrito de ejemplo");
+  await dialog.getByLabel("Departamento",{exact:true}).fill("La Paz");
+  await dialog.getByLabel("Resolución / autorización de funcionamiento",{exact:true}).fill("Resolución de ejemplo");
+  await dialog.getByLabel("Normativa de referencia",{exact:true}).fill("Normativa de la institución");
   await showFormSection(page, "Mostrar institución");
   await dialog.getByLabel("Carnet de Dirección", { exact: true }).fill("1234567 LP");
   await dialog.getByLabel("Celular de Dirección", { exact: true }).fill("70000000");
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog).toBeHidden();
   expect(api.saved()).toMatchObject({ education_levels: ["Inicial", "Primaria", "Secundaria"], workspace_mode: "auto" });
+  expect(api.saved()?.official_info).toMatchObject({unitCode:"123456",district:"Distrito de ejemplo",department:"La Paz",authorizationReference:"Resolución de ejemplo",educationReference:"Normativa de la institución"});
 });

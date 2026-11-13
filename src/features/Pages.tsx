@@ -101,6 +101,11 @@ function InstitutionDetails({ school }: { school: School }) {
     ["NIT", school.nit],
     ["Dirección", school.address],
     ["Teléfono", school.phone],
+    ["Código de unidad educativa", school.officialInfo?.unitCode],
+    ["Distrito educativo", school.officialInfo?.district],
+    ["Departamento", school.officialInfo?.department],
+    ["Resolución / autorización", school.officialInfo?.authorizationReference],
+    ["Normativa", school.officialInfo?.educationReference],
   ].filter(([, value]) => value);
   return (
     <>
@@ -151,7 +156,7 @@ export function Directory({
     (s) =>
       matches(`${fullName(s)} ${s.guardianName} ${s.guardianEmail}`) &&
       (filter === "all" || s.status === filter) && (!classroomFilter || s.classroomId === classroomFilter),
-  );
+  ).sort((a,b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, "es"));
   return (
     <>
       <SectionTitle
@@ -162,7 +167,7 @@ export function Directory({
               ? "Personas que hacen la diferencia"
               : page === "classrooms"
                 ? "Un espacio para cada etapa"
-                : "Nuestra comunidad de estudiantes"
+                : "Lista de estudiantes"
         }
         subtitle={
           page === "students"

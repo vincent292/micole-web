@@ -1,6 +1,7 @@
 export const institutionLogoMaxBytes = 10 * 1024 * 1024;
 import { validateMapsUrl } from "./operations";
 import { readInstitutionLevels } from "./institutionLevels";
+import { officialFields, type InstitutionOfficialInfo } from "./institutionOfficial";
 const imageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 export function validateInstitutionLogoFile(file: Pick<File, "type" | "size">) {
@@ -74,6 +75,12 @@ export async function readInstitutionIdentity(
   if (form.get("privateContactReady") === "false") throw new Error("Espera a que carguen los datos de Dirección antes de guardar.");
   const text = (name: string) => String(form.get(name) || "").trim();
   const levels = readInstitutionLevels(form);
+  const officialInfo: InstitutionOfficialInfo = {};
+  for (const [key, label, max] of officialFields) {
+    const value = text(key);
+    if (value.length > max) throw new Error(`${label}: admite hasta ${max} caracteres.`);
+    officialInfo[key] = key === "educationReferenceUrl" ? validateInstitutionHttpsUrl(value, label) : value;
+  }
   const nit = validateInstitutionNit(text("nit"));
   const address = text("address");
   if (address.length > 500)
@@ -102,6 +109,7 @@ export async function readInstitutionIdentity(
   const bannerFile = form.get("bannerFile");
   const bannerUrl = form.has("removeBanner") ? "" : bannerFile instanceof File && bannerFile.size ? await optimizeInstitutionImage(bannerFile, "banner") : existingBanner;
   return {
+    officialInfo,
     bannerUrl,
     mapsUrl: validateMapsUrl(text("mapsUrl")),
     directorIdentity: text("directorIdentity").toUpperCase(),

@@ -1,6 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it } from "vitest";
+import { fundInstitutionFixtures } from "./funded-institution-fixture";
 
 const db = new PGlite();
 const owner = "ac000000-0000-4000-8000-000000000001";
@@ -73,4 +74,40 @@ it("conserva solicitudes anteriores sin inventarles niveles y admite guardería 
   expect((await q("select education_levels,workspace_mode from schools where id=$1", [school])).rows[0]).toEqual({ education_levels: [], workspace_mode: "auto" });
   const infant = await approve(await request(["Inicial", "Guardería", "Inicial"]));
   expect((await q("select education_levels,workspace_mode from schools where id=$1", [infant])).rows[0]).toEqual({ education_levels: ["Guardería", "Inicial"], workspace_mode: "kinder" });
+});
+
+it("guarda la información oficial una sola vez y conserva permisos y atomicidad", async () => {
+  const school = await approve(await request(["Primaria"]));
+  const official = {unitCode:"123456",district:"Distrito de ejemplo",department:"La Paz",authorizationReference:"Resolución de ejemplo",educationReference:"Normativa registrada por Dirección",educationReferenceUrl:"https://www.minedu.gob.bo/"};
+  await as(applicant,"select save_school($1::jsonb)",[JSON.stringify({id:school,official_info:official})]);
+  expect((await q("select official_info from schools where id=$1",[school])).rows[0].official_info).toEqual(official);
+  await as(applicant,"select save_school($1::jsonb)",[JSON.stringify({id:school,name:"Nombre actualizado"})]);
+  expect((await q("select official_info from schools where id=$1",[school])).rows[0].official_info).toEqual(official);
+  for(const info of [null,[],{unitCode:123},{unexpected:"x"},{unitCode:"x".repeat(161)},{educationReferenceUrl:"javascript:alert(1)"}])
+    await expect(as(applicant,"select save_school($1::jsonb)",[JSON.stringify({id:school,name:"No debe guardarse",official_info:info})])).rejects.toThrow();
+  expect((await q("select name from schools where id=$1",[school])).rows[0].name).toBe("Nombre actualizado");
+  await expect(as(stranger,"select save_school($1::jsonb)",[JSON.stringify({id:school,official_info:{unitCode:"ajeno"}})])).rejects.toThrow();
+});
+
+it("aplica descansos a Inicial, Primaria y Secundaria con una sola operación, sin sobrescribir fechas", async () => {
+  const school = await approve(await request(["Inicial","Primaria","Secundaria"]));
+  await fundInstitutionFixtures(db);
+  const rooms: string[]=[];
+  for(const level of ["Inicial","Primaria","Secundaria"]){
+    const room=(await q("insert into classrooms(school_id,name,level,weekdays) values($1,$2,$2,array[1,2,3,4,5]) returning id",[school,level])).rows[0].id;
+    rooms.push(room);
+  }
+  await as(applicant,"select save_school_calendar_day($1,$2::jsonb)",[school,JSON.stringify({date:"2026-07-07",label:"Fecha ya revisada",kind:"school_day"})]);
+  const values=JSON.stringify({label:"Descanso institucional",kind:"suspension"});
+  const result=(await as(applicant,"select add_school_calendar_period($1,'2026-07-06','2026-07-10',$2::jsonb) data",[school,values])).rows[0].data;
+  expect(result).toEqual({added:4,preserved:1,institutionWide:true});
+  for(const room of rooms){
+    expect((await q("select aulanexo_private.calendar_class_day($1,'2026-07-06') data",[room])).rows[0].data.isSchoolDay).toBe(false);
+    expect((await q("select aulanexo_private.calendar_class_day($1,'2026-07-07') data",[room])).rows[0].data.isSchoolDay).toBe(true);
+  }
+  expect((await as(applicant,"select add_school_calendar_period($1,'2026-07-06','2026-07-10',$2::jsonb) data",[school,values])).rows[0].data).toEqual({added:0,preserved:5,institutionWide:true});
+  await expect(as(stranger,"select add_school_calendar_period($1,'2026-07-06','2026-07-10',$2::jsonb)",[school,values])).rejects.toThrow(/Solo Dirección/);
+  await expect(as(applicant,"select add_school_calendar_period($1,'2026-07-10','2026-07-01',$2::jsonb)",[school,values])).rejects.toThrow(/período/);
+  expect((await q("select count(*) n from student_attendance_sessions")).rows[0].n).toBe(0);
+  expect((await q("select count(*) n from school_calendar_announcements")).rows[0].n).toBe(0);
 });

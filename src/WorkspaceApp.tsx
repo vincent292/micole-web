@@ -1,3 +1,5 @@
+import { SchoolCalendar } from "./features/SchoolCalendar";
+import { organizeNavigation, navigationGroups } from "./lib/navigation";
 import {TeacherHome, SecretaryHome} from './features/TeacherHome';
 import {InstitutionDashboard} from './features/InstitutionDashboard';
 import {AcademicAdministration} from './features/AcademicAdministration';
@@ -120,6 +122,9 @@ const roleNames: Record<Role, string> = {
 };
 const ALL: Role[] = ["superadmin", "director", "teacher", "guardian", "student"];
 const pageDescriptions: Record<string, string> = {
+  centralizers:"Consulta las notas publicadas por estudiante, curso y período.",
+  schoolCalendar:"Feriados, descansos y suspensiones de toda la institución.",
+  bolivia:"POA, planificación curricular, apoyo pedagógico y documentos de la gestión.",
   identityStudio:'Logo, colores y documentos que representan a tu institución.',
   enrollment:'Listas oficiales, fichas QR y confirmación de inscripciones.',
   credentials:'Identificación escolar y verificación de vigencia por gestión.',
@@ -165,7 +170,9 @@ const nav: {
   {key:'identityStudio',label:'Identidad y documentos',icon:Building2,roles:['director'],group:'ADMINISTRACIÓN'},
   {key:'enrollment',label:'Inscripciones',icon:ClipboardList,roles:['director','teacher','scheduler'],group:'ADMINISTRACIÓN'},
   {key:'credentials',label:'Carnets escolares',icon:GraduationCap,roles:['director'],group:'ADMINISTRACIÓN'},
-  {key:"bolivia",label:"Gestión educativa Bolivia",icon:BookOpen,roles:["director","teacher"],group:"TU ESPACIO"},
+  {key:"centralizers",label:"Centralizadores de notas",icon:GraduationCap,roles:["director"],group:"TU ESPACIO"},
+  {key:"schoolCalendar",label:"Calendario escolar",icon:CalendarDays,roles:["director","scheduler","teacher","guardian","student"],group:"TU ESPACIO"},
+  {key:"bolivia",label:"Planificación y apoyo",icon:BookOpen,roles:["director","teacher"],group:"TU ESPACIO"},
   {key:"timetables",label:"Horarios de clases",icon:CalendarDays,roles:["director","scheduler","teacher","guardian","student"],group:"TU ESPACIO"},
   {key:"promotion",label:"Promoción anual",icon:GraduationCap,roles:["director"],group:"TU ESPACIO"},
   {key:"notificationTests",label:"Pruebas de notificaciones",icon:Bell,roles:["superadmin"],group:"ADMINISTRACIÓN"},
@@ -499,28 +506,28 @@ function Workspace({
   const studentLocked = !paymentBypass && role === "student" && store.data.studentPortalAccess?.allowed === false;
   const locked = !paymentBypass && role === "guardian" && !access.allowed;
   const startupLocked=liveMode&&role!=="superadmin"&&!identity.support&&school?.platformEnabled===false;
-  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["overview","payments","cash","invoices","requests","studentAttendance","studentRecord","interviews"]:["overview","requests"];
+  const startupAllowed=role==="director"?["credit","settings","onboarding","classrooms","teachers","sites"]:role==="guardian"?["overview","payments","cash","invoices","requests","schoolCalendar","studentAttendance","studentRecord","interviews"]:["overview","requests"];
   const needsProfile =
     !paymentBypass && role === "guardian" && !!student && !student.profileComplete;
   const requestedPage = location.pathname.split("/")[2] || "overview";
   const page = role === "scheduler" && !identity.secretarySchoolIds?.includes(school?.id || '') ? "timetables" : requestedPage === "imports" ? "admissionForms" : requestedPage;
   const navItems = nav.filter(
     (n) =>
-      (n.roles.includes(role) || isAcademicAdministrator(role,identity,school?.id) && ['overview','classrooms','teachers','students','subjects','enrollment','admissionForms','calendarImport','settings'].includes(n.key) || canCollectPayments(role,identity,school?.id) && n.key === 'cash') &&
+      (n.roles.includes(role) || isAcademicAdministrator(role,identity,school?.id) && ['overview','classrooms','teachers','students','subjects','enrollment','admissionForms','calendarImport','schoolCalendar','settings'].includes(n.key) || canCollectPayments(role,identity,school?.id) && n.key === 'cash') &&
       (n.key !== 'care' || isKinderWorkspace(school)) &&
       (!['identityStudio','credentials'].includes(n.key)||!!school?.appearance) &&
-      (n.key !== "bolivia" || store.data.classrooms.some(r => r.schoolId === school?.id && schoolRoom(r,school))) &&
+      (!["bolivia","centralizers"].includes(n.key) || store.data.classrooms.some(r => r.schoolId === school?.id && schoolRoom(r,school))) &&
       (!startupLocked||startupAllowed.includes(n.key))&&
       (n.key !== "support" || identity.canSupport) &&
-      (!locked || ["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(n.key)) &&
-      (!needsProfile || ["overview", "payments", "cash", "invoices", "family", "studentAttendance", "studentRecord", "interviews"].includes(n.key)),
+      (!locked || ["overview", "payments", "cash", "invoices", "schoolCalendar", "studentAttendance", "studentRecord", "interviews"].includes(n.key)) &&
+      (!needsProfile || ["overview", "payments", "cash", "invoices", "family", "schoolCalendar", "studentAttendance", "studentRecord", "interviews"].includes(n.key)),
   );
   const kinderMode = !isPlatform && ["director", "teacher", "guardian"].includes(role) && isKinderWorkspace(school);
-  const visibleNav = navItems.filter(n => !(liveMode && ['director','teacher','scheduler'].includes(role) && ['subjects','assignments','gradebook','grades','journal','care'].includes(n.key)) && n.key !== "calendarImport" && (!n.hidden || role === "guardian" && n.key === "studentRecord"));
+  const visibleNav = organizeNavigation(navItems.filter(n => !(liveMode && ['director','teacher','scheduler'].includes(role) && ['subjects','assignments','gradebook','grades','journal','care'].includes(n.key)) && n.key !== "calendarImport" && (!n.hidden || role === "guardian" && n.key === "studentRecord")), role);
   const kinderNav = kinderNavigation(visibleNav, role);
   const validPage = startupLocked ? (startupAllowed.includes(page)?page:role==="director"?"credit":startupAllowed[0]) : studentLocked ? (["overview","settings"].includes(page)?page:"overview") : locked
-    ? (["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(page) ? page : "payments")
-    : needsProfile && !["overview", "payments", "cash", "invoices", "studentAttendance", "studentRecord", "interviews"].includes(page)
+    ? (["overview", "payments", "cash", "invoices", "schoolCalendar", "studentAttendance", "studentRecord", "interviews"].includes(page) ? page : "payments")
+    : needsProfile && !["overview", "payments", "cash", "invoices", "schoolCalendar", "studentAttendance", "studentRecord", "interviews"].includes(page)
       ? "family"
       : navItems.some((n) => n.key === page)
         ? page
@@ -735,11 +742,11 @@ function Workspace({
             {kinderNav.primary.map(renderNavItem)}
             {kinderNav.secondary.length > 0 && <details className="kinder-more-options" open={kinderNav.secondary.some(item => item.key === validPage) || undefined}>
               <summary>Más opciones <ChevronDown size={16} /></summary>
-              {["TU ESPACIO", "COMUNIDAD", "EQUIPO", "ADMINISTRACIÓN"].map(group => kinderNav.secondary.some(item => item.group === group) && <div key={group}><div className="sidebar-label">{group}</div>{kinderNav.secondary.filter(item => item.group === group).map(renderNavItem)}</div>)}
+              {navigationGroups(role).map(group => kinderNav.secondary.some(item => item.group === group) && <div key={group}><div className="sidebar-label">{group}</div>{kinderNav.secondary.filter(item => item.group === group).map(renderNavItem)}</div>)}
             </details>}
-          </> : ["TU ESPACIO", "COMUNIDAD", "EQUIPO", "ADMINISTRACIÓN"].map(
+          </> : navigationGroups(role).map(
             (group) =>
-              navItems.some((n) => n.group === group) && (
+              visibleNav.some((n) => n.group === group) && (
                 <div key={group}>
                   <div className="sidebar-label">{group}</div>
                   {visibleNav.filter(n => n.group === group).map(renderNavItem)}
@@ -981,7 +988,7 @@ function Workspace({
             </Button>
           </div>
         )}
-        <main className={`main-content ${["timetables","promotion","bolivia"].includes(validPage) ? "planning-page" : validPage === "studentAttendance" ? "attendance-page" : validPage === "gradebook" ? "gradebook-page" : validPage === "classrooms" && location.search.includes("classroom=") ? "classroom-page" : ""}`}>
+        <main className={`main-content ${["timetables","promotion","bolivia","centralizers","schoolCalendar"].includes(validPage) ? "planning-page" : validPage === "studentAttendance" ? "attendance-page" : validPage === "gradebook" ? "gradebook-page" : validPage === "classrooms" && location.search.includes("classroom=") ? "classroom-page" : ""}`}>
           {startupLocked&&validPage!=="credit"&&<div className="platform-startup-notice" role="status"><b>Crédito inicial pendiente de confirmación</b><p>Dirección debe completar el adelanto de Bs 500 para habilitar la institución. El importe se utilizará para cubrir licencias mensuales.</p></div>}
           {publicDemo && <details className="demo-tour"><summary>Qué puedes probar como {roleNames[role]}</summary><p>{role==="director"?"Crea aulas, inscribe un estudiante con su plan, registra un cobro y consulta los reportes. También puedes probar avisos con confirmación, formularios de inscripción, importación de calendarios, facturas e historial de consultas.":role==="teacher"?"Explora tus aulas, publica una tarea, revisa una entrega y registra los cuidados del día. Publica un aviso obligatorio y cambia a Familia para aceptarlo; al volver podrás ver el reporte de confirmaciones.":role==="guardian"?"Consulta a Sofía y Diego, sus tareas, agenda, cuidados y libretas. Prueba un permiso o un pago simulado; la información académica es de lectura.":"Consulta las tareas de Sofía, escribe una respuesta y entrégala. Luego cambia a Docente para revisar tu entrega."}</p><div className="demo-tour-links">{(role==="director"?[["students","Estudiantes"],["cash","Caja y cobros"],["announcements","Avisos y confirmaciones"],["sites","Sedes"],["admissionForms","Ficha de inscripción"],["calendarImport","Calendario anual"],["invoices","Facturas"],["viewHistory","Historial de consultas"],["reports","Reportes"]]:role==="teacher"?[["assignments","Tareas y entregas"],["announcements","Avisos y confirmaciones"],["care","Cuidados diarios"],["gradebook","Evaluación"],["viewHistory","Historial de consultas"]]:role==="guardian"?[["family","Mis hijos"],["calendar","Agenda"],["gradebook","Libretas"],["cash","Pagos"]]:[["assignments","Entregar una tarea"],["calendar","Agenda"]]).map(([key,label])=><button key={key} onClick={()=>go(key)}>{label}</button>)}</div></details>}
           {resetOpen && <section className="panel" role="alert"><h2>¿Restablecer los datos de la demo?</h2><p>Se borrarán tus cambios locales y volverán los ejemplos iniciales. Los datos de la plataforma real no se modifican.</p><div className="demo-reset-actions"><Button onClick={()=>{store.reset();setResetOpen(false);setModal(null);go("overview");setToast("Demo restablecida. Puedes empezar de nuevo.");}}>Sí, restablecer</Button><Button variant="secondary" onClick={()=>setResetOpen(false)}>Conservar mis pruebas</Button></div></section>}
@@ -1001,7 +1008,7 @@ function Workspace({
                 {validPage === "overview"
                   ? isPlatform
                     ? "Instituciones, solicitudes y facturación de MiCole."
-                    : "Todo lo que necesitas para acompañar un nuevo día."
+                    : role === "director" ? "Matrícula, asistencia, rendimiento y cobros de tu institución." : "Todo lo que necesitas para acompañar un nuevo día."
                   : pageDescriptions[validPage] || "Tu espacio en MiCole."}
               </p>
             </div>
@@ -1142,7 +1149,8 @@ function Workspace({
               {validPage === "classrooms" && <ClassroomEntry {...props}/>}
               {validPage === "studentRecord" && <StudentRecord {...props}/>}
               {validPage === "notificationTests" && <NotificationTests {...props}/>}
-              {validPage === "bolivia" && <BoliviaSchool key={school?.id} {...props}/>}
+              {["bolivia","centralizers"].includes(validPage) && <BoliviaSchool key={`${school?.id}:${validPage}`} {...props} initialTab={validPage === "centralizers" ? "records" : "summary"}/>}
+              {validPage === "schoolCalendar" && <SchoolCalendar key={school?.id} schoolId={school?.id} role={role} expandedByDefault/>}
               {validPage === "timetables" && <Timetables key={`${school?.id}:${role}`} {...props}/>}
               {validPage === "promotion" && <AnnualPromotion key={school?.id} {...props}/>}
               {validPage === "interviews" && <Interviews key={`${school?.id}:${student?.id}:${role}`} {...props}/>}

@@ -98,7 +98,7 @@ export function Timetables(p: PageProps) {
                 >
                   {d.years.map((y) => (
                     <option key={y.id} value={y.id}>
-                      {y.name}
+                      Gestión {y.year}
                     </option>
                   ))}
                 </select>

@@ -1,3 +1,5 @@
+import { officialFields } from "../lib/institutionOfficial";
+import { ArrowRight, FileText, CalendarDays, Users } from "lucide-react";
 import { useState } from "react";
 import {
   Badge,
@@ -12,23 +14,17 @@ import { rpc } from "../lib/repository";
 import { useAcademicPlanning } from "../lib/useAcademicPlanning";
 import {
   centralizerCsv,
-  dateRange,
   documentKinds,
   documentStatuses,
-  ministerialReference,
-  ministerialUrl,
-  weekdays,
-  type BoliviaProfile,
   type BoliviaWorkspace,
   type PedagogicalDocument,
 } from "../lib/bolivia";
 import "../styles/bolivia.css";
 
-export function BoliviaSchool(p: PageProps) {
+export function BoliviaSchool(p: PageProps & {initialTab?: string}) {
   const [year, setYear] = useState(""),
-    [tab, setTab] = useState("profile"),
+    [tab, setTab] = useState(p.initialTab || "summary"),
     [edit, setEdit] = useState<PedagogicalDocument>(),
-    [profileOpen, setProfileOpen] = useState(false),
     [review, setReview] = useState<PedagogicalDocument>(),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -45,7 +41,6 @@ export function BoliviaSchool(p: PageProps) {
       await rpc(name, args);
       setEdit(undefined);
       setReview(undefined);
-      setProfileOpen(false);
       ws.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -53,6 +48,16 @@ export function BoliviaSchool(p: PageProps) {
       setBusy(false);
     }
   }
+  const [recordRoom,setRecordRoom] = useState(""), [recordTerm,setRecordTerm] = useState(""), [recordPage,setRecordPage] = useState(0);
+  const cards = d?.cards.filter(card => (!recordRoom || card.classroom_id === recordRoom) && (!recordTerm || card.term_id === recordTerm)) || [];
+  const orderedCards = [...cards].sort((a,b)=>a.content.studentName.localeCompare(b.content.studentName,"es"));
+  const pageCount = Math.max(1,Math.ceil(orderedCards.length/50));
+  const currentPage = Math.min(recordPage,pageCount-1);
+  const shownCards = orderedCards.slice(currentPage*50,(currentPage+1)*50);
+  const subjects = [...new Set(cards.flatMap(card => card.content.subjects.map(subject => subject.subject)))];
+  const terms = [...new Map((d?.cards || []).map(card => [card.term_id,card.content.termName])).entries()];
+  const structure = useAcademicPlanning<{settings:{pass_mark:number}}>("academic_structure",{p_school:p.school?.id},d?.canManage ? p.school?.id : undefined);
+  const passMark = structure.data?.settings?.pass_mark ?? null;
   const documents =
     d?.documents.filter((v) =>
       tab === "support"
@@ -81,8 +86,8 @@ export function BoliviaSchool(p: PageProps) {
   return (
     <section className="bolivia-school">
       <SectionTitle
-        title="Gestión educativa Bolivia"
-        subtitle="Primaria y secundaria · planificación, seguimiento y registros de esta sede."
+        title={p.initialTab === "records" ? "Centralizadores de notas" : "Planificación y apoyo"}
+        subtitle={p.initialTab === "records" ? "Consulta y descarga las notas publicadas por curso y período." : "Planificación, apoyo pedagógico y documentos de la gestión."}
       />
       {(error || ws.error) && (
         <p role="alert" className="message error">
@@ -98,12 +103,13 @@ export function BoliviaSchool(p: PageProps) {
                 value={year || d.year?.id || ""}
                 onChange={(e) => {
                   setYear(e.target.value);
+                  setRecordRoom("");setRecordTerm("");setRecordPage(0);
                   setError("");
                 }}
               >
                 {d.years.map((y) => (
                   <option value={y.id} key={y.id}>
-                    {y.name}
+                    Gestión {y.year}
                   </option>
                 ))}
               </select>
@@ -116,13 +122,13 @@ export function BoliviaSchool(p: PageProps) {
             />
           ) : (
             <>
-              <div
+              {p.initialTab !== "records" && <div
                 className="bolivia-tabs"
                 role="tablist"
                 aria-label="Gestión educativa"
               >
                 {[
-                  ["profile", "Perfil y calendario"],
+                  ["summary", "Resumen académico"],
                   ["plans", "POA y planificación"],
                   ["support", "Apoyo pedagógico"],
                   ...(d.canManage ? [["records", "Centralizadores"]] : []),
@@ -136,82 +142,22 @@ export function BoliviaSchool(p: PageProps) {
                     {label}
                   </button>
                 ))}
-              </div>
-              {tab === "profile" && (
-                <article className="bolivia-panel">
-                  <div className="planning-actions">
-                    <h3>Perfil de la gestión</h3>
-                    <Badge
-                      status={d.profile?.reviewed ? "approved" : "pending"}
-                      label={
-                        d.profile?.reviewed
-                          ? "Revisado por Dirección"
-                          : "Pendiente de revisión"
-                      }
-                    />
-                    {d.canManage && (
-                      <Button
-                        disabled={d.year?.status !== "open"}
-                        onClick={() => {
-                          setError("");
-                          setProfileOpen(true);
-                        }}
-                      >
-                        Configurar perfil y días de clase
-                      </Button>
-                    )}
-                  </div>
-                  <p>
-                    Aplicable a {d.rooms.map((r) => r.name).join(", ")}. Inicial
-                    y guardería quedan fuera de estos ajustes.
-                  </p>
-                  <dl className="bolivia-facts">
-                    <div>
-                      <dt>Código de unidad educativa</dt>
-                      <dd>{d.profile?.unit_code || "Por completar"}</dd>
-                    </div>
-                    <div>
-                      <dt>Distrito / departamento</dt>
-                      <dd>
-                        {[d.profile?.district, d.profile?.department]
-                          .filter(Boolean)
-                          .join(" · ") || "Por completar"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Días efectivos seleccionados</dt>
-                      <dd>{d.profile?.school_days.length || 0} / 200</dd>
-                    </div>
-                    <div>
-                      <dt>Respaldo de funcionamiento</dt>
-                      <dd>
-                        {d.profile?.authorization_reference || "Por completar"}
-                      </dd>
-                    </div>
-                  </dl>
-                  <p>
-                    {d.profile?.reference ||
-                      "Pendiente de registrar la normativa de esta gestión."}
-                  </p>
-                  <a
-                    href={d.profile?.reference_url || ministerialUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Consultar referencia oficial
-                  </a>
-                  <p className="message info">
-                    Los cobros y deudas se conservan. La mora familiar no
-                    bloquea el contenido académico de primaria/secundaria. Los
-                    nuevos planes usan hasta diez pensiones, sin matrícula ni
-                    licencia adicional para las familias; el crédito MiCole de
-                    la institución se administra aparte.
-                  </p>
-                  {!!d.profile?.calendar_note && (
-                    <p>{d.profile.calendar_note}</p>
-                  )}
+              </div>}
+              {tab === "summary" && <>
+                <div className="academic-overview-grid">
+                  {[
+                    {title:'POA y planificación',detail:`${d.documents.filter(doc => ['poa','pdc'].includes(doc.kind)).length} documentos de esta gestión`,tab:'plans',icon:FileText},
+                    {title:'Apoyo pedagógico',detail:`${d.documents.filter(doc => ['support','commission'].includes(doc.kind)).length} planes y actas de seguimiento`,tab:'support',icon:Users},
+                    ...(d.canManage ? [{title:'Centralizadores',detail:`${d.cards.length} libretas publicadas para consultar`,tab:'records',icon:FileText}] : []),
+                  ].map(item => <button className="bolivia-panel academic-overview-card" key={item.tab} onClick={()=>setTab(item.tab)}><item.icon size={23}/><strong>{item.title}</strong><span>{item.detail}</span><ArrowRight size={18}/></button>)}
+                </div>
+                <article className="bolivia-panel"><div className="planning-actions"><h3>Calendario de toda la institución</h3><Button variant="secondary" icon={CalendarDays} onClick={()=>p.go('schoolCalendar')}>Ver calendario escolar</Button></div><p>Feriados, descansos y suspensiones se gestionan una sola vez y se aplican a todos los cursos, incluido Inicial cuando la institución lo ofrece.</p></article>
+                <article className="bolivia-panel"><div className="planning-actions"><h3>Información institucional</h3>{d.canManage && <Button variant="secondary" onClick={()=>p.open('branding',p.school)}>Editar información institucional</Button>}</div>
+                  <p>Estos datos se toman de la configuración de la institución. El respaldo puede completarse posteriormente.</p>
+                  <dl className="bolivia-facts">{officialFields.filter(([key])=>key !== 'educationReferenceUrl').map(([key,label])=><div key={key}><dt>{label}</dt><dd>{p.school?.officialInfo?.[key] || 'Por completar'}</dd></div>)}</dl>
+                  {p.school?.officialInfo?.educationReferenceUrl && <a href={p.school.officialInfo.educationReferenceUrl} target="_blank" rel="noreferrer">Consultar normativa registrada</a>}
                 </article>
-              )}
+              </>}
               {(tab === "plans" || tab === "support") && (
                 <>
                   <div className="planning-actions">
@@ -340,16 +286,11 @@ export function BoliviaSchool(p: PageProps) {
               {tab === "records" && d.canManage && (
                 <article className="bolivia-panel">
                   <h3>Centralizador de notas publicadas</h3>
-                  <p>
-                    Informe interno MiCole. No sustituye la Libreta Escolar
-                    Electrónica del SIE. Incluye las publicaciones vigentes de
-                    primaria/secundaria; no convierte datos faltantes en cero.
-                  </p>
                   <Button
-                    disabled={!d.cards.length}
+                    disabled={!cards.length}
                     onClick={() => {
                       const url = URL.createObjectURL(
-                        new Blob([centralizerCsv(d.cards)], {
+                        new Blob([centralizerCsv(cards)], {
                           type: "text/csv;charset=utf-8",
                         }),
                       );
@@ -362,24 +303,19 @@ export function BoliviaSchool(p: PageProps) {
                   >
                     Descargar centralizador CSV
                   </Button>
-                  <p>
-                    {d.cards.length} publicaciones disponibles. La integración y
-                    el formato de envío al SIE quedan pendientes de
-                    documentación oficial.
-                  </p>
+                  <div className="planning-filters">
+                    <Field label="Curso del centralizador" name="centralizerRoom"><select value={recordRoom} onChange={e=>{setRecordRoom(e.target.value);setRecordPage(0);}}><option value="">Todos los cursos</option>{d.rooms.map(room=><option key={room.id} value={room.id}>{room.name}</option>)}</select></Field>
+                    <Field label="Período del centralizador" name="centralizerTerm"><select value={recordTerm} onChange={e=>{setRecordTerm(e.target.value);setRecordPage(0);}}><option value="">Todos los períodos</option>{terms.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></Field>
+                  </div>
+                  {cards.length ? <div className="responsive-table centralizer-table"><table><caption>Notas publicadas · Gestión {d.year?.year}</caption><thead><tr><th>Estudiante</th><th>Curso</th><th>Período</th>{subjects.map(name=><th key={name}>{name}</th>)}</tr></thead><tbody>{shownCards.map(card=><tr key={card.id}><th scope="row">{card.content.studentName}</th><td>{card.content.classroomName}</td><td>{card.content.termName}</td>{subjects.map(name=>{const subject=card.content.subjects.find(subject=>subject.subject===name),score=subject?.score,complete=!!subject && subject.missing===0 && score != null;return <td key={name} className={complete && passMark !== null && score < passMark ? 'grade-below-minimum' : ''}>{complete ? score.toFixed(1) : subject ? 'Pendiente' : '—'}</td>;})}</tr>)}</tbody></table></div> : <Empty title="Sin libretas publicadas para esta selección" subtitle="Las notas aparecerán cuando se publiquen las libretas del período."/>}
+                  {pageCount > 1 && <div className="planning-actions"><Button variant="secondary" disabled={currentPage===0} onClick={()=>setRecordPage(currentPage-1)}>Anterior</Button><span>Página {currentPage+1} de {pageCount}</span><Button variant="secondary" disabled={currentPage+1>=pageCount} onClick={()=>setRecordPage(currentPage+1)}>Siguiente</Button></div>}
+                  {structure.error && <p role="alert" className="message error">No pudimos cargar la nota mínima de aprobación. Actualiza la página antes de interpretar los colores.</p>}
+                  <p>Las notas completas inferiores al mínimo de aprobación se destacan en rojo. Los resultados pendientes conservan su estado.</p>
+                  <p>{cards.length} publicaciones en esta selección.</p>
+                  <details><summary>Sobre este informe</summary><p>Informe interno MiCole. No sustituye la Libreta Escolar Electrónica del SIE. La integración y el formato de envío al SIE quedan pendientes de documentación oficial.</p></details>
                 </article>
               )}
             </>
-          )}
-          {profileOpen && d.year && (
-            <ProfileForm
-              key={d.year.id}
-              data={d}
-              busy={busy}
-              error={error}
-              close={() => setProfileOpen(false)}
-              save={(v) => void act("save_bolivia_profile", { p_profile: v })}
-            />
           )}
           {edit && (
             <DocumentForm
@@ -427,177 +363,6 @@ export function BoliviaSchool(p: PageProps) {
         </>
       )}
     </section>
-  );
-}
-function ProfileForm({
-  data: d,
-  busy,
-  error,
-  close,
-  save,
-}: {
-  data: BoliviaWorkspace;
-  busy: boolean;
-  error: string;
-  close: () => void;
-  save: (v: BoliviaProfile) => void;
-}) {
-  const y = d.year!,
-    [days, setDays] = useState<string[]>(d.profile?.school_days || []),
-    [start, setStart] = useState(y.starts_on),
-    [end, setEnd] = useState(y.ends_on),
-    [excluded, setExcluded] = useState(""),
-    [showDays, setShowDays] = useState(false);
-  return (
-    <Modal
-      title="Perfil y calendario de primaria/secundaria"
-      subtitle="Dirección debe revisar la normativa y el calendario autorizado para cada gestión."
-      onClose={close}
-      busy={busy}
-      error={error}
-      onSubmit={(e) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        save({
-          year_id: y.id,
-          revision: d.profile?.revision,
-          unit_code: String(f.get("unit_code")),
-          district: String(f.get("district")),
-          department: String(f.get("department")),
-          authorization_reference: String(f.get("authorization_reference")),
-          reference: String(f.get("reference")),
-          reference_url: String(f.get("reference_url")),
-          calendar_note: String(f.get("calendar_note")),
-          school_days: days,
-          reviewed: f.get("reviewed") === "on",
-        });
-      }}
-    >
-      <div className="form-grid">
-        {[
-          ["unit_code", "Código de unidad educativa"],
-          ["district", "Distrito educativo"],
-          ["department", "Departamento"],
-          [
-            "authorization_reference",
-            "Resolución / autorización de funcionamiento",
-          ],
-        ].map(([name, label]) => (
-          <Field
-            key={name}
-            label={label}
-            name={name}
-            defaultValue={String(
-              d.profile?.[name as keyof BoliviaProfile] || "",
-            )}
-            maxLength={160}
-          />
-        ))}
-      </div>
-      <Field
-        name="reference"
-        label="Normativa aplicable a esta gestión"
-        defaultValue={
-          d.profile?.reference || (y.year === 2026 ? ministerialReference : "")
-        }
-        maxLength={500}
-        required
-      />
-      <Field
-        name="reference_url"
-        label="Enlace oficial de referencia"
-        type="url"
-        defaultValue={d.profile?.reference_url || ministerialUrl}
-        required
-      />
-      <div className="form-grid">
-        <Field
-          label="Primer día de clases"
-          name="calendarStart"
-          type="date"
-          min={y.starts_on}
-          max={y.ends_on}
-          value={start}
-          onChange={(e) => setStart(e.target.value)}
-        />
-        <Field
-          label="Último día de clases"
-          name="calendarEnd"
-          type="date"
-          min={y.starts_on}
-          max={y.ends_on}
-          value={end}
-          onChange={(e) => setEnd(e.target.value)}
-        />
-      </div>
-      <Field
-        label="Feriados, descanso y suspensiones (AAAA-MM-DD, una fecha por línea)"
-        name="excluded"
-      >
-        <textarea
-          value={excluded}
-          onChange={(e) => setExcluded(e.target.value)}
-        />
-      </Field>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          setDays(
-            weekdays(start, end, excluded.split(/[\s,;]+/).filter(Boolean)),
-          );
-          setShowDays(true);
-        }}
-      >
-        Preparar días de lunes a viernes
-      </Button>
-      <p>
-        <strong>{days.length} / 200 días efectivos</strong>. Revisa las fechas;
-        preparar una lista no publica eventos ni reemplaza el calendario
-        aprobado.
-      </p>
-      <Button variant="ghost" onClick={() => setShowDays((v) => !v)}>
-        {showDays ? "Ocultar fechas" : "Revisar y ajustar fechas"}
-      </Button>
-      {showDays && (
-        <div className="bolivia-dates">
-          {dateRange(start, end).map((date) => (
-            <label key={date}>
-              <input
-                type="checkbox"
-                checked={days.includes(date)}
-                onChange={(e) =>
-                  setDays((v) =>
-                    e.target.checked
-                      ? [...new Set([...v, date])].sort()
-                      : v.filter((x) => x !== date),
-                  )
-                }
-              />
-              {date}
-            </label>
-          ))}
-        </div>
-      )}
-      <Field
-        label="Respaldo del calendario regional y observaciones"
-        name="calendar_note"
-      >
-        <textarea
-          name="calendar_note"
-          defaultValue={d.profile?.calendar_note || ""}
-          maxLength={6000}
-        />
-      </Field>
-      <label className="check-field">
-        <input
-          type="checkbox"
-          name="reviewed"
-          defaultChecked={d.profile?.reviewed}
-        />{" "}
-        He comparado los datos y los 200 días con el calendario autorizado de
-        esta gestión.
-      </label>
-    </Modal>
   );
 }
 function DocumentForm({

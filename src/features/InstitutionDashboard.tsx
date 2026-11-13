@@ -23,6 +23,7 @@ export function InstitutionDashboard(p: PageProps) {
   ]:[];
   const ranked=[...(data?.subjects||[])].filter(s=>s.average!=null).sort((a,b)=>Number(a.average)-Number(b.average));
   return <section className="institution-dashboard">
+    <div className="direction-shortcuts" aria-label="Accesos de Dirección">{[['students','Lista de estudiantes'],['enrollment','Inscripciones'],['classrooms','Grados y paralelos'],['centralizers','Centralizadores de notas'],['schoolCalendar','Calendario escolar']].filter(([key])=>key!=='centralizers'||p.store.data.classrooms.some(room=>room.schoolId===p.school?.id&&room.boliviaRegular)).map(([key,label])=><Button key={key} variant="secondary" onClick={()=>p.go(key)}>{label}</Button>)}</div>
     <SectionTitle title="Indicadores de la institución" subtitle="Matrícula, asistencia, rendimiento académico y situación de cobros de tu institución."/>
     <div className="academic-date-filters"><Field label="Desde" name="dashboardFrom" type="date" value={from} max={to} onChange={e=>setFrom(e.target.value)}/>
       <Field label="Hasta" name="dashboardTo" type="date" value={to} min={from} onChange={e=>setTo(e.target.value)}/><Button variant="secondary" onClick={report.refresh}>Actualizar</Button></div>

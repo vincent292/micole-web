@@ -3,6 +3,7 @@ export type Role = "scheduler" | "superadmin" | "director" | "teacher" | "guardi
 export type Status = "active" | "pending" | "inactive";
 export type ChargeStatus = "pending" | "paid" | "overdue" | "cancelled";
 export interface School {
+  officialInfo?: import('./institutionOfficial').InstitutionOfficialInfo;
   appearance?: import('./schoolAppearance').SchoolAppearance;
   workspaceMode?: "auto" | "kinder" | "school";
   institutionId?: string;

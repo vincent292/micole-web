@@ -8,7 +8,7 @@ try{
  await db.connect();assert.equal((await db.query('select aulanexo_private.persisted_testing($1) testing',[schoolId])).rows[0].testing,true);
  const secretary=qa.accounts.find(a=>a.key==='scheduler');assert.ok(secretary);
  await rpc(mainDirector,'save_secretary_access',{p_school:qa.schoolId,p_email:secretary.email,p_active:true,p_collect:false});
- await db.query("update schools set workspace_mode='school' where id=$1 and aulanexo_private.persisted_testing(id)",[schoolId]);
+ await db.query("update schools set workspace_mode='school',education_levels=array['Primaria','Secundaria'] where id=$1 and aulanexo_private.persisted_testing(id)",[schoolId]);
  const catalog=await rpc(director,'academic_structure',{p_school:schoolId});
  let grade=catalog.grades.find(g=>g.name==='6.º de Primaria · Demostración'&&g.academic_year===year);
  if(!grade){grade={id:randomUUID()};await rpc(director,'save_school_grade',{p_school:schoolId,p_id:grade.id,p_year:year,p_name:'6.º de Primaria · Demostración',p_level:'Primaria',p_code:'primary6'});}

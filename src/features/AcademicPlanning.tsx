@@ -377,7 +377,7 @@ export function AnnualPromotion(p: PageProps) {
                 >
                   {d.years.map((y) => (
                     <option key={y.id} value={y.id}>
-                      {y.name} · {y.status === "closed" ? "Cerrada" : "Abierta"}
+                      Gestión {y.year} · {y.status === "closed" ? "Cerrada" : "Abierta"}
                     </option>
                   ))}
                 </select>
@@ -399,7 +399,7 @@ export function AnnualPromotion(p: PageProps) {
                     )
                     .map((y) => (
                       <option key={y.id} value={y.id}>
-                        {y.name}
+                        Gestión {y.year}
                       </option>
                     ))}
                 </select>

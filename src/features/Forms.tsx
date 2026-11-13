@@ -1,5 +1,6 @@
 import {educationLevels} from "../lib/sites";
 import { InstitutionLevelsFields } from "../components/InstitutionLevelsFields";
+import { officialFields } from "../lib/institutionOfficial";
 import {schoolRoom} from "../lib/bolivia";
 import {draftKey,readDraft,writeDraft,removeDraft} from "../lib/sessionDraft";
 import {useLocation} from "react-router-dom";
@@ -110,6 +111,11 @@ function InstitutionIdentityFields({ institution }: { institution?: School }) {
     <>
       <FormSection title="Niveles de la institución">
         <InstitutionLevelsFields initialLevels={institution?.educationLevels}/>
+      </FormSection>
+      <FormSection title="Datos oficiales de la institución">
+        <p>Se registran una sola vez y se usan en planificación y documentos. Puedes completar el respaldo más adelante.</p>
+        {officialFields.map(([key,label,max]) => <Field key={key} label={label} name={key} maxLength={max} type={key === 'educationReferenceUrl' ? 'url' : 'text'} defaultValue={institution?.officialInfo?.[key] || ''}/>)}
+        <p className="muted">Todos estos datos son opcionales durante el alta. Registra la normativa que corresponda a tu institución.</p>
       </FormSection>
       <FormSection title="Logo y portada">
       <div className="institution-logo-preview" aria-live="polite">

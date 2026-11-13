@@ -42,7 +42,7 @@ export function isKinderClassroom(room: Classroom, school: School | undefined): 
 const primaryKeys = ["overview", "classrooms", "family", "care", "studentAttendance", "journal", "gradebook", "students", "requests", "announcements", "messages", "calendar", "gallery", "payments"];
 export function kinderPageLabel(key: string, role: Role, fallback: string): string {
   const labels: Record<string, string> = {
-    overview: role === "director" ? "Tablero de Dirección" : role === "scheduler" ? "Gestión de Secretaría" : role === "guardian" ? "Hoy en el kínder" : "Mi jornada",
+    overview: role === "director" ? "Resumen" : role === "scheduler" ? "Gestión de Secretaría" : role === "guardian" ? "Hoy en el kínder" : "Mi jornada",
     classrooms: role === "teacher" ? "Mis aulas" : "Aulas del kínder",
     care: "Así fue su día",
     gradebook: "Aprendizajes",
