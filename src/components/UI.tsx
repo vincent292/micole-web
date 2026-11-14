@@ -43,7 +43,7 @@ export function Button({
       onClick={onClick}
       className={`btn btn-${variant} ${className}`}
     >
-      {Icon && <Icon size={17} />}
+      {Icon && <Icon size={17} aria-hidden="true" />}
       <span>{children}</span>
     </button>
   );
@@ -152,7 +152,7 @@ export function SearchBox({
 }) {
   return (
     <label className="search-box">
-      <Search size={18} />
+      <Search size={18} aria-hidden="true" />
       <input
         aria-label={placeholder}
         value={value}
@@ -166,10 +166,12 @@ export function Empty({
   title = "Todo empieza aquí",
   subtitle = "Agrega tu primer registro para comenzar.",
   action,
+  actionLabel,
 }: {
   title?: string;
   subtitle?: string;
   action?: () => void;
+  actionLabel?: string;
 }) {
   return (
     <div className="empty-state">
@@ -179,8 +181,8 @@ export function Empty({
       <h3>{title}</h3>
       <p>{subtitle}</p>
       {action && (
-        <Button variant="secondary" icon={Plus} onClick={action}>
-          Crear nuevo
+        <Button variant="secondary" icon={actionLabel ? undefined : Plus} onClick={action}>
+          {actionLabel || "Crear nuevo"}
         </Button>
       )}
     </div>
@@ -551,16 +553,25 @@ export function Field({
   readOnly?: boolean; minLength?: number; maxLength?: number;
 }) {
   const defaults=useContext(FormDefaults),value=defaults[name];
+  const generatedId=useId(),labelId=`${generatedId}-label`;
   let content=children;
   if(value!==undefined&&isValidElement<Record<string,unknown>>(children)&&['input','textarea','select'].includes(String(children.type))&&children.props.value===undefined&&children.props.checked===undefined){content=cloneElement(children,children.props.type==='checkbox'?{defaultChecked:value===true||value==='on'}:{defaultValue:String(value)});}
+  let controlId=generatedId,nativeControl=false;
+  if(isValidElement<Record<string,unknown>>(content)&&['input','textarea','select'].includes(String(content.type))){
+    nativeControl=true;
+    controlId=String(content.props.id || generatedId);
+    content=cloneElement(content,{id:controlId,...(!content.props['aria-label']&&!content.props['aria-labelledby']?{'aria-labelledby':labelId}:{})});
+  }
   return (
-    <label className="field">
+    <label className="field" htmlFor={!content || nativeControl ? controlId : undefined}>
       <span>
-        {label}
-        {required && <sup> *</sup>}
+        <span id={labelId}>{label}</span>
+        {required && <sup aria-hidden="true"> *</sup>}
       </span>
       {content || (
         <input
+          id={controlId}
+          aria-labelledby={labelId}
           name={name}
           type={type}
           required={required}

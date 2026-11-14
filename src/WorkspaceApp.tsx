@@ -430,7 +430,7 @@ function Workspace({
             : "Administrador",
     email: publicDemo ? demoAccounts.find(a=>a.role===role)!.email : role === "guardian" ? "daniela@example.com" : "demo@micole.local",
     roles: publicDemo ? ALL.filter(r=>r!=="superadmin") : ALL,
-    memberships: publicDemo && role === "director" && store.data.schools.some(s=>s.id===schoolId) ? [{schoolId,role:"director"}] : [],
+    memberships: role === "director" && store.data.schools.some(s=>s.id===schoolId) ? [{schoolId,role:"director"}] : [],
     teacherIds:
       demoAccount?.role === "teacher"
         ? store.data.teachers
@@ -697,6 +697,7 @@ function Workspace({
     act,
     go,
   };
+  const ownsPageHeading=["timetables","promotion","bolivia","centralizers","schoolCalendar","studentAttendance","gradebook"].includes(validPage)||validPage==="classrooms"&&location.search.includes("classroom=");
   if (store.loading)
     return (
       <main className="loading-screen">
@@ -712,6 +713,7 @@ function Workspace({
         { "--school-color": school?.color || "#3D6EF7",...(institutionalAppearance?schoolAppearanceStyle(school,institutionalAppearance):{}) } as React.CSSProperties
       }
     >
+      <a className="skip-link" href="#workspace-main">Ir al contenido principal</a>
       <aside className={`sidebar ${mobile ? "sidebar-open" : ""}`}>
         <div className={`brand ${!isPlatform&&school?'brand-institution':''}`}>
           {(isPlatform||!school)&&<Brand />}
@@ -988,7 +990,8 @@ function Workspace({
             </Button>
           </div>
         )}
-        <main className={`main-content ${["timetables","promotion","bolivia","centralizers","schoolCalendar"].includes(validPage) ? "planning-page" : validPage === "studentAttendance" ? "attendance-page" : validPage === "gradebook" ? "gradebook-page" : validPage === "classrooms" && location.search.includes("classroom=") ? "classroom-page" : ""}`}>
+        <main id="workspace-main" tabIndex={-1} aria-labelledby="workspace-page-title" className={`main-content ${["timetables","promotion","bolivia","centralizers","schoolCalendar"].includes(validPage) ? "planning-page" : validPage === "studentAttendance" ? "attendance-page" : validPage === "gradebook" ? "gradebook-page" : validPage === "classrooms" && location.search.includes("classroom=") ? "classroom-page" : ""}`}>
+          {ownsPageHeading && <h1 id="workspace-page-title" className="visually-hidden">{currentPageLabel}</h1>}
           {startupLocked&&validPage!=="credit"&&<div className="platform-startup-notice" role="status"><b>Crédito inicial pendiente de confirmación</b><p>Dirección debe completar el adelanto de Bs 500 para habilitar la institución. El importe se utilizará para cubrir licencias mensuales.</p></div>}
           {publicDemo && <details className="demo-tour"><summary>Qué puedes probar como {roleNames[role]}</summary><p>{role==="director"?"Crea aulas, inscribe un estudiante con su plan, registra un cobro y consulta los reportes. También puedes probar avisos con confirmación, formularios de inscripción, importación de calendarios, facturas e historial de consultas.":role==="teacher"?"Explora tus aulas, publica una tarea, revisa una entrega y registra los cuidados del día. Publica un aviso obligatorio y cambia a Familia para aceptarlo; al volver podrás ver el reporte de confirmaciones.":role==="guardian"?"Consulta a Sofía y Diego, sus tareas, agenda, cuidados y libretas. Prueba un permiso o un pago simulado; la información académica es de lectura.":"Consulta las tareas de Sofía, escribe una respuesta y entrégala. Luego cambia a Docente para revisar tu entrega."}</p><div className="demo-tour-links">{(role==="director"?[["students","Estudiantes"],["cash","Caja y cobros"],["announcements","Avisos y confirmaciones"],["sites","Sedes"],["admissionForms","Ficha de inscripción"],["calendarImport","Calendario anual"],["invoices","Facturas"],["viewHistory","Historial de consultas"],["reports","Reportes"]]:role==="teacher"?[["assignments","Tareas y entregas"],["announcements","Avisos y confirmaciones"],["care","Cuidados diarios"],["gradebook","Evaluación"],["viewHistory","Historial de consultas"]]:role==="guardian"?[["family","Mis hijos"],["calendar","Agenda"],["gradebook","Libretas"],["cash","Pagos"]]:[["assignments","Entregar una tarea"],["calendar","Agenda"]]).map(([key,label])=><button key={key} onClick={()=>go(key)}>{label}</button>)}</div></details>}
           {resetOpen && <section className="panel" role="alert"><h2>¿Restablecer los datos de la demo?</h2><p>Se borrarán tus cambios locales y volverán los ejemplos iniciales. Los datos de la plataforma real no se modifican.</p><div className="demo-reset-actions"><Button onClick={()=>{store.reset();setResetOpen(false);setModal(null);go("overview");setToast("Demo restablecida. Puedes empezar de nuevo.");}}>Sí, restablecer</Button><Button variant="secondary" onClick={()=>setResetOpen(false)}>Conservar mis pruebas</Button></div></section>}
@@ -997,7 +1000,7 @@ function Workspace({
               <div className="eyebrow">
                 {isPlatform ? "PLATAFORMA MICOLE" : school?.name || "MICOLE"}
               </div>
-              <h1>
+              <h1 id={ownsPageHeading ? undefined : "workspace-page-title"}>
                 {validPage === "overview"
                   ? isPlatform
                     ? "Resumen de plataforma"
@@ -1198,9 +1201,9 @@ function Workspace({
           </span>
         </footer>
       </div>
-      <AnnouncementGate key={`${identity.id}:${identity.support?.id||''}:${role}:${school?.id||''}`} identity={identity} role={role} schoolId={school?.id} store={store} onPaymentOpen={id=>{setStudentId(id);go("payments");}}/>
+      <AnnouncementGate key={`announcements:${identity.id}:${identity.support?.id||''}:${role}:${school?.id||''}`} identity={identity} role={role} schoolId={school?.id} store={store} onPaymentOpen={id=>{setStudentId(id);go("payments");}}/>
       {!modal && <DirectorAssistant
-        key={`${identity.id}:${identity.support?.id||""}:${role}:${isPlatform?"platform":school?.id||"none"}`}
+        key={`assistant:${identity.id}:${identity.support?.id||""}:${role}:${isPlatform?"platform":school?.id||"none"}`}
         context={{userId:identity.id,role,schoolId:isPlatform?undefined:school?.id,page:validPage}}
         schoolName={school?.name}
         availableActions={(Object.keys(guideActions) as GuideAction[]).filter(id=>{

@@ -259,8 +259,10 @@ export function StudentRecord(p: PageProps) {
     p.store.data,
     p.identity,
   );
+  const requestedReturn=params.get('returnTo') || '';
+  const returnTo=/^(students(?:\?|$)|classrooms\?)/.test(requestedReturn) ? requestedReturn : '';
   const setTab = (value: string) =>
-    p.go(`studentRecord?student=${encodeURIComponent(child.id)}&tab=${value}`);
+    p.go(`studentRecord?student=${encodeURIComponent(child.id)}&tab=${value}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ''}`);
   return (
     <>
       <Button
@@ -270,7 +272,7 @@ export function StudentRecord(p: PageProps) {
           p.go(
             p.role === "guardian"
               ? "overview"
-              : `students?classroom=${room.id}`,
+              : returnTo || `students?classroom=${room.id}`,
           )
         }
       >

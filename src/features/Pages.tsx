@@ -19,7 +19,7 @@ import { PaymentConnection } from "./PaymentConnection";
 import { SchoolLocation } from "../components/SchoolLocation";
 import { chargeBalance } from "../lib/operations";
 import { MonthCalendar } from "../components/MonthCalendar";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import {
   BookOpen,
@@ -139,9 +139,24 @@ export function Directory({
   identity,
 }: PageProps & { page: string }) {
   const location = useLocation();
-  const [classroomFilter, setClassroomFilter] = useState(new URLSearchParams(location.search).get("classroom") || "");
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [params,setParams] = useSearchParams();
+  const [localSearch,setLocalSearch] = useState("");
+  const studentList = page === "students";
+  const classroomContext = location.pathname.endsWith("/classrooms");
+  const classroomFilter = params.get("classroom") || "";
+  const search = studentList ? params.get("q") || "" : localSearch;
+  const filter = ["active","pending","inactive"].includes(params.get("status") || "") ? params.get("status")! : "all";
+  function updateFilter(key:string,value:string){
+    const next=new URLSearchParams(params);next.delete("studentPage");
+    if(value && value!=="all")next.set(key,value);else next.delete(key);
+    setParams(next,{replace:true});
+  }
+  function clearFilters(){
+    const next=new URLSearchParams(params);for(const key of ['q','status','studentPage'])next.delete(key);
+    if(!classroomContext)next.delete('classroom');setParams(next,{replace:true});
+  }
+  const setSearch = (value:string) => studentList ? updateFilter('q',value) : setLocalSearch(value);
+  const hasFilters = !!search || filter!=="all" || !!classroomFilter && !classroomContext;
   const data = store.data,
     canEdit = isAcademicAdministrator(role,identity,school?.id) || role === "superadmin";
   const teachers = data.teachers.filter((t) => t.schoolId === school?.id);
@@ -150,13 +165,20 @@ export function Directory({
       c.schoolId === school?.id &&
       (role !== "teacher" || c.teacherIds.some(id => identity.teacherIds.includes(id))),
   );
-  const matches = (value: string) =>
-    value.toLocaleLowerCase().includes(search.toLocaleLowerCase());
+  const normalized = (value:string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');
+  const query=normalized(search.trim());
+  const matches = (value: string) => normalized(value).includes(query);
   const visible = students.filter(
     (s) =>
-      matches(`${fullName(s)} ${s.guardianName} ${s.guardianEmail}`) &&
+      matches(`${fullName(s)} ${s.rude || ""} ${s.identityNumber || ""} ${s.guardianName} ${s.guardianEmail}`) &&
       (filter === "all" || s.status === filter) && (!classroomFilter || s.classroomId === classroomFilter),
   ).sort((a,b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, "es"));
+  const pageCount=Math.max(1,Math.ceil(visible.length/50));
+  const requestedPage=Number(params.get('studentPage'));
+  const currentPage=Number.isSafeInteger(requestedPage)&&requestedPage>0 ? Math.min(requestedPage,pageCount) : 1;
+  const shown=visible.slice((currentPage-1)*50,currentPage*50);
+  const roomById=new Map(rooms.map(room=>[room.id,room]));
+  function changePage(value:number){const next=new URLSearchParams(params);if(value===1)next.delete('studentPage');else next.set('studentPage',String(value));setParams(next,{replace:true});}
   return (
     <>
       <SectionTitle
@@ -205,9 +227,9 @@ export function Directory({
         <SearchBox
           value={search}
           onChange={setSearch}
-          placeholder="Buscar por nombre…"
+          placeholder={studentList ? "Buscar por nombre, RUDE o CI…" : "Buscar por nombre…"}
         />
-        {page === "students" && <select aria-label="Filtrar estudiantes por aula" value={classroomFilter} onChange={e => setClassroomFilter(e.target.value)}><option value="">Todas las aulas</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name} · {room.academicYear || today().slice(0,4)}</option>)}</select>}
+        {page === "students" && !classroomContext && <select aria-label="Filtrar estudiantes por aula" value={classroomFilter} onChange={e => updateFilter('classroom',e.target.value)}><option value="">Todas las aulas</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name} · {room.academicYear || today().slice(0,4)}</option>)}</select>}
         {page === "students" && (
           <div className="segmented">
             {[
@@ -219,22 +241,25 @@ export function Directory({
               <button
                 key={key}
                 className={filter === key ? "selected" : ""}
-                onClick={() => setFilter(key)}
+                aria-pressed={filter === key}
+                onClick={() => updateFilter('status',key)}
               >
                 {label}
               </button>
             ))}
           </div>
         )}
+        {studentList && hasFilters && <Button variant="ghost" onClick={clearFilters}>Limpiar filtros</Button>}
       </div>
       {page === "students" && (
-        <section className="panel table-panel">
+        <section className="panel table-panel student-directory">
           <div className="table-caption">
-            <b>{visible.length} estudiantes</b>
-            <span>Información de inscripción</span>
+            <b role="status" aria-live="polite">{visible.length} {visible.length===1 ? "estudiante" : "estudiantes"}{hasFilters ? visible.length===1 ? " encontrado" : " encontrados" : ""}</b>
+            <span>{visible.length ? `Mostrando ${(currentPage-1)*50+1}–${Math.min(currentPage*50,visible.length)} de ${visible.length}` : "Información de inscripción"}</span>
           </div>
+          <p className="student-table-hint">Desliza la tabla para ver todas las columnas y acciones.</p>
           <div className="responsive-table">
-            <table>
+            <table aria-label="Lista de estudiantes">
               <thead>
                 <tr>
                   <th>ESTUDIANTE</th>
@@ -246,7 +271,7 @@ export function Directory({
                 </tr>
               </thead>
               <tbody>
-                {visible.map((s) => (
+                {shown.map((s) => (
                   <tr key={s.id}>
                     <td>
                       <div className="table-identity">
@@ -261,7 +286,7 @@ export function Directory({
                     </td>
                     <td>
                       <span className="course-tag">
-                        {rooms.find((c) => c.id === s.classroomId)?.name ||
+                        {roomById.get(s.classroomId)?.name ||
                           "Sin aula"}
                       </span>
                     </td>
@@ -292,46 +317,46 @@ export function Directory({
                       <div className="table-actions">
                         {(role==='director'||isClassroomTutor(data,identity,role,s.classroomId))&&<button className="mini-btn" onClick={()=>go(`classrooms?classroom=${s.classroomId}&tab=records&student=${s.id}`)}>Ver notas y PDF</button>}
                         {school&&['director','teacher','scheduler'].includes(role)&&<button className="mini-btn" onClick={()=>go(`enrollment?classroom=${encodeURIComponent(s.classroomId)}&student=${encodeURIComponent(s.id)}`)}>Generar QR de inscripción</button>}
-                        <button className="mini-btn" onClick={()=>go(`studentRecord?student=${encodeURIComponent(s.id)}`)}>Ver expediente</button>
+                        <button className="mini-btn" onClick={()=>go(`studentRecord?student=${encodeURIComponent(s.id)}&returnTo=${encodeURIComponent(location.pathname.split("/app/")[1]+location.search)}`)}>Ver expediente</button>
                         <button className="mini-btn" onClick={()=>open("emergency",s)}>Emergencias</button>
                         {canEdit && role !== "scheduler" && (
                           <>
                             <button
                               className="icon-button"
-                              title="Editar estudiante"
+                              aria-label="Editar estudiante" title="Editar estudiante"
                               onClick={() => open("student", s)}
                             >
                               <Pencil size={16} />
                             </button>
                             <button
                               className="icon-button"
-                              title="Invitar a la familia"
+                              aria-label="Invitar a la familia" title="Invitar a la familia"
                               onClick={() => open("invite", s)}
                             >
                               <Mail size={16} />
                             </button>
                             <button
                               className="icon-button"
-                              title="Ficha familiar y WhatsApp"
+                              aria-label="Ficha familiar y WhatsApp" title="Ficha familiar y WhatsApp"
                               onClick={() => open("intake", s)}
                             >
                               <ClipboardList size={16} />
                             </button>
                             <button
                               className="icon-button"
-                              title="Completar cuidados"
+                              aria-label="Completar cuidados" title="Completar cuidados"
                               onClick={() => open("profile", s)}
                             >
                               <Heart size={16} />
                             </button>
                             <button
                               className="icon-button"
-                              title="Documentos del estudiante"
+                              aria-label="Documentos del estudiante" title="Documentos del estudiante"
                               onClick={() => open("documents", s)}
                             >
                               <FileText size={16} />
                             </button>
-                            <button className="icon-button" title="Acceso del estudiante" onClick={() => open("studentLogin", s)}><KeyRound size={16} /></button>
+                            <button className="icon-button" aria-label="Acceso del estudiante" title="Acceso del estudiante" onClick={() => open("studentLogin", s)}><KeyRound size={16} /></button>
                             <button
                               className="mini-btn"
                               disabled={store.busy}
@@ -358,13 +383,8 @@ export function Directory({
               </tbody>
             </table>
           </div>
-          {!visible.length && (
-            <Empty
-              title="No encontramos estudiantes"
-              subtitle="Prueba otra búsqueda o registra una inscripción."
-              action={canEdit ? () => open("student") : undefined}
-            />
-          )}
+          {pageCount>1 && <nav className="student-pagination" aria-label="Páginas de estudiantes"><Button variant="secondary" disabled={currentPage===1} onClick={()=>changePage(currentPage-1)}>Anterior</Button><span role="status" aria-live="polite">Página {currentPage} de {pageCount}</span><Button variant="secondary" disabled={currentPage===pageCount} onClick={()=>changePage(currentPage+1)}>Siguiente</Button></nav>}
+          {!visible.length && <Empty title={hasFilters ? "No hay estudiantes que coincidan con tus filtros" : "Todavía no hay estudiantes"} subtitle={hasFilters ? "Limpia los filtros o prueba otro nombre, RUDE o CI." : "Comienza desde Inscripciones para registrar tu comunidad."} action={hasFilters ? clearFilters : canEdit ? () => go("enrollment") : undefined} actionLabel={hasFilters ? "Limpiar filtros" : "Ir a Inscripciones"}/>}
         </section>
       )}
       {page === "schools" && (

@@ -128,7 +128,12 @@ beforeAll(async () => {
   );
 }, 30000);
 afterAll(() => db.close());
-beforeEach(() => db.exec("begin"));
+beforeEach(async () => {
+  await db.exec("begin");
+  // Roll-call fixtures explicitly have class today, including weekend test runs.
+  const day=(await q("select to_char(now() at time zone 'America/La_Paz','YYYY-MM-DD') local_day")).rows[0].local_day;
+  await mutate(director,"select save_school_calendar_day($1,$2::jsonb)",[school,JSON.stringify({date:day,label:"Jornada ficticia de pruebas",kind:"school_day"})]);
+});
 afterEach(() => db.exec("rollback"));
 async function mutate(user: string, sql: string, args: unknown[] = []) {
   await db.exec("savepoint mutation;set local role authenticated");

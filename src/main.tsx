@@ -16,6 +16,7 @@ import "./styles/reports.css";
 import "./styles/landing-motion.css";
 import "./styles/institutions-showcase.css";
 import "./styles/institution-identity.css";
+import "./styles/usability.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
