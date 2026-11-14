@@ -1,0 +1,43 @@
+project_name: micole-web
+language_servers:
+- typescript
+language_backend: LSP
+agent_interface: REPL
+ignore_all_files_in_gitignore: true
+ignored_paths:
+- node_modules/
+- dist/
+- tmp/
+- output/
+- coverage/
+- .expo/
+- .git/
+- .aws/
+- .codex/
+- .serena/cache/
+- .serena/logs/
+- .env
+- .env.*
+- '**/.env'
+- '**/.env.*'
+- '**/DerivedData/**'
+- '**/.gradle/**'
+- '*.jks'
+- '*.keystore'
+- '*.p12'
+- '*.p8'
+- '*.mobileprovision'
+read_only: false
+excluded_apis:
+- shell.execute_shell_command
+- fs.create_text_file
+- fs.read_file
+- edit.replace_content
+- fs.find_file
+- fs.list_dir
+initial_prompt: Use scoped symbol overviews and reference queries. Retrieve only relevant
+  bodies. Keep intermediate results in the REPL and return a compact final expression
+  with names, locations, counts or requested code. Use native rg for literals and
+  narrow reads for SQL/CSS/JSON. Read only relevant project memories. Preserve institution
+  isolation, roles, student history and existing branding. Do not rewrite code solely
+  to reduce token use.

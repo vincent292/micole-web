@@ -1,37 +1,45 @@
-import { SchoolCalendar } from "./features/SchoolCalendar";
+import { FeatureBoundary } from "./components/FeatureBoundary";
+import {
+  BoliviaSchool,
+  DemoRequests,
+  DocumentImports,
+  InstitutionSites,
+  InstitutionStudio,
+  NotificationTests,
+  PlatformOverview,
+  PlatformSettings,
+  PlatformSupport,
+  Reports,
+  SchoolCalendar,
+  SchoolCredentials,
+  SchoolMetrics,
+  StaffWorkspaceScreen,
+  Timetables,
+  VirtualEnrollment,
+} from "./features/lazyWorkspaceFeatures";
 import { organizeNavigation, navigationGroups } from "./lib/navigation";
 import {TeacherHome, SecretaryHome} from './features/TeacherHome';
 import {InstitutionDashboard} from './features/InstitutionDashboard';
 import {AcademicAdministration} from './features/AcademicAdministration';
 import {isAcademicAdministrator, canCollectPayments} from './lib/academicWorkspace';
-import {BoliviaSchool} from './features/BoliviaSchool';
 import {schoolRoom} from './lib/bolivia';
-import {Timetables} from './features/Timetables';
 import {AnnualPromotion} from './features/AcademicPlanning';
 import { Interviews } from "./features/Tutoring";
-import {NotificationTests} from "./features/NotificationTests";
 import {clearDrafts} from "./lib/sessionDraft";
-import { StaffWorkspaceScreen } from "./features/StaffWorkspace";
 import { ownerPaymentAccess } from "./lib/support-access";
 import { isKinderWorkspace, kinderNavigation, kinderPageLabel } from "./lib/kinder";
 import { DirectorAssistant } from "./features/DirectorAssistant";
-import { SchoolMetrics } from "./features/SchoolMetrics";
-import {InstitutionStudio,SchoolCredentials} from './features/InstitutionStudio';
 import {SchoolSidebarIdentity} from './components/SchoolSidebarIdentity';
-import {VirtualEnrollment} from './features/VirtualEnrollment';
 import {ClipboardList} from 'lucide-react';
 import {SchoolDocumentContext} from './components/SchoolDocumentContext';
 import {parseAppearance,schoolAppearanceStyle,type SchoolAppearance} from './lib/schoolAppearance';
 import { guideActions, type GuideAction } from "./lib/assistant";
-import { InstitutionSites } from "./features/InstitutionSites";
 import {ViewHistory,ContentAreaTracker} from './features/ViewHistory';
 import {AnnouncementGate,AlertIcon} from './features/Announcements';
 import {isAnnouncementNotice} from './lib/announcements';
 import {openAnnouncement} from './lib/announcementEvents';
 import { StudentEmergency } from "./features/StudentEmergency";
-import { DocumentImports } from "./features/DocumentImports";
 import { PlatformCreditPanel } from "./features/PlatformCredit";
-import { DemoRequests } from "./features/DemoRequests";
 import { publicDemo, demoRole, setDemoRole, demoAccounts, logoutDemo } from "./lib/demo-config";
 import { DemoAccess } from "./features/public/DemoAccess";
 import { useEffect, useState } from "react";
@@ -94,11 +102,6 @@ import { Brand } from "./components/Brand";
 import { AuthPage } from "./features/public/AuthPage";
 import { PlatformOperations } from "./features/PlatformOperations";
 import { rpc } from "./lib/repository";
-import {
-  PlatformOverview,
-  PlatformSupport,
-  PlatformSettings,
-} from "./features/PlatformWorkspace";
 import { FamilyIntakeModal } from "./features/FamilyEnrollment";
 import { DocumentModal } from "./features/StudentDocuments";
 import { Gallery } from "./features/Gallery";
@@ -110,7 +113,6 @@ import { StudentAttendance } from "./features/StudentAttendance";
 import { Subjects, Assignments } from "./features/Academics";
 import {Care,Years,Onboarding} from "./features/SchoolLife";
 import {Gradebook} from "./features/GradeSheet";
-import { Reports } from "./features/Reports";
 import "./styles/kinder-navigation.css";
 const roleNames: Record<Role, string> = {
   scheduler: "Secretaría",
@@ -1085,6 +1087,7 @@ function Workspace({
           )}
           {(!liveMode || !store.error) && (
             <div className="workspace-page" key={`${validPage}-${school?.id || "platform"}-${identity.id}`}>
+              <FeatureBoundary key={role} label={currentPageLabel || "este módulo"}>
               {validPage==='overview'&&institutionalAppearance&&school&&<section className="institution-welcome">{school.bannerUrl&&<img src={school.bannerUrl} alt=""/>}<div><span>{school.siteName||school.name}</span><h2>{institutionalAppearance.welcome||`Bienvenidos a ${school.name}`}</h2><p>{institutionalAppearance.tagline}</p></div></section>}
               {validPage === "overview" && isPlatform && (
                 <PlatformOverview {...props} />
@@ -1187,6 +1190,7 @@ function Workspace({
                     : "No tienes una institución disponible para este rol."}
                 </div>
               )}
+              </FeatureBoundary>
             </div>
           )}
         </main>
