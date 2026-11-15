@@ -23,3 +23,9 @@ verify_jwt = false # Valida JWT con auth.getUser, Dirección y cuota antes de ll
 
 [functions.guide-assistant]
 verify_jwt = false # Verifica JWT con auth.getUser; admite signing keys asimétricas, exige rol/sede y cuota antes de Gemini.
+
+[functions.whatsapp-crm]
+verify_jwt = false # User JWT is checked with auth.getUser; worker requires its private key.
+
+[functions.whatsapp-webhook]
+verify_jwt = false # Meta GET handshake and HMAC-SHA256 signature over the raw POST body.

@@ -1,5 +1,9 @@
 import { lazy } from "react";
 
+export const SchoolWhatsApp = lazy(() =>
+  import("./SchoolWhatsApp").then((m) => ({ default: m.SchoolWhatsApp })),
+);
+
 // Declare once: opening a feature downloads its code; re-renders reuse it.
 // Keep import paths explicit so Vite can create one chunk per module.
 export const SchoolCalendar = lazy(() =>

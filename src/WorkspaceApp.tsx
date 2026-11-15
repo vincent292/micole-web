@@ -10,6 +10,7 @@ import {
   PlatformSettings,
   PlatformSupport,
   Reports,
+  SchoolWhatsApp,
   SchoolCalendar,
   SchoolCredentials,
   SchoolMetrics,
@@ -18,6 +19,7 @@ import {
   VirtualEnrollment,
 } from "./features/lazyWorkspaceFeatures";
 import { organizeNavigation, navigationGroups } from "./lib/navigation";
+import { useWhatsAppAccess } from "./lib/whatsapp";
 import {TeacherHome, SecretaryHome} from './features/TeacherHome';
 import {InstitutionDashboard} from './features/InstitutionDashboard';
 import {AcademicAdministration} from './features/AcademicAdministration';
@@ -124,6 +126,7 @@ const roleNames: Record<Role, string> = {
 };
 const ALL: Role[] = ["superadmin", "director", "teacher", "guardian", "student"];
 const pageDescriptions: Record<string, string> = {
+  whatsapp: "Conecta el número de tu sede, atiende consultas y configura sus respuestas.",
   centralizers:"Consulta las notas publicadas por estudiante, curso y período.",
   schoolCalendar:"Feriados, descansos y suspensiones de toda la institución.",
   bolivia:"POA, planificación curricular, apoyo pedagógico y documentos de la gestión.",
@@ -169,6 +172,7 @@ const nav: {
   group: string;
   hidden?: boolean;
 }[] = [
+  {key:'whatsapp',label:'WhatsApp y consultas',icon:MessageSquare,roles:['director','scheduler','superadmin'],group:'COMUNIDAD'},
   {key:'identityStudio',label:'Identidad y documentos',icon:Building2,roles:['director'],group:'ADMINISTRACIÓN'},
   {key:'enrollment',label:'Inscripciones',icon:ClipboardList,roles:['director','teacher','scheduler'],group:'ADMINISTRACIÓN'},
   {key:'credentials',label:'Carnets escolares',icon:GraduationCap,roles:['director'],group:'ADMINISTRACIÓN'},
@@ -462,6 +466,7 @@ function Workspace({
       : store.data.schools;
   const school =
     availableSchools.find((s) => s.id === schoolId) || availableSchools[0];
+  const { enabled: whatsappEnabled, loading: whatsappAccessLoading } = useWhatsAppAccess(school?.id, role);
   const [appearancePreview,setAppearancePreview]=useState<SchoolAppearance>();
   useEffect(()=>{
     setAppearancePreview(undefined);
@@ -513,10 +518,12 @@ function Workspace({
     !paymentBypass && role === "guardian" && !!student && !student.profileComplete;
   const requestedPage = location.pathname.split("/")[2] || "overview";
   const page = role === "scheduler" && !identity.secretarySchoolIds?.includes(school?.id || '') ? "timetables" : requestedPage === "imports" ? "admissionForms" : requestedPage;
+  const waitingForWhatsApp = page === 'whatsapp' && whatsappAccessLoading;
   const navItems = nav.filter(
     (n) =>
       (n.roles.includes(role) || isAcademicAdministrator(role,identity,school?.id) && ['overview','classrooms','teachers','students','subjects','enrollment','admissionForms','calendarImport','schoolCalendar','settings'].includes(n.key) || canCollectPayments(role,identity,school?.id) && n.key === 'cash') &&
       (n.key !== 'care' || isKinderWorkspace(school)) &&
+      (n.key !== 'whatsapp' || whatsappEnabled) &&
       (!['identityStudio','credentials'].includes(n.key)||!!school?.appearance) &&
       (!["bolivia","centralizers"].includes(n.key) || store.data.classrooms.some(r => r.schoolId === school?.id && schoolRoom(r,school))) &&
       (!startupLocked||startupAllowed.includes(n.key))&&
@@ -672,9 +679,9 @@ function Workspace({
     navigate("/app/overview");
   };
   useEffect(() => {
-    if (page !== validPage && !store.loading && !store.error)
+    if (page !== validPage && !store.loading && !store.error && !waitingForWhatsApp)
       navigate(`/app/${validPage}`, { replace: true });
-  }, [page, validPage, store.loading, store.error, navigate]);
+  }, [page, validPage, store.loading, store.error, navigate, waitingForWhatsApp]);
   useEffect(() => {
     if (!mobile) return;
     const prior = document.body.style.overflow;
@@ -700,7 +707,7 @@ function Workspace({
     go,
   };
   const ownsPageHeading=["timetables","promotion","bolivia","centralizers","schoolCalendar","studentAttendance","gradebook"].includes(validPage)||validPage==="classrooms"&&location.search.includes("classroom=");
-  if (store.loading)
+  if (store.loading || waitingForWhatsApp)
     return (
       <main className="loading-screen">
         <RefreshCw className="spin" />
@@ -1179,6 +1186,7 @@ function Workspace({
               <ContentAreaTracker key={`${role}:${school?.id}:${student?.id}:${validPage}`} page={validPage==="journal"?"daily":validPage} studentId={student?.id} enabled={["guardian","student"].includes(role)&&!locked&&!studentLocked&&!needsProfile}/>
               {validPage==='viewHistory'&&<ViewHistory {...props}/>}
               {validPage === "reports" && ["superadmin", "director"].includes(role) && <Reports {...props} />}
+              {validPage === "whatsapp" && whatsappEnabled && school && <SchoolWhatsApp key={school.id} {...props} />}
               {validPage === "schoolMetrics" && isPlatform && <SchoolMetrics {...props} />}
               {validPage==='identityStudio'&&role==='director'&&school?.appearance&&<InstitutionStudio key={school.id} {...props}/>}
               {validPage==='enrollment'&&school&&['director','teacher','scheduler'].includes(role)&&<VirtualEnrollment key={school.id} {...props}/>}
